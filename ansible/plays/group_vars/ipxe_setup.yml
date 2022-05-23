@@ -1,0 +1,3 @@
+---
+
+kernel_options: "random.trust_cpu=on rd.luks.options=discard console=tty1 console=ttyS1,115200n8 coreos.inst.persistent-kargs='console=tty1 console=ttyS1,115200n8'"

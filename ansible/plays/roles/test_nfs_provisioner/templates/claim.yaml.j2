@@ -1,0 +1,13 @@
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ test_nfs_provisioner_claim }}
+  namespace: {{ test_nfs_provisioner_namespace }}
+spec:
+  storageClassName: {{ nfs_storage_class }}
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Mi

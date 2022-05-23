@@ -1,0 +1,80 @@
+---
+
+- name: Check if the assisted-installer pod is already running
+  containers.podman.podman_pod_info:
+    name: assisted-installer
+  register: _result
+
+- name: Save the pod state
+  set_fact:
+    pod_state: "{{ _result.pods[0].State | default('Unknown') }}"
+
+- block:
+
+    - name: Create the services directory
+      file:
+        path: "{{ services_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Set the ipxe_folder fact
+      set_fact:
+        ipxe_folder: "{{ services_dir }}/ipxe"
+
+    - name: Create the ipxe directory
+      file:
+        path: "{{ ipxe_folder }}"
+        state: directory
+        mode: '0755'
+
+    - name: Set openshift_distro
+      set_fact:
+        openshift_distro: "{{ hostvars['cluster-facts']['openshift_distro'] }}"
+
+    - name: Create configmap.yml from template
+      copy:
+        content: "{{ lookup('template', 'configmap.yml.j2') }}"
+        dest: "{{ services_dir }}/configmap.yml"
+      vars:
+        disk_encryption_support: "{{ 'false' if (openshift_distro == 'okd') else 'true' }}"
+        enable_single_node_dnsmasq: "{{ 'false' if (openshift_distro == 'okd') else 'true' }}"
+        os_images: '{{ default_os_images[openshift_distro] }}'
+        release_images: '{{ default_release_images[openshift_distro] }}'
+
+    - name: Create pod.yml from template
+      copy:
+        content: "{{ lookup('template', 'pod.yml.j2') }}"
+        dest: "{{ services_dir }}/pod.yml"
+
+    - name: Run assisted-service pod
+      containers.podman.podman_play:
+        configmap: "{{ services_dir }}/configmap.yml"
+        kube_file: "{{ services_dir }}/pod.yml"
+        state: started
+
+    - name: Check REST API
+      uri:
+        url: "{{ assisted_install_rest_url }}/clusters"
+      register: _result
+      delay: 5
+      retries: 10
+      until: _result is defined and _result.status == 200
+
+    - name: Check endpoints
+      uri:
+        url: "{{ item }}"
+      loop:
+      - "http://{{ assisted_installer_address }}:8090/health"
+      - "http://{{ assisted_installer_address }}:8090/ready"
+      - "http://{{ assisted_installer_address }}:8080/health"
+      - "http://{{ assisted_installer_address }}:8080/healthz"
+      - "http://{{ assisted_installer_address }}:8080/ready"
+      - "http://{{ assisted_installer_address }}:8080/readyz"
+      - "http://{{ assisted_installer_address }}:8080/live"
+
+  when: pod_state != 'Running'
+
+- name: Cleanup facts we no longer need
+  set_fact:
+    _result: {}
+    _result_stat: {}

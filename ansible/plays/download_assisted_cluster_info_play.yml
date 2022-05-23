@@ -1,0 +1,11 @@
+---
+
+- name: Download information about the installed cluster
+  hosts: assisted_install
+  gather_facts: false
+  roles:
+  - role: download_cluster_config
+  - role: download_cluster_credentials
+  - role: download_cluster_cli
+    base_dns_domain: "{{ hostvars['cluster-facts']['base_dns_domain'] }}"
+    tags: cli

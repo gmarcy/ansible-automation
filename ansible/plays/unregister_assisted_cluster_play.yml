@@ -1,0 +1,15 @@
+---
+
+- name: Unregister our cluster with the assisted-install service
+  hosts: assisted_install
+  gather_facts: false
+  roles:
+  - role: unregister_cluster
+    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+
+- name: Cleanup an deployment artifacts
+  hosts: assisted_install
+  gather_facts: false
+  roles:
+  - role: cleanup_deployment_folders
+    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"

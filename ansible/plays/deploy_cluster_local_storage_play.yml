@@ -1,0 +1,11 @@
+---
+
+- name: Deploy local storage
+  hosts: cluster_storage
+  gather_facts: false
+  roles:
+  - role: deploy_local_storage
+    api_key: "{{ hostvars['assisted-install']['api_key'] }}"
+    cluster_hostnames: "{{ groups['cluster_hosts'] }}"
+    kubeconfig_path: "{{ hostvars['assisted-install']['kubeconfig_path'] }}"
+    infra_env_openshift_version: "{{ hostvars['assisted-install']['infra_env_openshift_version'] }}"

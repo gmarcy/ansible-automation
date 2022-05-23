@@ -1,0 +1,30 @@
+---
+
+- name: Wait for hosts to enter ready to install state
+  uri:
+    url: "{{ hostvars[item].host_url }}"
+  loop: "{{ groups['cluster_hosts'] }}"
+  register: _result
+  delay: 30
+  retries: 20
+  until: _result.json.status in ['known', 'installing-in-progress', 'installed']
+
+- name: Collect the host status of all cluster hosts
+  set_fact:
+    all_host_states: "{{ _result.results | map(attribute='json.status') | unique }}"
+
+- block:
+
+    - name: Get a list of the cluster objects
+      uri:
+        url: "{{ hostvars['assisted-install']['cluster_url'] }}"
+      register: _result
+
+    - name: Install cluster
+      uri:
+        url: "{{ hostvars['assisted-install']['cluster_url'] }}/actions/install"
+        method: POST
+        status_code: 202
+      register: _result
+    
+  when: all_host_states is subset(['known'])

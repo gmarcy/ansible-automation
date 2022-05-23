@@ -1,0 +1,20 @@
+---
+
+- block:
+
+    - name: Fetch download url
+      uri:
+        url: "{{ infra_env_url }}/downloads/image-url"
+      register: _result
+    
+    - name: Download the image
+      get_url:
+        url: "{{ _result.json.url }}"
+        dest: "{{ discovery_image_path }}"
+        mode: '0644'
+      register: _result
+      delay: 10
+      retries: 30
+      until: _result is defined and _result.status_code == 200
+
+  when: host_url is not defined

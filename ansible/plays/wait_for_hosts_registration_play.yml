@@ -1,0 +1,10 @@
+---
+
+- name: Wait for the cluster hosts to register with the assisted-install
+  hosts: assisted_install
+  gather_facts: false
+  roles:
+  - role: wait_for_hosts_registration
+  - role: select_install_disks
+  - role: wipe_eligible_disks
+    ssh_user: core

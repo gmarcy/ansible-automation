@@ -1,0 +1,17 @@
+---
+
+all:
+  vars:
+    inventory_cluster_name: mycluster
+    inventory_cluster_domain: clusters.example.com
+    inventory_cluster_cidr: 192.168.1.0/24
+    inventory_cluster_proxy: http://192.168.1.20:3128
+    inventory_cluster_hosts:
+      - server
+    inventory_cluster_single_node: true
+  children:
+    cluster_hosts:
+      hosts:
+        server:
+      vars:
+        host_domain: example.com

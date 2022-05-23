@@ -1,0 +1,22 @@
+---
+apiVersion: local.storage.openshift.io/v1alpha1
+kind: LocalVolumeSet
+metadata:
+  name: filesystem-local-volume-set
+  namespace: {{ local_storage_namespace }}
+spec:
+  deviceInclusionSpec:
+    deviceTypes:
+      - disk
+      - part
+    minSize: 10Gi
+  fsType: ext4
+  maxDeviceCount: 1
+  nodeSelector:
+    nodeSelectorTerms:
+      - matchExpressions:
+          - key: kubernetes.io/hostname
+            operator: In
+            values: {{ nodes_with_available_disks }}
+  storageClassName: {{ local_storage_class }}
+  volumeMode: Filesystem

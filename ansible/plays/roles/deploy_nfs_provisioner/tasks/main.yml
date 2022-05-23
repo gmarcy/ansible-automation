@@ -1,0 +1,144 @@
+---
+
+- name: Ensure namespace exists
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    kind: Namespace
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ nfs_storage_namespace }}"
+    state: present
+  register: _result
+
+- name: Check for existing StorageClass
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    api_version: storage.k8s.io/v1
+    kind: StorageClass
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ nfs_storage_class }}"
+  register: _result
+
+- name: Set fact for existing StorageClass
+  set_fact:
+    nfs_storage_deployed: "{{ (_result.resources | length > 0) and (_result.resources[0].volumeBindingMode == 'Immediate') }}"
+
+- block:
+
+    - name: Apply the nfs-local-storage-claim.yaml
+      kubernetes.core.k8s:
+        api_key: "{{ api_key }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        template: nfs-local-storage-claim.yaml.j2
+      register: _result
+    
+    - name: Wait for PersistentVolumeClaim to be created
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key }}"
+        kind: PersistentVolumeClaim
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: nfs-local-storage-claim
+        namespace: "{{ nfs_storage_namespace }}"
+      register: _result
+      delay: 10
+      retries: 24
+      until: (_result.resources | length > 0) and (_result.resources[0].status.phase in ['Bound', 'Pending'])
+    
+    - name: Create nfs-provisioner service account
+      kubernetes.core.k8s:
+        api_key: "{{ api_key }}"
+        kind: ServiceAccount
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: nfs-provisioner
+        namespace: "{{ nfs_storage_namespace }}"
+      register: _result
+    
+    - name: Apply the scc.yaml
+      kubernetes.core.k8s:
+        api_key: "{{ api_key }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        template: scc.yaml.j2
+      register: _result
+    
+    - name: Wait for SecurityContextConstraints to be created
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key }}"
+        api_version: security.openshift.io/v1
+        kind: SecurityContextConstraints
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: nfs-provisioner
+      register: _result
+      delay: 10
+      retries: 24
+      until: (_result.resources | length > 0) and (_result.resources[0].runAsUser.type == 'RunAsAny')
+    
+    - name: Apply the rbac.yaml
+      kubernetes.core.k8s:
+        api_key: "{{ api_key }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        template: rbac.yaml.j2
+      register: _result
+    
+    - name: Apply the deployment.yaml
+      kubernetes.core.k8s:
+        api_key: "{{ api_key }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        template: deployment.yaml.j2
+      register: _result
+    
+    - name: Check that Deployment has been created
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key }}"
+        api_version: apps/v1
+        kind: Deployment
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: nfs-provisioner
+        namespace: "{{ nfs_storage_namespace }}"
+        wait: true
+        wait_condition:
+          type: Available
+      register: _result
+    
+    - name: Apply the service.yaml
+      kubernetes.core.k8s:
+        api_key: "{{ api_key }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        template: service.yaml.j2
+      register: _result
+    
+    - name: Check that Service has been created
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key }}"
+        label_selectors:
+        - app=nfs-provisioner
+        kind: Service
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: nfs-provisioner
+        namespace: "{{ nfs_storage_namespace }}"
+      register: _result
+    
+    - name: Apply the class.yaml
+      kubernetes.core.k8s:
+        api_key: "{{ api_key }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        template: class.yaml.j2
+      register: _result
+    
+    - name: Check that StorageClass has been created
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key }}"
+        api_version: storage.k8s.io/v1
+        kind: StorageClass
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: "{{ nfs_storage_class }}"
+      register: _result
+      delay: 10
+      retries: 24
+      until: (_result.resources | length > 0) and (_result.resources[0].volumeBindingMode == 'Immediate')
+
+  when: not nfs_storage_deployed

@@ -1,0 +1,13 @@
+---
+
+cluster_name: "{{ inventory_cluster_name }}"
+base_dns_domain: "{{ inventory_cluster_domain }}"
+network_cidr: "{{ inventory_cluster_cidr }}"
+http_proxy: "{{ inventory_cluster_proxy }}"
+cluster_host_names: "{{ inventory_cluster_hosts }}"
+single_node: "{{ inventory_cluster_single_node }}"
+api_vip: "{{ inventory_cluster_api_vip if not inventory_cluster_single_node else omit }}"
+ingress_vip: "{{ inventory_cluster_ingress_vip if not inventory_cluster_single_node else omit }}"
+
+openshift_version: "{{ inventory_distro_version }}"
+openshift_distro: "{{ inventory_distro_name }}"

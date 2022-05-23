@@ -1,0 +1,16 @@
+---
+
+- name: Set the default storage class
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: storage.k8s.io/v1
+    definition:
+      metadata:
+        annotations:
+          storageclass.kubernetes.io/is-default-class: 'true'
+    kind: StorageClass
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ default_storage_class }}"
+    state: patched
+  register: _result
+  when: default_storage_class is defined

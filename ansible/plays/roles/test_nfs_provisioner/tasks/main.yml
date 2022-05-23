@@ -1,0 +1,84 @@
+---
+
+- name: Set facts for testing nfs provisioner
+  set_fact:
+    test_nfs_provisioner_claim: test-nfs-provisioner-claim
+    test_nfs_provisioner_namespace: test-nfs-provisioner
+
+- name: Ensure test namespace exists
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    kind: Namespace
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ test_nfs_provisioner_namespace }}"
+    state: present
+  register: _result
+
+- name: Apply the claim.yaml
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    template: claim.yaml.j2
+  register: _result
+
+- name: Wait for PersistentVolumeClaim to be bound
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    kind: PersistentVolumeClaim
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ test_nfs_provisioner_claim }}"
+    namespace: "{{ test_nfs_provisioner_namespace }}"
+  register: _result
+  delay: 10
+  retries: 24
+  until: (_result.resources | length > 0) and (_result.resources[0].status.phase == 'Bound')
+
+- name: Apply the write-pod.yaml
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    template: write-pod.yaml.j2
+  register: _result
+
+- name: Wait for write-pod success
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    kind: Pod
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: write-pod
+    namespace: "{{ test_nfs_provisioner_namespace }}"
+  register: _result
+  delay: 10
+  retries: 24
+  until: (_result.resources | length > 0) and (_result.resources[0].status.phase == 'Succeeded')
+
+- name: Apply the read-pod.yaml
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    template: read-pod.yaml.j2
+  register: _result
+
+- name: Wait for read-pod success
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    kind: Pod
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: read-pod
+    namespace: "{{ test_nfs_provisioner_namespace }}"
+  register: _result
+  delay: 10
+  retries: 24
+  until: (_result.resources | length > 0) and (_result.resources[0].status.phase == 'Succeeded')
+
+- name: Delete test-nfs-provisioner namespace
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    kind: Namespace
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ test_nfs_provisioner_namespace }}"
+    state: absent
+  register: _result

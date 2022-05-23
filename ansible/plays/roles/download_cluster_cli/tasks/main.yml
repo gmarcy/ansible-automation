@@ -1,0 +1,16 @@
+---
+
+- name: Create deployment_dir/bin directory if absent
+  file:
+    path: "{{ deployment_dir }}/bin"
+    state: directory
+  register: _result_bin_dir
+
+- name: Download the tools
+  unarchive:
+    validate_certs: false
+    remote_src: true
+    src: "http://downloads-openshift-console.apps.{{ cluster_name }}.{{ base_dns_domain }}/amd64/linux/oc.tar"
+    dest: "{{ _result_bin_dir.path }}"
+  register: _result
+  when: _result_bin_dir.changed

@@ -1,0 +1,15 @@
+---
+
+- name: Create services to support booting the cluster host using discovery iso
+  hosts: ipxe_setup
+  gather_facts: false
+  vars:
+    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+    cluster_state: "{{ hostvars['assisted-install']['cluster_state'] }}"
+    infra_env_url: "{{ hostvars['assisted-install']['infra_env_url'] }}"
+    ipxe_folder: "{{ hostvars['assisted-install']['services_dir'] }}/ipxe"
+    ipxe_url: "http://{{ hostvars['localhost-facts']['address_on_cluster_network'] }}:9080"
+    openshift_distro: "{{ hostvars['cluster-facts']['openshift_distro'] }}"
+    openshift_version: "{{ hostvars['cluster-facts']['openshift_version'] }}"
+  roles:
+  - role: create_ipxe_folders

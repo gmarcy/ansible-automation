@@ -1,0 +1,22 @@
+---
+
+- name: Create the deployment directory
+  file:
+    path: "{{ deployment_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Generate the script to report install progress from template
+  copy:
+    content: "{{ lookup('template', 'wait_for_install_complete.sh.j2') }}"
+    dest: "{{ deployment_dir }}/wait_for_install_complete.sh"
+    mode: 0755
+
+- name: Wait for the install to complete
+  shell:
+    cmd: |
+      cp /dev/null {{ deployment_dir }}/wait_for_install_complete.log
+      {{ deployment_dir }}/wait_for_install_complete.sh 2>&1 >> {{ deployment_dir }}/wait_for_install_complete.log
+      cp /dev/null {{ deployment_dir }}/wait_for_install_complete.log
+    chdir: "{{ deployment_dir }}"
+  register: _result

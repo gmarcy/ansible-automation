@@ -1,0 +1,47 @@
+{
+  "storage": {
+    "files": [
+      {
+        "path": "/usr/local/bin/okd-binaries.sh",
+        "mode": 755,
+        "overwrite": true,
+        "user": {
+          "name": "root"
+        },
+        "contents": { "source": "data:text/plain;base64,{{ lookup('template', 'okd-binaries.sh.j2') | b64encode }}" }
+      },
+      {
+        "path": "/etc/systemd/system/release-image-pivot.service.d/wait-for-okd.conf",
+        "mode": 420,
+        "overwrite": true,
+        "user": {
+          "name": "root"
+        },
+        "contents": { "source": "data:text/plain;base64,W1VuaXRdCkNvbmRpdGlvblBhdGhFeGlzdHM9L2Vub2VudAo=" }
+      },
+      {
+        "path": "/etc/systemd/system/agent.service.d/wait-for-okd.conf",
+        "mode": 420,
+        "overwrite": true,
+        "user": {
+          "name": "root"
+        },
+        "contents": { "source": "data:text/plain;base64,W1VuaXRdCldhbnRzPW9rZC1vdmVybGF5LnNlcnZpY2UKQWZ0ZXI9b2tkLW92ZXJsYXkuc2VydmljZQo=" }
+      }
+    ]
+  },
+  "systemd": {
+    "units": [
+      {
+          "name": "okd-overlay.service",
+          "enabled": true,
+          "contents": "[Service]\nType=oneshot\nExecStart=/usr/local/bin/okd-binaries.sh\n\n[Unit]\nWants=network-online.target\nAfter=network-online.target\n\n[Install]\nWantedBy=multi-user.target"
+      },
+      {
+          "name": "systemd-journal-gatewayd.socket",
+          "enabled": true,
+          "contents": "[Unit]\nDescription = Fake systemd-journal-gatewayd.socket\n\n[Socket]\nListenStream = 19531\nAccept = yes\n\n[Install]\nWantedBy = sockets.target"
+      }
+    ]
+  }
+}

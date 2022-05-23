@@ -1,0 +1,17 @@
+---
+
+- name: Remove the ipxe folder for the cluster host name
+  file:
+    path: "{{ ipxe_folder }}/{{ cluster_name }}"
+    state: absent
+
+- name: Collect ipxe macaddrs from all cluster hosts
+  set_fact:
+    cluster_ipxe_macaddrs: "{{ cluster_ipxe_macaddrs | default([]) | union(item) }}"
+  loop: "{{ hostvars['cluster-facts']['cluster_host_names'] | map('extract', hostvars, 'inventory_host_ipxe_macaddrs') }}"
+
+- name: Remove the ipxe folders for the cluster mac addresses
+  file:
+    path: "{{ ipxe_folder }}/{{ item }}"
+    state: absent
+  loop: "{{ cluster_ipxe_macaddrs }}"

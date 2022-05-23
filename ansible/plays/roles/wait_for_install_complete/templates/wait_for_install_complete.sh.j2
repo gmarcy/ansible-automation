@@ -1,0 +1,24 @@
+#!/bin/bash
+
+ASSISTED_INSTALL_REST_URL={{ assisted_install_rest_url }}
+CLUSTER_ID={{ cluster_id }}
+INFRA_ID={{ infra_env_id }}
+
+pwd
+
+curl ${ASSISTED_INSTALL_REST_URL}/clusters/${CLUSTER_ID} | jq .
+
+cp /dev/null old_events.txt
+
+while true
+do
+
+  curl ${ASSISTED_INSTALL_REST_URL}/events?cluster_id=${CLUSTER_ID} | jq . > new_events.txt
+
+  diff old_events.txt new_events.txt
+
+  cp new_events.txt old_events.txt
+
+  sleep 20
+
+done

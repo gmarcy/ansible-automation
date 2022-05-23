@@ -1,0 +1,8 @@
+---
+
+- name: Gather localhost facts
+  hosts: localhost_facts
+  gather_facts: false
+  roles:
+  - role: gather_localhost_facts
+    network_cidr: "{{ hostvars['cluster-facts']['network_cidr'] }}"

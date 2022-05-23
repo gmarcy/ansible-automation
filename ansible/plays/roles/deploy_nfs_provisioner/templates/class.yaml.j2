@@ -1,0 +1,8 @@
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: filesystem-nfs-storage
+provisioner: {{ nfs_provisioner_vendor }}/nfs-provisioner
+mountOptions:
+  - vers=4.1

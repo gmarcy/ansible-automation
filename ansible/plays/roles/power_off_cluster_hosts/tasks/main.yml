@@ -1,0 +1,53 @@
+---
+
+- name: Set ipmi facts for all cluster hosts
+  set_fact:
+    cluster_ipmi_hosts: "{{ cluster_ipmi_hosts | default([]) | union([item[1] | combine({'name': item[0]})]) }}"
+  loop: "{{ hostvars['cluster-facts']['cluster_host_names'] | zip(hostvars['cluster-facts']['cluster_host_names'] | map('extract', hostvars, 'inventory_host_ipmi')) }}"
+  when: item[1].interface != 'none'
+
+- block:
+
+    - name: Set fact for common ipmitool arguments
+      set_fact:
+        ipmitool_args: "-f {{ ipmitool_password_file }} -U {{ ipmitool_username }}"
+
+    - name: Check the power status of the cluster hosts
+      command: ipmitool {{ ipmitool_args }} -I {{ ipmitool_interface }} -H {{ ipmitool_host }} chassis power status
+      loop: "{{ cluster_ipmi_hosts }}"
+      vars:
+        ipmitool_interface: "{{ item.interface }}"
+        ipmitool_host: "{{ item.address }}"
+      register: _result_power_status
+      changed_when: false
+
+    - name: Collect list of powered on hosts
+      set_fact:
+        ipmi_hosts_powered_on: "{{ ipmi_hosts_powered_on | default([]) | union([item.item]) }}"
+      loop: "{{ _result_power_status.results }}"
+      when: item.stdout == 'Chassis Power is on'
+
+    - block:
+
+        - name: Power off the cluster hosts
+          command: ipmitool {{ ipmitool_args }} -I {{ ipmitool_interface }} -H {{ ipmitool_host }} chassis power off
+          loop: "{{ ipmi_hosts_powered_on }}"
+          vars:
+            ipmitool_interface: "{{ item.interface }}"
+            ipmitool_host: "{{ item.address }}"
+          register: _result
+
+        - name: Confirm the power is off for cluster hosts
+          command: ipmitool {{ ipmitool_args }} -I {{ ipmitool_interface }} -H {{ ipmitool_host }} chassis power status
+          loop: "{{ ipmi_hosts_powered_on }}"
+          vars:
+            ipmitool_interface: "{{ item.interface }}"
+            ipmitool_host: "{{ item.address | default('') }}"
+          register: _result
+          delay: 5
+          retries: 12
+          until: _result.stdout == 'Chassis Power is off'
+
+      when: ipmi_hosts_powered_on is defined
+
+  when: cluster_ipmi_hosts is defined

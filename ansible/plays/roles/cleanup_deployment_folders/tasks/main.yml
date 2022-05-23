@@ -1,0 +1,6 @@
+---
+
+- name: Remove the deployment directory
+  file:
+    path: "{{ deployment_dir }}"
+    state: absent

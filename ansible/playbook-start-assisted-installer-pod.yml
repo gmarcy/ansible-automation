@@ -1,0 +1,4 @@
+---
+
+- import_playbook: plays/gather_localhost_facts_play.yml
+- import_playbook: plays/setup_assisted_installer_play.yml

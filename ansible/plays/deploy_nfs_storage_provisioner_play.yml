@@ -1,0 +1,17 @@
+---
+
+- name: Deploy nfs storage provisioner backed by local storage
+  hosts: cluster_storage
+  gather_facts: false
+  roles:
+  - role: deploy_nfs_provisioner
+    api_key: "{{ hostvars['assisted-install']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['assisted-install']['kubeconfig_path'] }}"
+    infra_env_openshift_version: "{{ hostvars['assisted-install']['infra_env_openshift_version'] }}"
+  - role: test_nfs_provisioner
+    api_key: "{{ hostvars['assisted-install']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['assisted-install']['kubeconfig_path'] }}"
+    when: test_nfs_provisioner is defined
+  - role: set_default_storage_class
+    api_key: "{{ hostvars['assisted-install']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['assisted-install']['kubeconfig_path'] }}"

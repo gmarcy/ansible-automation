@@ -1,0 +1,8 @@
+---
+
+- name: Gather registered hosts facts
+  hosts: assisted_install
+  gather_facts: false
+  roles:
+  - role: gather_registered_hosts_facts
+    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"

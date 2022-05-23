@@ -1,0 +1,44 @@
+---
+
+- name: Wait for hosts to enter ready to install state
+  uri:
+    url: "{{ hostvars[item].host_url }}"
+  loop: "{{ groups['cluster_hosts'] }}"
+  register: _result
+  delay: 30
+  retries: 20
+  until: _result.json.status in ['known', 'installing-in-progress', 'installed']
+
+- name: Collect the host status of all cluster hosts
+  set_fact:
+    all_host_states: "{{ _result.results | map(attribute='json.status') | unique }}"
+
+- block:
+
+    - name: Collect the install disk id on all cluster hosts
+      set_fact:
+        cluster_install_disks: "{{ cluster_install_disks | default([]) + ([hostname] | product(paths)) }}"
+      loop: "{{ groups['cluster_hosts'] | zip(groups['cluster_hosts'] | map('extract', hostvars, 'host_inventory') | map(attribute='disks')) }}"
+      vars:
+        hostname: "{{ item[0] }}"
+        paths: "{{ item[1] | map(attribute='name') | zip(item[1] | map(attribute='id')) }}"
+
+    - name: Select our installation disk
+      uri:
+        url: "{{ host_url }}"
+        method: PATCH
+        body_format: json
+        body:
+          disks_selected_config:
+          - id: "{{ install_disk_id }}"
+            role: install
+        status_code: 201
+      loop: "{{ cluster_install_disks }}"
+      vars:
+        host_url: "{{ hostvars[item[0]].host_url }}"
+        disk_name: "{{ item[1][0] }}"
+        install_disk_id: "{{ item[1][1] }}"
+      register: _result
+      when: disk_name == hostvars[item[0]].inventory_host_install_disk
+
+  when: (['known'] is subset(all_host_states))

@@ -1,0 +1,7 @@
+---
+
+assisted_install_host_url: http://localhost:8080
+assisted_install_rest_url: http://localhost:8080/api/assisted-install/v2
+
+deployment_dir: "{{ lookup('env','HOME') }}/assisted-install/deployments/{{ cluster_name }}"
+services_dir: "{{ lookup('env','HOME') }}/assisted-install/services"

@@ -1,0 +1,38 @@
+---
+kind: SecurityContextConstraints
+apiVersion: security.openshift.io/v1
+metadata:
+  name: nfs-provisioner
+allowHostDirVolumePlugin: true
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegeEscalation: true
+allowPrivilegedContainer: false
+allowedCapabilities:
+- SYS_RESOURCE
+- DAC_READ_SEARCH
+fsGroup:
+  type: MustRunAs
+groups: []
+readOnlyRootFilesystem: false
+requiredDropCapabilities:
+- KILL
+- MKNOD
+- SYS_CHROOT
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: MustRunAs
+supplementalGroups:
+  type: RunAsAny
+users:
+- system:serviceaccount:nfs-storage:nfs-provisioner
+volumes:
+- configMap
+- downwardAPI
+- emptyDir
+- hostPath
+- persistentVolumeClaim
+- secret

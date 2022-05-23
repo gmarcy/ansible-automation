@@ -1,0 +1,115 @@
+---
+
+- name: Set fact for cluster ipxe folder
+  set_fact:
+    cluster_ipxe_folder: "{{ ipxe_folder }}/{{ cluster_name }}"
+
+- name: Create ipxe folder for cluster
+  file:
+    path: "{{ cluster_ipxe_folder }}"
+    state: directory
+    mode: '0755'
+  register: _result
+
+- name: Collect ipxe macaddrs from all cluster hosts
+  set_fact:
+    cluster_ipxe_macaddrs: "{{ cluster_ipxe_macaddrs | default([]) | union(item) }}"
+  loop: "{{ hostvars['cluster-facts']['cluster_host_names'] | map('extract', hostvars, 'inventory_host_ipxe_macaddrs') }}"
+
+- name: Create ipxe folders for cluster host mac addresses
+  file:
+    path: "{{ ipxe_folder }}/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop: "{{ cluster_ipxe_macaddrs }}"
+  register: _result
+
+- name: Create the boot.ipxe file
+  copy:
+    content: |
+      #!ipxe
+      set live_url {{ ipxe_url }}/{{ cluster_name }}
+      initrd --name main ${live_url}/initrd.img
+      kernel ${live_url}/vmlinuz initrd=main ignition.config.url=${live_url}/config.ign coreos.live.rootfs_url=${live_url}/rootfs.img {{ ignition_options }} {{ kernel_options }}
+      boot
+    dest: "{{ cluster_ipxe_folder }}/boot.ipxe"
+    mode: '0644'
+  vars:
+    ignition_options: "ignition.firstboot ignition.platform.id=metal"
+
+- name: Create hard link between the cluster_name/boot.ipxe and the cluster_host_macaddrs/boot.ipxe
+  file:
+    src: "{{ cluster_ipxe_folder }}/boot.ipxe"
+    dest: "{{ ipxe_folder }}/{{ item }}/boot.ipxe"
+    state: hard
+  loop: "{{ cluster_ipxe_macaddrs }}"
+
+- block:
+
+    - name: Fetch download url
+      uri:
+        url: "{{ infra_env_url }}/downloads/image-url"
+      register: _result
+    
+    - name: Download the image
+      get_url:
+        url: "{{ _result.json.url }}"
+        dest: "{{ cluster_ipxe_folder }}/discovery.iso"
+        mode: '0644'
+      register: _result
+      delay: 10
+      retries: 30
+      until: _result.status_code is defined and _result.status_code == 200
+    
+    - name: Copy files from discovery image for pxeboot
+      shell:
+        chdir: "{{ cluster_ipxe_folder }}"
+        cmd: |
+          isoinfo -i discovery.iso -x "/IMAGES/PXEBOOT/INITRD.IMG;1" > initrd.img
+          isoinfo -i discovery.iso -x "/IMAGES/PXEBOOT/ROOTFS.IMG;1" > rootfs.img
+          isoinfo -i discovery.iso -x "/IMAGES/PXEBOOT/VMLINUZ.;1" > vmlinuz
+          isoinfo -i discovery.iso -x "/IMAGES/IGNITION.IMG;1" | gunzip | cpio -i --to-stdout > {{ 'config.ign.json' if openshift_distro == 'okd' else 'config.ign' }}
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Create OKD ignition config additions
+      block:
+
+        - name: Set facts for kubic images
+          set_fact:
+            crio_rpm_url: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.23/Fedora_35/x86_64/cri-o-1.23.2-5.1.fc35.x86_64.rpm
+            cri_tools_rpm_url: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Fedora_34/x86_64/cri-tools-1.23.0-.fc34.2.1.x86_64.rpm
+
+        - name: Load ignition config into ansible
+          set_fact:
+            ignition_config: "{{ lookup('file', cluster_ipxe_folder + '/config.ign.json') }}"
+          register: _result
+
+        - name: Load OKD additions
+          set_fact:
+            okd_ignition_config: "{{ lookup('template', 'okd-ignition-config.j2') }}"
+
+        - name: Combine the ignition configs
+          set_fact:
+            new_ignition_config: "{{ ignition_config | combine(okd_ignition_config, recursive=true, list_merge='append') }}"
+
+        - name: Write out combined config.ign
+          copy:
+            content: "{{ new_ignition_config }}"
+            dest: "{{ cluster_ipxe_folder }}/config.ign"
+
+      when: openshift_distro == 'okd'
+
+  when: cluster_state in ['insufficient', 'pending-for-input']
+
+- name: Check that we can read the boot.ipxe file
+  get_url:
+    url: "{{ ipxe_url }}/{{ cluster_name }}/boot.ipxe"
+    dest: "/tmp/boot.ipxe.tmp"
+    mode: '0644'
+  register: _result
+  changed_when: false
+  delay: 5
+  retries: 10
+  until: _result is defined and _result.status_code == 200

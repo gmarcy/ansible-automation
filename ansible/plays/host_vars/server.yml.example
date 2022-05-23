@@ -1,0 +1,9 @@
+---
+
+inventory_host_address: 192.168.1.100
+inventory_host_install_disk: sda
+inventory_host_ipmi:
+  address: 192.168.2.100
+  interface: lanplus
+inventory_host_ipxe_macaddrs:
+  - xx-xx-xx-xx-xx-xx

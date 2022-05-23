@@ -1,0 +1,6 @@
+---
+
+- import_playbook: plays/load_playbook_secrets_play.yml
+- import_playbook: plays/unregister_assisted_cluster_play.yml
+- import_playbook: plays/cleanup_cluster_install_services_play.yml
+- import_playbook: plays/power_off_cluster_hosts_play.yml
