@@ -42,13 +42,3 @@ all:
       vars:
         ansible_host: localhost
         ansible_connection: local
-    was_automation:
-      hosts: was-automation
-      vars:
-        ansible_host: localhost
-        ansible_connection: local
-    assisted_service:
-      hosts: assisted-service
-      vars:
-        ansible_host: localhost
-        ansible_connection: local
