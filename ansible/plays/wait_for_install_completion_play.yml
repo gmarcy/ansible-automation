@@ -7,5 +7,6 @@
   - role: wait_for_install_complete
     assisted_install_rest_url: "{{ hostvars['assisted-install']['assisted_install_rest_url'] }}"
     cluster_id: "{{ hostvars['assisted-install']['cluster_id'] }}"
+    cluster_url: "{{ hostvars['assisted-install']['cluster_url'] }}"
     deployment_dir: "{{ hostvars['assisted-install']['deployment_dir'] }}"
     infra_env_id: "{{ hostvars['assisted-install']['cluster_id'] }}"

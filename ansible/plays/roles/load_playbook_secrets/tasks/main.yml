@@ -3,8 +3,7 @@
 - name: Load all playbook secrets
   include_vars:
     dir: "{{ secrets_dir }}"
-    extensions:
-    - yml
+    ignore_unknown_extensions: true
   no_log: true
   delegate_to: 'playbook-secrets'
   delegate_facts: true
