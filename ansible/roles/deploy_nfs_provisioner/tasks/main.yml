@@ -27,14 +27,24 @@
     - name: Apply the nfs-local-storage-claim.yaml
       kubernetes.core.k8s:
         api_key: "{{ api_key }}"
+        api_version: v1
+        definition:
+          spec:
+            storageClassName: {{ local_storage_class }}
+            accessModes: [ ReadWriteOnce ]
+            resources:
+              requests:
+                storage: 200Gi
+        kind: PersistentVolumeClaim
         kubeconfig: "{{ kubeconfig_path }}"
-        state: present
-        template: nfs-local-storage-claim.yaml.j2
+        name: nfs-local-storage-claim
+        namespace: {{ nfs_storage_namespace }}
       register: _result
-    
+
     - name: Wait for PersistentVolumeClaim to be created
       kubernetes.core.k8s_info:
         api_key: "{{ api_key }}"
+        api_version: v1
         kind: PersistentVolumeClaim
         kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-local-storage-claim
@@ -43,7 +53,7 @@
       delay: 10
       retries: 24
       until: (_result.resources | length > 0) and (_result.resources[0].status.phase in ['Bound', 'Pending'])
-    
+
     - name: Create nfs-provisioner service account
       kubernetes.core.k8s:
         api_key: "{{ api_key }}"
@@ -52,15 +62,50 @@
         name: nfs-provisioner
         namespace: "{{ nfs_storage_namespace }}"
       register: _result
-    
-    - name: Apply the scc.yaml
+
+    - name: Create the security context constraints
       kubernetes.core.k8s:
         api_key: "{{ api_key }}"
+        api_version: security.openshift.io/v1
+        definition:
+          allowHostDirVolumePlugin: true
+          allowHostIPC: false
+          allowHostNetwork: false
+          allowHostPID: false
+          allowHostPorts: false
+          allowPrivilegeEscalation: true
+          allowPrivilegedContainer: false
+          allowedCapabilities:
+          - SYS_RESOURCE
+          - DAC_READ_SEARCH
+          fsGroup:
+            type: MustRunAs
+          groups: []
+          readOnlyRootFilesystem: false
+          requiredDropCapabilities:
+          - KILL
+          - MKNOD
+          - SYS_CHROOT
+          runAsUser:
+            type: RunAsAny
+          seLinuxContext:
+            type: MustRunAs
+          supplementalGroups:
+            type: RunAsAny
+          users:
+          - system:serviceaccount:nfs-storage:nfs-provisioner
+          volumes:
+          - configMap
+          - downwardAPI
+          - emptyDir
+          - hostPath
+          - persistentVolumeClaim
+          - secret
+        kind: SecurityContextConstraints
         kubeconfig: "{{ kubeconfig_path }}"
-        state: present
-        template: scc.yaml.j2
+        name: nfs-provisioner
       register: _result
-    
+
     - name: Wait for SecurityContextConstraints to be created
       kubernetes.core.k8s_info:
         api_key: "{{ api_key }}"
@@ -73,20 +118,220 @@
       retries: 24
       until: (_result.resources | length > 0) and (_result.resources[0].runAsUser.type == 'RunAsAny')
     
-    - name: Apply the rbac.yaml
+    - name: Apply the pod security policy
       kubernetes.core.k8s:
         api_key: "{{ api_key }}"
+        api_version: extensions/v1beta1
+        definition:
+          spec:
+            fsGroup:
+              rule: RunAsAny
+            allowedCapabilities:
+            - DAC_READ_SEARCH
+            - SYS_RESOURCE
+            runAsUser:
+              rule: RunAsAny
+            seLinux:
+              rule: RunAsAny
+            supplementalGroups:
+              rule: RunAsAny
+            volumes:
+            - configMap
+            - downwardAPI
+            - emptyDir
+            - persistentVolumeClaim
+            - secret
+            - hostPath
+        kind: PodSecurityPolicy
         kubeconfig: "{{ kubeconfig_path }}"
-        state: present
-        template: rbac.yaml.j2
+        name: nfs-provisioner
       register: _result
-    
-    - name: Apply the deployment.yaml
+
+    - name: Wait for PodSecurityPolicy to be created
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key }}"
+        api_version: extensions/v1beta1
+        kind: PodSecurityPolicy
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: nfs-provisioner
+      register: _result
+      delay: 10
+      retries: 24
+      until: (_result.resources | length > 0) and (_result.resources[0].runAsUser.type == 'RunAsAny')
+
+    - name: Create the cluster role
       kubernetes.core.k8s:
         api_key: "{{ api_key }}"
+        api_version: rbac.authorization.k8s.io/v1
+        definition:
+          rules:
+            - apiGroups: [""]
+              resources: ["persistentvolumes"]
+              verbs: ["get", "list", "watch", "create", "delete"]
+            - apiGroups: [""]
+              resources: ["persistentvolumeclaims"]
+              verbs: ["get", "list", "watch", "update"]
+            - apiGroups: ["storage.k8s.io"]
+              resources: ["storageclasses"]
+              verbs: ["get", "list", "watch"]
+            - apiGroups: [""]
+              resources: ["events"]
+              verbs: ["create", "update", "patch"]
+            - apiGroups: [""]
+              resources: ["services", "endpoints"]
+              verbs: ["get"]
+            - apiGroups: ["extensions"]
+              resources: ["podsecuritypolicies"]
+              resourceNames: ["nfs-provisioner"]
+              verbs: ["use"]
+        kind: ClusterRole
         kubeconfig: "{{ kubeconfig_path }}"
-        state: present
-        template: deployment.yaml.j2
+        name: nfs-provisioner-runner
+        namespace: {{ nfs_storage_namespace }}
+      register: _result
+
+    - name: Create the cluster role binding
+      kubernetes.core.k8s:
+        api_key: "{{ api_key }}"
+        api_version: rbac.authorization.k8s.io/v1
+        definition:
+          subjects:
+            - kind: ServiceAccount
+              name: nfs-provisioner
+              namespace: {{ nfs_storage_namespace }}
+          roleRef:
+            kind: ClusterRole
+            name: nfs-provisioner-runner
+            apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRoleBinding
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: run-nfs-provisioner
+        namespace: {{ nfs_storage_namespace }}
+      register: _result
+
+    - name: Create the role
+      kubernetes.core.k8s:
+        api_key: "{{ api_key }}"
+        api_version: rbac.authorization.k8s.io/v1
+        definition:
+          rules:
+            - apiGroups: [""]
+              resources: ["endpoints"]
+              verbs: ["get", "list", "watch", "create", "update", "patch"]
+        kind: Role
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: leader-locking-nfs-provisioner
+        namespace: {{ nfs_storage_namespace }}
+      register: _result
+
+    - name: Create the role binding
+      kubernetes.core.k8s:
+        api_key: "{{ api_key }}"
+        api_version: rbac.authorization.k8s.io/v1
+        definition:
+          subjects:
+            - kind: ServiceAccount
+              name: nfs-provisioner
+              namespace: {{ nfs_storage_namespace }}
+          roleRef:
+            kind: Role
+            name: leader-locking-nfs-provisioner
+            apiGroup: rbac.authorization.k8s.io
+        kind: RoleBinding
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: leader-locking-nfs-provisioner
+        namespace: {{ nfs_storage_namespace }}
+      register: _result
+
+    - name: Apply the deployment or statefulset
+      kubernetes.core.k8s:
+        api_key: "{{ api_key }}"
+        api_version: apps/v1
+        definition:
+          spec:
+            selector:
+              matchLabels:
+                app: nfs-provisioner
+            replicas: 1
+{% if nfs_provisioner_use_statefulset | default(false) %}
+            serviceName: nfs-provisioner
+{% else %}
+            strategy:
+              type: Recreate 
+{% endif %}
+            template:
+              metadata:
+                labels:
+                  app: nfs-provisioner
+              spec:
+                serviceAccount: nfs-provisioner
+{% if nfs_provisioner_use_statefulset | default(false) %}
+                terminationGracePeriodSeconds: 10
+{% endif %}
+                containers:
+                  - name: nfs-provisioner
+                    image: k8s.gcr.io/sig-storage/nfs-provisioner:v3.0.0
+                    ports:
+                      - name: nfs
+                        containerPort: 2049
+                      - name: nfs-udp
+                        containerPort: 2049
+                        protocol: UDP
+                      - name: nlockmgr
+                        containerPort: 32803
+                      - name: nlockmgr-udp
+                        containerPort: 32803
+                        protocol: UDP
+                      - name: mountd
+                        containerPort: 20048
+                      - name: mountd-udp
+                        containerPort: 20048
+                        protocol: UDP
+                      - name: rquotad
+                        containerPort: 875
+                      - name: rquotad-udp
+                        containerPort: 875
+                        protocol: UDP
+                      - name: rpcbind
+                        containerPort: 111
+                      - name: rpcbind-udp
+                        containerPort: 111
+                        protocol: UDP
+                      - name: statd
+                        containerPort: 662
+                      - name: statd-udp
+                        containerPort: 662
+                        protocol: UDP
+                    securityContext:
+                      capabilities:
+                        add:
+                          - DAC_READ_SEARCH
+                          - SYS_RESOURCE
+                    args:
+                      - -provisioner={{ nfs_provisioner_vendor }}/nfs-provisioner
+                    env:
+                      - name: POD_IP
+                        valueFrom:
+                          fieldRef:
+                            fieldPath: status.podIP
+                      - name: SERVICE_NAME
+                        value: nfs-provisioner
+                      - name: POD_NAMESPACE
+                        valueFrom:
+                          fieldRef:
+                            fieldPath: metadata.namespace
+                    imagePullPolicy: IfNotPresent
+                    volumeMounts:
+                      - name: export-volume
+                        mountPath: /export
+                volumes:
+                  - name: export-volume
+                    persistentVolumeClaim:
+                      claimName: nfs-local-storage-claim
+        kind: "{{ 'StatefulSet' if (nfs_provisioner_use_statefulset | default(false)) else 'Deployment' }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: nfs-provisioner
+        namespace: {{ nfs_storage_namespace }}
       register: _result
     
     - name: Check that Deployment has been created
@@ -105,9 +350,49 @@
     - name: Apply the service.yaml
       kubernetes.core.k8s:
         api_key: "{{ api_key }}"
+        api_version: v1
+        definition:
+          metadata:
+            labels:
+              app: nfs-provisioner
+          spec:
+            ports:
+              - name: nfs
+                port: 2049
+              - name: nfs-udp
+                port: 2049
+                protocol: UDP
+              - name: nlockmgr
+                port: 32803
+              - name: nlockmgr-udp
+                port: 32803
+                protocol: UDP
+              - name: mountd
+                port: 20048
+              - name: mountd-udp
+                port: 20048
+                protocol: UDP
+              - name: rquotad
+                port: 875
+              - name: rquotad-udp
+                port: 875
+                protocol: UDP
+              - name: rpcbind
+                port: 111
+              - name: rpcbind-udp
+                port: 111
+                protocol: UDP
+              - name: statd
+                port: 662
+              - name: statd-udp
+                port: 662
+                protocol: UDP
+            selector:
+              app: nfs-provisioner
+        kind: Service
         kubeconfig: "{{ kubeconfig_path }}"
-        state: present
-        template: service.yaml.j2
+        name: nfs-provisioner
+        namespace: {{ nfs_storage_namespace }}
       register: _result
     
     - name: Check that Service has been created
@@ -121,12 +406,17 @@
         namespace: "{{ nfs_storage_namespace }}"
       register: _result
     
-    - name: Apply the class.yaml
+    - name: Create the storage class
       kubernetes.core.k8s:
         api_key: "{{ api_key }}"
+        api_version: storage.k8s.io/v1
+        definition:
+          provisioner: {{ nfs_provisioner_vendor }}/nfs-provisioner
+          mountOptions:
+            - vers=4.1
+        kind: StorageClass
         kubeconfig: "{{ kubeconfig_path }}"
-        state: present
-        template: class.yaml.j2
+        name: "{{ nfs_storage_class }}"
       register: _result
     
     - name: Check that StorageClass has been created
