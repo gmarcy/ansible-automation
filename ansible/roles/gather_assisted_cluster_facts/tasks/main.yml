@@ -12,6 +12,7 @@
     cluster_openshift_version: "{{ item.openshift_version }}"
     cluster_state: "{{ item.status }}"
     cluster_url: "{{ assisted_install_host_url }}{{ item.href }}"
+    cluster_events_url: "{{ assisted_install_rest_url }}/events?cluster_id={{ item.id }}"
   loop: "{{ _result.json }}"
   when: item.name == cluster_name
 

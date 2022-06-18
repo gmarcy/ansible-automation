@@ -5,5 +5,5 @@
     dir: "{{ secrets_dir }}"
     ignore_unknown_extensions: true
   no_log: true
-  delegate_to: 'playbook-secrets'
+  delegate_to: "{{ inventory_hostname }}"
   delegate_facts: true

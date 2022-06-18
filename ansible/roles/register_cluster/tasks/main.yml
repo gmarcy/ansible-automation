@@ -64,6 +64,7 @@
     body:
       name: "{{ cluster_name }}_infra-env"
       cluster_id: "{{ cluster_id }}"
+      openshift_version: "{{ openshift_version }}"
       proxy:
         http_proxy: "{{ http_proxy }}"
         no_proxy: ""

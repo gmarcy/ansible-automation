@@ -36,12 +36,22 @@ default_os_images:
       url: "https://mirror.openshift.com/pub/openshift-v4/aarch64/dependencies/rhcos/4.10/4.10.3/rhcos-4.10.3-aarch64-live.aarch64.iso"
       rootfs_url: "https://mirror.openshift.com/pub/openshift-v4/aarch64/dependencies/rhcos/4.10/4.10.3/rhcos-4.10.3-aarch64-live-rootfs.aarch64.img"
       version: "410.84.202201251210-0"
+    - openshift_version: "4.11"
+      cpu_architecture: "x86_64"
+      url: "https://mirror.openshift.com/pub/openshift-v4/x86_64/dependencies/rhcos/pre-release/4.11.0-0.nightly-2022-04-16-163450/rhcos-4.11.0-0.nightly-2022-04-16-163450-x86_64-live.x86_64.iso"
+      rootfs_url: "https://mirror.openshift.com/pub/openshift-v4/x86_64/dependencies/rhcos/pre-release/4.11.0-0.nightly-2022-04-16-163450/rhcos-4.11.0-0.nightly-2022-04-16-163450-x86_64-live-rootfs.x86_64.img"
+      version: "411.85.202203242008-0"
+    - openshift_version: "4.11"
+      cpu_architecture: "arm64"
+      url: "https://mirror.openshift.com/pub/openshift-v4/aarch64/dependencies/rhcos/pre-release/4.11.0-0.nightly-arm64-2022-04-19-171931/rhcos-4.11.0-0.nightly-arm64-2022-04-19-171931-aarch64-live.aarch64.iso"
+      rootfs_url: "https://mirror.openshift.com/pub/openshift-v4/aarch64/dependencies/rhcos/pre-release/4.11.0-0.nightly-arm64-2022-04-19-171931/rhcos-4.11.0-0.nightly-arm64-2022-04-19-171931-aarch64-live-rootfs.aarch64.img"
+      version: "411.86.202204190940-0"
   okd:
     - openshift_version:  "4.10"
       cpu_architecture: "x86_64"
-      url: "https://builds.coreos.fedoraproject.org/prod/streams/testing/builds/35.20220116.2.0/x86_64/fedora-coreos-35.20220116.2.0-live.x86_64.iso"
-      rootfs_url: "https://builds.coreos.fedoraproject.org/prod/streams/testing/builds/35.20220116.2.0/x86_64/fedora-coreos-35.20220116.2.0-live-rootfs.x86_64.img"
-      version: "35.20220116.2.0"
+      url: "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/35.20220327.3.0/x86_64/fedora-coreos-35.20220327.3.0-live.x86_64.iso"
+      rootfs_url: "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/35.20220327.3.0/x86_64/fedora-coreos-35.20220327.3.0-live-rootfs.x86_64.img"
+      version: "35.20220327.3.0"
 
 default_release_images:
   ocp:
@@ -51,37 +61,45 @@ default_release_images:
       version: "4.6.16"
     - openshift_version: "4.7"
       cpu_architecture: "x86_64"
-      url: "quay.io/openshift-release-dev/ocp-release:4.7.50-x86_64"
-      version: "4.7.50"
+      url: "quay.io/openshift-release-dev/ocp-release:4.7.51-x86_64"
+      version: "4.7.51"
     - openshift_version: "4.8"
       cpu_architecture: "x86_64"
-      url: "quay.io/openshift-release-dev/ocp-release:4.8.39-x86_64"
-      version: "4.8.39"
+      url: "quay.io/openshift-release-dev/ocp-release:4.8.42-x86_64"
+      version: "4.8.42"
     - openshift_version: "4.9"
       cpu_architecture: "x86_64"
-      url: "quay.io/openshift-release-dev/ocp-release:4.9.32-x86_64"
-      version: "4.9.32"
+      url: "quay.io/openshift-release-dev/ocp-release:4.9.37-x86_64"
+      version: "4.9.37"
     - openshift_version: "4.10"
       cpu_architecture: "x86_64"
-      url: "quay.io/openshift-release-dev/ocp-release:4.10.13-x86_64"
-      version: "4.10.13"
+      url: "quay.io/openshift-release-dev/ocp-release:4.10.17-x86_64"
+      version: "4.10.17"
       default: true
     - openshift_version: "4.10"
       cpu_architecture: "arm64"
-      url: "quay.io/openshift-release-dev/ocp-release:4.10.13-aarch64"
-      version: "4.10.13"
+      url: "quay.io/openshift-release-dev/ocp-release:4.10.17-aarch64"
+      version: "4.10.17"
+    - openshift_version: "4.10"
+      cpu_architecture: "x86_64"
+      url: "quay.io/openshift-release-dev/ocp-release:4.11.0-fc.0-x86_64"
+      version: "4.11.0-fc.0"
+      support_level: "beta"
+    - openshift_version: "4.10"
+      cpu_architecture: "arm64"
+      url: "quay.io/openshift-release-dev/ocp-release:4.11.0-fc.0-aarch64"
+      version: "4.11.0-fc.0"
+      support_level: "beta"
   okd:
     - openshift_version: "4.10"
       cpu_architecture: "x86_64"
       default: true
-      url: "quay.io/openshift/okd:4.10.0-0.okd-2022-03-07-131213"
-      version: "4.10.0-0.okd-2022-03-07-131213"
-      # url: "quay.io/openshift/okd:4.10.0-0.okd-2022-05-07-021833"
-      # version: "4.10.0-0.okd-2022-05-07-021833"
+      url: "quay.io/openshift/okd:4.10.0-0.okd-2022-05-07-021833"
+      version: "4.10.0-0.okd-2022-05-07-021833"
 
-agent_installer_tag: stable
+agent_installer_tag: latest
 
-agent_docker_image: quay.io/gmarcy/assisted-installer-agent:{{ agent_installer_tag }}
+agent_docker_image: quay.io/edge-infrastructure/assisted-installer-agent:{{ agent_installer_tag }}
 
 #
 # pod.yml.j2 template parameters

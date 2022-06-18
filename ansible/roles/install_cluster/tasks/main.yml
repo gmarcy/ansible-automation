@@ -15,10 +15,31 @@
 
 - block:
 
+    - name: Create the clusters directory
+      file:
+        path: "{{ clusters_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Get the existing cluster events from before the install
+      uri:
+        url: "{{ hostvars['assisted-install']['cluster_events_url'] }}"
+      register: _result
+
+    - name: Copy cluster events to cluster_dir
+      copy:
+        content: "{{ _result.json | to_nice_json }}"
+        dest: "{{ clusters_dir }}/cluster_events.json"
+
     - name: Get a list of the cluster objects
       uri:
         url: "{{ hostvars['assisted-install']['cluster_url'] }}"
       register: _result
+
+    - name: Copy cluster status to cluster_dir
+      copy:
+        content: "{{ _result.json | to_nice_json }}"
+        dest: "{{ clusters_dir }}/cluster_status.json"
 
     - name: Install cluster
       uri:

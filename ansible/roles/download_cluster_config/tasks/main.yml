@@ -3,7 +3,7 @@
 - name: Fetch cluster kubeconfig
   uri:
     url: "{{ cluster_url }}/downloads/credentials?file_name=kubeconfig"
-    dest: "{{ deployment_dir }}/kubeconfig"
+    dest: "{{ clusters_dir }}/kubeconfig"
   register: _result
   changed_when: false
 
@@ -15,6 +15,6 @@
 - name: Fetch cluster kubeconfig-noingress
   uri:
     url: "{{ cluster_url }}/downloads/credentials?file_name=kubeconfig-noingress"
-    dest: "{{ deployment_dir }}/kubeconfig-noingress"
+    dest: "{{ clusters_dir }}/kubeconfig-noingress"
   register: _result
   changed_when: false

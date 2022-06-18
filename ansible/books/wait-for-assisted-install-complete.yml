@@ -1,8 +1,8 @@
 ---
 
-- import_playbook: plays/gather_localhost_facts_play.yml
-- import_playbook: plays/load_playbook_secrets_play.yml
-- import_playbook: plays/gather_assisted_cluster_facts_play.yml
-- import_playbook: plays/gather_registered_hosts_facts_play.yml
-- import_playbook: plays/wait_for_install_completion_play.yml
-- import_playbook: plays/download_assisted_cluster_info_play.yml
+- import_playbook: ../plays/gather_localhost_facts_play.yml
+- import_playbook: ../plays/load_playbook_secrets_play.yml
+- import_playbook: ../plays/gather_assisted_cluster_facts_play.yml
+- import_playbook: ../plays/gather_registered_hosts_facts_play.yml
+- import_playbook: ../plays/wait_for_install_completion_play.yml
+- import_playbook: ../plays/download_assisted_cluster_info_play.yml

@@ -7,10 +7,10 @@
 - name: Find the address on the same network as the cluster_host
   set_fact:
     address_on_cluster_network: "{{ ipv4_address }}"
-  loop: "{{ ansible_facts['interfaces'] }}"
+  loop: "{{ hostvars['localhost-facts']['ansible_interfaces'] }}"
   vars:
     underscore_item: "{{ item | regex_replace('-', '_') }}"
-    ansible_item: "{{ ansible_facts[underscore_item] }}"
+    ansible_item: "{{ hostvars['localhost-facts']['ansible_facts'][underscore_item] }}"
     interface_active: "{{ ansible_item['active'] | default(false) and ansible_item['ipv4']['address'] is defined and ansible_item['ipv4']['netmask'] is defined }}"
     ipv4_address: "{{ ansible_item['ipv4']['address'] | default(omit) }}"
     ipv4_netmask: "{{ ansible_item['ipv4']['netmask'] | default(omit) }}"
@@ -18,15 +18,36 @@
 
 - name: Assert we found an address
   assert:
-    that: address_on_cluster_network is defined
+    that: hostvars['localhost-facts']['address_on_cluster_network'] is defined
     fail_msg: "The local host does not appear to have an address on the cluster network {{ network_cidr }}"
 
 - name: Set local_path fact
   set_fact:
-    local_path: "{{ ansible_facts['env']['PATH'] }}"
+    local_path: "{{ hostvars['localhost-facts']['ansible_env']['PATH'] }}"
 
-- name: Clean ansible_facts
+- name: Clear ansible_facts
   set_fact:
     ansible_facts: {}
-  delegate_to: 'localhost-facts'
-  delegate_facts: true
+
+- name: Create additional localhost groups
+  add_host:
+    name: "{{ item.name }}"
+    group: "{{ item.group }}"
+    ansible_host: localhost
+    ansible_connection: local
+  changed_when: false
+  loop:
+  - name: playbook-secrets
+    group: playbook_secrets
+  - name: cluster-facts
+    group: cluster_facts
+  - name: ipxe-setup
+    group: ipxe_setup
+  - name: ipmi-control
+    group: ipmi_control
+  - name: assisted-install
+    group: assisted_install
+  - name: cluster-install
+    group: cluster_install
+  - name: cluster-storage
+    group: cluster_storage

@@ -1,6 +1,6 @@
 ---
 
-- name: Remove the deployment directory
+- name: Remove the clusters directory
   file:
-    path: "{{ deployment_dir }}"
+    path: "{{ clusters_dir }}"
     state: absent

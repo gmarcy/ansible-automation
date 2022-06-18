@@ -1,8 +1,8 @@
 ---
 
-- name: Create deployment_dir/bin directory if absent
+- name: Create clusters_dir/bin directory if absent
   file:
-    path: "{{ deployment_dir }}/bin"
+    path: "{{ clusters_dir }}/bin"
     state: directory
   register: _result_bin_dir
 
