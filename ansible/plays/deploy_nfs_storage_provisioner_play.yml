@@ -8,6 +8,7 @@
     api_key: "{{ hostvars['assisted-install']['api_key'] }}"
     kubeconfig_path: "{{ hostvars['assisted-install']['kubeconfig_path'] }}"
     infra_env_openshift_version: "{{ hostvars['assisted-install']['infra_env_openshift_version'] }}"
+    openshift_distro: "{{ hostvars['cluster-facts']['openshift_distro'] }}"
   - role: test_nfs_provisioner
     api_key: "{{ hostvars['assisted-install']['api_key'] }}"
     kubeconfig_path: "{{ hostvars['assisted-install']['kubeconfig_path'] }}"

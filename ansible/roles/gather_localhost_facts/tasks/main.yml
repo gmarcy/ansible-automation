@@ -1,5 +1,13 @@
 ---
 
+- name: Create cluster_facts group
+  add_host:
+    name: cluster-facts
+    group: cluster_facts
+    ansible_host: localhost
+    ansible_connection: local
+  changed_when: false
+
 - name: Gather network facts
   ansible.builtin.gather_facts:
     gather_subset: "!all,network"
@@ -14,12 +22,12 @@
     interface_active: "{{ ansible_item['active'] | default(false) and ansible_item['ipv4']['address'] is defined and ansible_item['ipv4']['netmask'] is defined }}"
     ipv4_address: "{{ ansible_item['ipv4']['address'] | default(omit) }}"
     ipv4_netmask: "{{ ansible_item['ipv4']['netmask'] | default(omit) }}"
-  when: interface_active|bool and (ipv4_address + '/' + ipv4_netmask) | ansible.utils.ipaddr('network/prefix') | ansible.utils.network_in_network(network_cidr)
+  when: interface_active|bool and (ipv4_address + '/' + ipv4_netmask) | ansible.utils.ipaddr('network/prefix') | ansible.utils.network_in_network(hostvars['cluster-facts']['network_cidr'])
 
 - name: Assert we found an address
   assert:
     that: hostvars['localhost-facts']['address_on_cluster_network'] is defined
-    fail_msg: "The local host does not appear to have an address on the cluster network {{ network_cidr }}"
+    fail_msg: "The local host does not appear to have an address on the cluster network {{ hostvars['cluster-facts']['network_cidr'] }}"
 
 - name: Set local_path fact
   set_fact:
@@ -39,8 +47,6 @@
   loop:
   - name: playbook-secrets
     group: playbook_secrets
-  - name: cluster-facts
-    group: cluster_facts
   - name: ipxe-setup
     group: ipxe_setup
   - name: ipmi-control

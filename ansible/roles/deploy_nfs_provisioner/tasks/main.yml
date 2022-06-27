@@ -30,7 +30,7 @@
         api_version: v1
         definition:
           spec:
-            storageClassName: {{ local_storage_class }}
+            storageClassName: "{{ local_storage_class }}"
             accessModes: [ ReadWriteOnce ]
             resources:
               requests:
@@ -38,7 +38,7 @@
         kind: PersistentVolumeClaim
         kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-local-storage-claim
-        namespace: {{ nfs_storage_namespace }}
+        namespace: "{{ nfs_storage_namespace }}"
       register: _result
 
     - name: Wait for PersistentVolumeClaim to be created
@@ -146,6 +146,7 @@
         kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-provisioner
       register: _result
+      when: openshift_distro not in ['okd','ocp']
 
     - name: Wait for PodSecurityPolicy to be created
       kubernetes.core.k8s_info:
@@ -158,6 +159,7 @@
       delay: 10
       retries: 24
       until: (_result.resources | length > 0) and (_result.resources[0].runAsUser.type == 'RunAsAny')
+      when: openshift_distro not in ['okd','ocp']
 
     - name: Create the cluster role
       kubernetes.core.k8s:
@@ -187,7 +189,7 @@
         kind: ClusterRole
         kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-provisioner-runner
-        namespace: {{ nfs_storage_namespace }}
+        namespace: "{{ nfs_storage_namespace }}"
       register: _result
 
     - name: Create the cluster role binding
@@ -198,7 +200,7 @@
           subjects:
             - kind: ServiceAccount
               name: nfs-provisioner
-              namespace: {{ nfs_storage_namespace }}
+              namespace: "{{ nfs_storage_namespace }}"
           roleRef:
             kind: ClusterRole
             name: nfs-provisioner-runner
@@ -206,7 +208,7 @@
         kind: ClusterRoleBinding
         kubeconfig: "{{ kubeconfig_path }}"
         name: run-nfs-provisioner
-        namespace: {{ nfs_storage_namespace }}
+        namespace: "{{ nfs_storage_namespace }}"
       register: _result
 
     - name: Create the role
@@ -221,7 +223,7 @@
         kind: Role
         kubeconfig: "{{ kubeconfig_path }}"
         name: leader-locking-nfs-provisioner
-        namespace: {{ nfs_storage_namespace }}
+        namespace: "{{ nfs_storage_namespace }}"
       register: _result
 
     - name: Create the role binding
@@ -232,7 +234,7 @@
           subjects:
             - kind: ServiceAccount
               name: nfs-provisioner
-              namespace: {{ nfs_storage_namespace }}
+              namespace: "{{ nfs_storage_namespace }}"
           roleRef:
             kind: Role
             name: leader-locking-nfs-provisioner
@@ -240,8 +242,18 @@
         kind: RoleBinding
         kubeconfig: "{{ kubeconfig_path }}"
         name: leader-locking-nfs-provisioner
-        namespace: {{ nfs_storage_namespace }}
+        namespace: "{{ nfs_storage_namespace }}"
       register: _result
+
+    - name: Set fact for deployment or statefulset
+      set_fact:
+        type_recreate:
+          type: "{{ 'Recreate' if not (nfs_provisioner_use_statefulset | default(false)) else omit }}"
+
+    - name: Set facts for deployment or statefulset
+      set_fact:
+        service_name: "{{ 'nfs-provisioner' if (nfs_provisioner_use_statefulset | default(false)) else omit }}"
+        strategy_recreate: "{{ type_recreate if (type_recreate | dict2items | length > 0) else omit }}"
 
     - name: Apply the deployment or statefulset
       kubernetes.core.k8s:
@@ -253,21 +265,15 @@
               matchLabels:
                 app: nfs-provisioner
             replicas: 1
-{% if nfs_provisioner_use_statefulset | default(false) %}
-            serviceName: nfs-provisioner
-{% else %}
-            strategy:
-              type: Recreate 
-{% endif %}
+            serviceName: "{{ service_name | default(omit) }}"
+            strategy: "{{ strategy_recreate | default(omit) }}"
             template:
               metadata:
                 labels:
                   app: nfs-provisioner
               spec:
                 serviceAccount: nfs-provisioner
-{% if nfs_provisioner_use_statefulset | default(false) %}
                 terminationGracePeriodSeconds: 10
-{% endif %}
                 containers:
                   - name: nfs-provisioner
                     image: k8s.gcr.io/sig-storage/nfs-provisioner:v3.0.0
@@ -331,14 +337,14 @@
         kind: "{{ 'StatefulSet' if (nfs_provisioner_use_statefulset | default(false)) else 'Deployment' }}"
         kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-provisioner
-        namespace: {{ nfs_storage_namespace }}
+        namespace: "{{ nfs_storage_namespace }}"
       register: _result
     
-    - name: Check that Deployment has been created
+    - name: Check that Deployment or StatefulSet has been created
       kubernetes.core.k8s_info:
         api_key: "{{ api_key }}"
         api_version: apps/v1
-        kind: Deployment
+        kind: "{{ 'StatefulSet' if (nfs_provisioner_use_statefulset | default(false)) else 'Deployment' }}"
         kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-provisioner
         namespace: "{{ nfs_storage_namespace }}"
@@ -392,7 +398,7 @@
         kind: Service
         kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-provisioner
-        namespace: {{ nfs_storage_namespace }}
+        namespace: "{{ nfs_storage_namespace }}"
       register: _result
     
     - name: Check that Service has been created
@@ -411,7 +417,7 @@
         api_key: "{{ api_key }}"
         api_version: storage.k8s.io/v1
         definition:
-          provisioner: {{ nfs_provisioner_vendor }}/nfs-provisioner
+          provisioner: "{{ nfs_provisioner_vendor }}/nfs-provisioner"
           mountOptions:
             - vers=4.1
         kind: StorageClass
