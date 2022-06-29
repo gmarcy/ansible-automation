@@ -6,7 +6,10 @@
   register: _result
   delay: 30
   retries: 20
-  until: _result.status == 200 and _result.json | length > 0 and _result.json | map(attribute='inventory') | length == groups['cluster_hosts'] | length
+  until: >
+    (_result.status == 200 and _result.json | length > 0) and
+    (_result.json | map(attribute='inventory', default='MISSING') | intersect(['MISSING']) | length == 0) and
+    (_result.json | map(attribute='inventory') | length == groups['cluster_hosts'] | length)
 
 - name: Set host facts
   set_fact:
