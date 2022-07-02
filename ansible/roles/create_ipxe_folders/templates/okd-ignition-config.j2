@@ -17,7 +17,7 @@
         "user": {
           "name": "root"
         },
-        "contents": { "source": "data:text/plain;base64,W1VuaXRdCkNvbmRpdGlvblBhdGhFeGlzdHM9L2Vub2VudAo=" }
+        "contents": { "source": "data:text/plain;base64,{{ '[Unit]\nConditionPathExists=/enoent\n' | b64encode }}" }
       },
       {
         "path": "/etc/systemd/system/agent.service.d/wait-for-okd.conf",
@@ -26,7 +26,7 @@
         "user": {
           "name": "root"
         },
-        "contents": { "source": "data:text/plain;base64,W1VuaXRdCldhbnRzPW9rZC1vdmVybGF5LnNlcnZpY2UKQWZ0ZXI9b2tkLW92ZXJsYXkuc2VydmljZQo=" }
+        "contents": { "source": "data:text/plain;base64,{{ '[Unit]\nWants=okd-overlay.service\nAfter=okd-overlay.service\n' | b64encode }}" }
       }
     ]
   },

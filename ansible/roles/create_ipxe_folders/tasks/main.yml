@@ -73,26 +73,46 @@
         executable: /bin/bash
       changed_when: false
 
-    - name: Create OKD ignition config additions
+    - name: Create OKD ignition config
       block:
 
-        - name: Set facts for kubic images
-          set_fact:
-            crio_rpm_url: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/1.23/Fedora_35/x86_64/cri-o-1.23.2-5.1.fc35.x86_64.rpm
-            cri_tools_rpm_url: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Fedora_34/x86_64/cri-tools-1.23.0-.fc34.2.1.x86_64.rpm
-
-        - name: Load ignition config into ansible
+        - name: Load OCP ignition config into ansible
           set_fact:
             ignition_config: "{{ lookup('file', cluster_ipxe_folder + '/config.ign.json') }}"
-          register: _result
 
-        - name: Load OKD additions
+        - name: Load OKD additions to ignition config
           set_fact:
             okd_ignition_config: "{{ lookup('template', 'okd-ignition-config.j2') }}"
 
+        - name: Set fact for unwanted OCP storage files
+          set_fact:
+            unwanted_storage_files: "{{ unwanted_storage_files | default([]) + [item] }}"
+          loop: "{{ ignition_config.storage.files }}"
+          when: item.path in ['/etc/multipath.conf']
+
+        - name: Set fact for OKD systemd units, removing unwanted OCP units and adding OKD units
+          set_fact:
+            new_storage_config:
+              files: "{{ ignition_config.storage.files | difference(unwanted_storage_files) | union(okd_ignition_config.storage.files) }}"
+
+        - name: Set fact for unwanted OCP systemd units
+          set_fact:
+            unwanted_systemd_units: "{{ unwanted_systemd_units | default([]) + [item] }}"
+          loop: "{{ ignition_config.systemd.units }}"
+          when: item.name in ['multipathd.service']
+
+        - name: Set fact for OKD systemd units, removing unwanted OCP units and adding OKD units
+          set_fact:
+            new_systemd_config:
+              units: "{{ ignition_config.systemd.units | difference(unwanted_systemd_units) | union(okd_ignition_config.systemd.units) }}"
+
         - name: Combine the ignition configs
           set_fact:
-            new_ignition_config: "{{ ignition_config | combine(okd_ignition_config, recursive=true, list_merge='append') }}"
+            new_ignition_config:
+              ignition: "{{ ignition_config.ignition }}"
+              passwd: "{{ ignition_config.passwd }}"
+              systemd: "{{ new_systemd_config }}"
+              storage: "{{ new_storage_config }}"
 
         - name: Write out combined config.ign
           copy:

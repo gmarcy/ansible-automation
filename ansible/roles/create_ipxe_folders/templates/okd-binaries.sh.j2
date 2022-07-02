@@ -1,19 +1,6 @@
 #!/bin/env bash
 set -eux
 
-# MCD="quay.io/openshift/origin-machine-config-operator:4.10"
-# while ! podman pull --quiet "${MCD}"
-# do
-#     echo "Pull failed. Retrying ${MCD}..."
-#     sleep 5
-# done
-# mnt=$(podman image mount "${MCD}")
-# Extract machine-config-daemon binary
-# cp -rvf ${mnt}/usr/bin/machine-config-daemon /usr/local/bin/machine-config-daemon
-# chmod a+x /usr/local/bin/machine-config-daemon
-# restorecon -Rv /usr/local/bin/machine-config-daemon
-# podman rmi -f "${MCD}"
-
 RPMS="registry.ci.openshift.org/origin/4.10:artifacts"
 while ! podman pull --quiet "${RPMS}"
 do
