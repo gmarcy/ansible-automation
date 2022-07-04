@@ -68,58 +68,89 @@
           isoinfo -i discovery.iso -x "/IMAGES/PXEBOOT/INITRD.IMG;1" > initrd.img
           isoinfo -i discovery.iso -x "/IMAGES/PXEBOOT/ROOTFS.IMG;1" > rootfs.img
           isoinfo -i discovery.iso -x "/IMAGES/PXEBOOT/VMLINUZ.;1" > vmlinuz
-          isoinfo -i discovery.iso -x "/IMAGES/IGNITION.IMG;1" | gunzip | cpio -i --to-stdout > {{ 'config.ign.json' if openshift_distro == 'okd' else 'config.ign' }}
+          isoinfo -i discovery.iso -x "/IMAGES/IGNITION.IMG;1" | gunzip | cpio -i --to-stdout > config.ign.json
       args:
         executable: /bin/bash
       changed_when: false
 
-    - name: Create OKD ignition config
-      block:
+    - name: Load OCP ignition config into ansible
+      set_fact:
+        ignition_config: "{{ lookup('file', cluster_ipxe_folder + '/config.ign.json') }}"
 
-        - name: Load OCP ignition config into ansible
-          set_fact:
-            ignition_config: "{{ lookup('file', cluster_ipxe_folder + '/config.ign.json') }}"
+    - name: Disable selinux service
+      set_fact:
+        disabled_system_unit_names: "{{ (disabled_system_unit_names | default([])) | union(['selinux.service']) }}"
 
-        - name: Load OKD additions to ignition config
-          set_fact:
-            okd_ignition_config: "{{ lookup('template', 'okd-ignition-config.j2') }}"
+    - name: Disable assisted agent service when debugging
+      set_fact:
+        disabled_system_unit_names: "{{ (disabled_system_unit_names | default([])) | union(['agent.service']) }}"
+      when: disable_assisted_agent_service | default(false)
 
-        - name: Set fact for unwanted OCP storage files
-          set_fact:
-            unwanted_storage_files: "{{ unwanted_storage_files | default([]) + [item] }}"
-          loop: "{{ ignition_config.storage.files }}"
-          when: item.path in ['/etc/multipath.conf']
-
-        - name: Set fact for OKD systemd units, removing unwanted OCP units and adding OKD units
-          set_fact:
-            new_storage_config:
-              files: "{{ ignition_config.storage.files | difference(unwanted_storage_files) | union(okd_ignition_config.storage.files) }}"
-
-        - name: Set fact for unwanted OCP systemd units
-          set_fact:
-            unwanted_systemd_units: "{{ unwanted_systemd_units | default([]) + [item] }}"
-          loop: "{{ ignition_config.systemd.units }}"
-          when: item.name in ['multipathd.service']
-
-        - name: Set fact for OKD systemd units, removing unwanted OCP units and adding OKD units
-          set_fact:
-            new_systemd_config:
-              units: "{{ ignition_config.systemd.units | difference(unwanted_systemd_units) | union(okd_ignition_config.systemd.units) }}"
-
-        - name: Combine the ignition configs
-          set_fact:
-            new_ignition_config:
-              ignition: "{{ ignition_config.ignition }}"
-              passwd: "{{ ignition_config.passwd }}"
-              systemd: "{{ new_systemd_config }}"
-              storage: "{{ new_storage_config }}"
-
-        - name: Write out combined config.ign
-          copy:
-            content: "{{ new_ignition_config }}"
-            dest: "{{ cluster_ipxe_folder }}/config.ign"
-
+    - name: Disable multipathd service on OKD
+      set_fact:
+        disabled_system_unit_names: "{{ (disabled_system_unit_names | default([])) | union(['multipathd.service']) }}"
       when: openshift_distro == 'okd'
+
+    - name: Fetch and disable service unit we want to disable
+      set_fact:
+        disabled_systemd_units: "{{ (disabled_systemd_units | default([])) | union([item | combine({'enabled': false})]) }}"
+      loop: "{{ ignition_config.systemd.units }}"
+      when: item.name in disabled_system_unit_names | default([])
+
+    - name: Add existing agent service to unwanted list and disabled unit to additions
+      set_fact:
+        unwanted_systemd_unit_names: "{{ (unwanted_systemd_unit_names | default([])) | union(disabled_system_unit_names | default([])) }}"
+        added_systemd_units: "{{ (added_systemd_units | default([])) | union(disabled_systemd_units) }}"
+
+    - name: Remove multipath config from OKD ignition
+      set_fact:
+        unwanted_storage_file_paths: "{{ (unwanted_storage_file_paths | default([])) + ['/etc/multipath.conf'] }}"
+      when: openshift_distro == 'okd'
+
+    - name: Load OKD additions to ignition config
+      set_fact:
+        okd_ignition_config: "{{ lookup('template', 'okd-ignition-config.j2') }}"
+      vars:
+        journal_remote_fqdn: "{{ hostvars['localhost-facts'].ansible_fqdn }}"
+      when: openshift_distro == 'okd'
+
+    - name: Set fact for OKD ignition additions
+      set_fact:
+        added_storage_files: "{{ (added_storage_files | default([])) | union(okd_ignition_config.storage.files) }}"
+        added_systemd_units: "{{ (added_systemd_units | default([])) | union(okd_ignition_config.systemd.units) }}"
+      when: openshift_distro == 'okd'
+
+    - name: Set fact for unwanted storage files
+      set_fact:
+        unwanted_storage_files: "{{ unwanted_storage_files | default([]) | union([item]) }}"
+      loop: "{{ ignition_config.storage.files }}"
+      when: item.path in (unwanted_storage_file_paths | default([]))
+
+    - name: Set fact for unwanted systemd units
+      set_fact:
+        unwanted_systemd_units: "{{ unwanted_systemd_units | default([]) | union([item]) }}"
+      loop: "{{ ignition_config.systemd.units }}"
+      when: item.name in (unwanted_systemd_unit_names | default([]))
+
+    - name: Set fact for systemd units, removing unwanted units and adding units
+      set_fact:
+        new_storage_config:
+          files: "{{ ignition_config.storage.files | difference(unwanted_storage_files | default([])) | union(added_storage_files | default([])) }}"
+        new_systemd_config:
+          units: "{{ ignition_config.systemd.units | difference(unwanted_systemd_units | default([])) | union(added_systemd_units | default([])) }}"
+
+    - name: Combine the ignition configs
+      set_fact:
+        new_ignition_config:
+          ignition: "{{ ignition_config.ignition }}"
+          passwd: "{{ ignition_config.passwd }}"
+          systemd: "{{ new_systemd_config }}"
+          storage: "{{ new_storage_config }}"
+
+    - name: Write out config.ign
+      copy:
+        content: "{{ new_ignition_config }}"
+        dest: "{{ cluster_ipxe_folder }}/config.ign"
 
   when: cluster_state in ['insufficient', 'pending-for-input']
 
