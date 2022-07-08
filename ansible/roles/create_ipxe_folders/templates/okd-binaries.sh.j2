@@ -39,6 +39,3 @@ if (( $(stat -c%s /run/ephemeral.xfsloop) <= 6*1024*1024*1024 )); then
     xfs_growfs /var
     mount -o remount,size=6G /run
 fi
-
-systemctl enable --now selinux.service
-systemctl enable --now systemd-journal-upload.service

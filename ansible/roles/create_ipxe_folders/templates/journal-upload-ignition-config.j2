@@ -1,0 +1,25 @@
+{
+  "storage": {
+    "files": [
+      {
+        "path": "/etc/systemd/journal-upload.conf",
+        "mode": 420,
+        "overwrite": true,
+        "user": {
+          "name": "root"
+        },
+        "contents": {
+          "source": "data:text/plain;base64,{{ ('[Upload]\nURL=https://' + journal_remote_fqdn + ':19532\nServerKeyFile=-\nServerCertificateFile=-\nTrustedCertificateFile=-\n') | b64encode }}"
+        }
+      }
+    ]
+  },
+  "systemd": {
+    "units": [
+      {
+          "name": "systemd-journal-upload.service",
+          "enabled": true
+      }
+    ]
+  }
+}

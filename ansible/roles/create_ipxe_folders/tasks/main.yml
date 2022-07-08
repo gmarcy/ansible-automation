@@ -77,41 +77,49 @@
       set_fact:
         ignition_config: "{{ lookup('file', cluster_ipxe_folder + '/config.ign.json') }}"
 
-    - name: Disable selinux service
+    - name: Fix bad mode on /usr/local/bin/agent-fix-bz1964591 storage file
       set_fact:
-        disabled_system_unit_names: "{{ (disabled_system_unit_names | default([])) | union(['selinux.service']) }}"
+        unwanted_storage_file_paths: "{{ (unwanted_storage_file_paths | default([])) + ['/usr/local/bin/agent-fix-bz1964591'] }}"
+        added_storage_files: "{{ (added_storage_files | default([])) | union([item | combine({'mode': 493})]) }}"
+      loop: "{{ ignition_config.storage.files }}"
+      when: item.path == '/usr/local/bin/agent-fix-bz1964591'
+
+    - name: Load journal-upload ignition config into ansible
+      set_fact:
+        journal_upload_ignition_config: "{{ lookup('template', 'journal-upload-ignition-config.j2') }}"
+      vars:
+        journal_remote_fqdn: "{{ hostvars['localhost-facts'].ansible_fqdn }}"
+
+    - name: Set fact for journal upload ignition additions
+      set_fact:
+        added_storage_files: "{{ (added_storage_files | default([])) | union(journal_upload_ignition_config.storage.files) }}"
+        added_systemd_units: "{{ (added_systemd_units | default([])) | union(journal_upload_ignition_config.systemd.units) }}"
 
     - name: Disable assisted agent service when debugging
       set_fact:
         disabled_system_unit_names: "{{ (disabled_system_unit_names | default([])) | union(['agent.service']) }}"
       when: disable_assisted_agent_service | default(false)
 
-    - name: Disable multipathd service on OKD
+    - name: Disable multipath on OKD
       set_fact:
-        disabled_system_unit_names: "{{ (disabled_system_unit_names | default([])) | union(['multipathd.service']) }}"
+        disabled_system_unit_names: "{{ (disabled_system_unit_names | default([])) | union(['multipathd.socket']) }}"
+        unwanted_storage_file_paths: "{{ (unwanted_storage_file_paths | default([])) + ['/etc/multipath.conf'] }}"
       when: openshift_distro == 'okd'
 
-    - name: Fetch and disable service unit we want to disable
+    - name: Fetch and disable service units we want to disable
       set_fact:
         disabled_systemd_units: "{{ (disabled_systemd_units | default([])) | union([item | combine({'enabled': false})]) }}"
       loop: "{{ ignition_config.systemd.units }}"
       when: item.name in disabled_system_unit_names | default([])
 
-    - name: Add existing agent service to unwanted list and disabled unit to additions
+    - name: Add enabled service units to unwanted list and disabled units to additions
       set_fact:
         unwanted_systemd_unit_names: "{{ (unwanted_systemd_unit_names | default([])) | union(disabled_system_unit_names | default([])) }}"
         added_systemd_units: "{{ (added_systemd_units | default([])) | union(disabled_systemd_units) }}"
 
-    - name: Remove multipath config from OKD ignition
-      set_fact:
-        unwanted_storage_file_paths: "{{ (unwanted_storage_file_paths | default([])) + ['/etc/multipath.conf'] }}"
-      when: openshift_distro == 'okd'
-
     - name: Load OKD additions to ignition config
       set_fact:
         okd_ignition_config: "{{ lookup('template', 'okd-ignition-config.j2') }}"
-      vars:
-        journal_remote_fqdn: "{{ hostvars['localhost-facts'].ansible_fqdn }}"
       when: openshift_distro == 'okd'
 
     - name: Set fact for OKD ignition additions
