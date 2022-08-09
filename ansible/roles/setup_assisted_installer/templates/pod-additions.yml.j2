@@ -1,0 +1,19 @@
+spec:
+  containers:
+  - image: docker.io/library/nginx:latest
+    name: ipxe
+    ports:
+    - hostPort: 9080
+      containerPort: 80
+    envFrom:
+    - configMapRef:
+        name: config
+    volumeMounts:
+    - name: ipxe_volume
+      mountPath: /usr/share/nginx/html
+      readOnly: true
+  volumes:
+  - name: ipxe_volume
+    hostPath:
+      path: "{{ ipxe_folder }}"
+      type: Directory

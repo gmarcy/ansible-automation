@@ -31,19 +31,73 @@
       set_fact:
         openshift_distro: "{{ hostvars['cluster-facts']['openshift_distro'] }}"
 
-    - name: Create configmap.yml from template
-      copy:
-        content: "{{ lookup('template', 'configmap.yml.j2') }}"
-        dest: "{{ services_dir }}/configmap.yml"
+    - name: Download the default_os_images
+      get_url:
+        url: "{{ download_urls.os_images[openshift_distro] }}"
+        dest: "{{ services_dir }}/{{ download_paths.os_images }}"
+        mode: '0644'
+      register: _result
+      delay: 10
+      retries: 30
+      until: _result.status_code is defined and _result.status_code == 200
+
+    - name: Download the default_release_images
+      get_url:
+        url: "{{ download_urls.release_images[openshift_distro] }}"
+        dest: "{{ services_dir }}/{{ download_paths.release_images }}"
+        mode: '0644'
+      register: _result
+      delay: 10
+      retries: 30
+      until: _result.status_code is defined and _result.status_code == 200
+
+    - name: Download the configmap.yml
+      get_url:
+        url: "{{ download_urls.configmap_yml }}"
+        dest: "{{ services_dir }}/{{ download_paths.configmap_yml }}"
+        mode: '0644'
+      register: _result
+      delay: 10
+      retries: 30
+      until: _result.status_code is defined and _result.status_code == 200
+
+    - set_fact:
+        configmap_original: "{{ lookup('file', services_dir + '/' + download_paths.configmap_yml) | from_yaml }}"
+        configmap_overrides: "{{ lookup('template', 'configmap-overrides.yml.j2') | from_yaml }}"
       vars:
         disk_encryption_support: "{{ 'false' if (openshift_distro == 'okd') else 'true' }}"
         enable_single_node_dnsmasq: "{{ 'false' if (openshift_distro == 'okd') else 'true' }}"
-        os_images: '{{ default_os_images[openshift_distro] }}'
-        release_images: '{{ default_release_images[openshift_distro] }}'
+        os_images: "{{ lookup('file', services_dir + '/' + download_paths.os_images) | from_json }}"
+        release_images: "{{ lookup('file', services_dir + '/' + download_paths.release_images) | from_json }}"
 
-    - name: Create pod.yml from template
+    - name: Create configmap.yml from original and overrides
       copy:
-        content: "{{ lookup('template', 'pod.yml.j2') }}"
+        content: "{{ configmap_original | combine(configmap_overrides, recursive=true) | to_nice_yaml(sort_keys=false,indent=2) }}"
+        dest: "{{ services_dir }}/configmap.yml"
+
+    - name: Download the pod.yml
+      get_url:
+        url: "{{ download_urls.pod_yml }}"
+        dest: "{{ services_dir }}/{{ download_paths.pod_yml }}"
+        mode: '0644'
+      register: _result
+      delay: 10
+      retries: 30
+      until: _result.status_code is defined and _result.status_code == 200
+
+    - set_fact:
+        pod_original: "{{ lookup('file', services_dir + '/' + download_paths.pod_yml) | from_yaml }}"
+        pod_additions: "{{ lookup('template', 'pod-additions.yml.j2') | from_yaml }}"
+
+    - name: Combine the pod containers
+      set_fact:
+        pod_containers:
+          spec:
+            containers: "{{ pod_original.spec.containers | union(pod_additions.spec.containers) }}"
+
+    - name: Create pod.yml from original and overrides
+      copy:
+        content: "{{ pod_original | combine(pod_additions, recursive=true) | combine(pod_containers, recursive=true) | to_nice_yaml(sort_keys=false,indent=2) }}"
         dest: "{{ services_dir }}/pod.yml"
 
     - name: Run assisted-service pod
