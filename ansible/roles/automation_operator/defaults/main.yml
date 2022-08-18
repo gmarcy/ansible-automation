@@ -1,0 +1,9 @@
+---
+operator_docker_registry: wasliberty-intops-docker-local.artifactory.swg-devops.com
+operator_catalog_source: websphere-automation-catalog
+operator_catalog_image: cp/websphere-automation-operator-catalog
+operator_catalog_filter_pr: grep -E "(pre\.)?{{ operator_branch }}"
+operator_catalog_filter_main: grep -v pre | grep -E "^[0-9]+\.[0-9]+\.[0-9]+"
+operator_catalog_filter: "{{ operator_catalog_filter_main if operator_branch == 'main' else operator_catalog_filter_pr }}"
+operator_singlenamespace: "false"
+operator_channel: v1.1

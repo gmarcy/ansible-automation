@@ -1,0 +1,454 @@
+---
+
+- name: Ensure websphere-automation namespace exists
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    kind: Namespace
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: websphere-automation
+    state: present
+  register: _result
+
+- name: Check for existing CommonService instance
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    api_version: operator.ibm.com/v3
+    kind: CommonService
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: iaf-system
+    namespace: websphere-automation
+  register: _result
+
+- name: Set fact for when the OperandRequest instance is ready
+  set_fact:
+    common_service_ready: "{{ _result.resources | length > 0 and _result.resources[0].status.phase == 'Succeeded' }}"
+
+- name: Create CommonService instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operator.ibm.com/v3
+    definition:
+      metadata:
+        labels:
+          app.kubernetes.io/component: automation-base
+          app.kubernetes.io/instance: iaf-automationbase
+          app.kubernetes.io/managed-by: iaf-operator
+          app.kubernetes.io/name: iaf-automationbase
+      spec:
+        features:
+          bedrockshim:
+            enabled: true
+    kind: CommonService
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: iaf-system
+    namespace: websphere-automation
+  register: _result
+  delay: 30
+  retries: 120
+  until: _result.result.status is defined and _result.result.status.phase == 'Succeeded'
+  when: not common_service_ready
+
+- name: Create ibm-zen-config ConfigMap
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    definition:
+      data:
+        zen: |-
+          scale_data:
+            Usermgmt:
+              name: usermgmt
+              kind: Deployment
+              container: usermgmt-container
+              replicas: 1
+              resources:
+                requests:
+                  cpu: 222m
+                  memory: 256Mi
+            ZenCoreMetaDb:
+              name: zen-metastoredb
+              kind: StatefulSet
+              container: zen-metastoredb
+              replicas: 1
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 512Mi
+            Nginx:
+              name: ibm-nginx
+              kind: Deployment
+              container: ibm-nginx-container
+              replicas: 1
+              resources:
+                requests:
+                  cpu: 200m
+                  memory: 256Mi
+            ZenCore:
+              name: zen-core
+              kind: Deployment
+              container: zen-core-container
+              replicas: 1
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+            ZenCoreApi:
+              name: zen-core-api
+              kind: Deployment
+              container: zen-core-api-container
+              replicas: 1
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+            ZenWatcher:
+              name: zen-watcher
+              kind: Deployment
+              container: zen-watcher-container
+              replicas: 1
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+            ZenAudit:
+              name: zen-audit
+              kind: Deployment
+              container: zen-audit-container
+              replicas: 1
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+    kind: ConfigMap
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: ibm-zen-config
+    namespace: websphere-automation
+  register: _result
+
+- name: Create AutomationUIConfig instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: core.automation.ibm.com/v1beta1
+    definition:
+      metadata:
+        labels:
+          app.kubernetes.io/component: cartridge
+          app.kubernetes.io/instance: websphereauto
+          app.kubernetes.io/managed-by: iaf-core-operator
+          app.kubernetes.io/name: websphereauto
+      spec:
+        license:
+          accept: true
+        scaleConfig: small
+        tls: {}
+        version: 1.2.0
+        zen: true
+    kind: AutomationUIConfig
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: iaf-system
+    namespace: websphere-automation
+  register: _result
+
+- name: Check for existing OperandRequest instance
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    api_version: operator.ibm.com/v1alpha1
+    kind: OperandRequest
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: iaf-system-common-service
+    namespace: websphere-automation
+  register: _result
+
+- name: Set fact for when the OperandRequest instance is ready
+  set_fact:
+    operand_request_ready: "{{ _result.resources | length > 0 and (_result.resources[0].status.conditions | map(attribute='status') | default([]) | unique) == ['True'] }}"
+
+- name: Create OperandRequest
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operator.ibm.com/v1alpha1
+    definition:
+      metadata:
+        labels:
+          app.kubernetes.io/component: cartridge
+          app.kubernetes.io/instance: websphereauto
+          app.kubernetes.io/managed-by: iaf-core-operator
+          app.kubernetes.io/name: websphereauto
+          ibm-common-services.common-service/config: 'true'
+          ibm-common-services.common-service/registry: 'true'
+      spec:
+        requests:
+          - operands:
+              - name: ibm-zen-operator
+              - name: ibm-commonui-operator
+            registry: common-service
+            registryNamespace: ibm-common-services
+    kind: OperandRequest
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: iaf-system-common-service
+    namespace: websphere-automation
+  register: _result
+  when: not operand_request_ready
+
+- name: Wait for the ibm-zen-operator Deployment to become available
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    api_version: apps/v1
+    kind: Deployment
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: ibm-zen-operator
+    namespace: ibm-common-services
+    wait: true
+    wait_condition:
+      type: Available
+    wait_sleep: 10
+    wait_timeout: 1800
+  register: _result
+
+# It is also possible to use the customScaleConfig variable to scale to custom settings by using this variable in the extra.yaml.
+# It is assumed that a relevant file with a custom config exists (meaning that it was added to the relevant config-vars/scale/<arch> directories).
+
+- name: Create ZenService instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: zen.cpd.ibm.com/v1
+    definition:
+      spec:
+        iamIntegration: true
+        storageClass: "{{ default_storage_class }}"
+    kind: ZenService
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: iaf-zen-cpdservice
+    namespace: websphere-automation
+    wait: true
+    wait_condition:
+      type: Successful
+    wait_sleep: 10
+    wait_timeout: 1800
+  register: _result
+  #delay: 5
+  #retries: 120
+  #until: _result.resources[0].status.zenStatus == 'Completed'
+
+- name: Create Cartridge instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: core.automation.ibm.com/v1beta1
+    definition:
+      metadata:
+        labels:
+          app.kubernetes.io/instance: websphereauto
+          app.kubernetes.io/managed-by: websphere-automation-operator
+          app.kubernetes.io/name: websphereauto
+          app.kubernetes.io/part-of: wsa
+      spec:
+        license:
+          accept: true
+        version: v1.2
+    kind: Cartridge
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: websphereauto
+    namespace: websphere-automation
+    wait: true
+    wait_condition:
+      type: Ready
+    wait_sleep: 10
+    wait_timeout: 1800
+  register: _result
+
+- name: Check for existing AutomationBase instance
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    api_version: base.automation.ibm.com/v1beta1
+    kind: AutomationBase
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: iaf-automationbase
+    namespace: websphere-automation
+  register: _result
+
+- name: Set fact for when the AutomationBase instance is ready
+  set_fact:
+    automation_base_ready: "{{ _result.resources | length > 0 and (_result.resources[0].status.conditions | map(attribute='status') | default([]) | unique) == ['True'] }}"
+
+- name: Create AutomationBase instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: base.automation.ibm.com/v1beta1
+    definition:
+      metadata:
+        labels:
+          app.kubernetes.io/instance: iaf-automationbase
+          app.kubernetes.io/managed-by: websphere-automation-operator
+          app.kubernetes.io/name: iaf-automationbase
+          app.kubernetes.io/part-of: wsa
+      spec:
+        license:
+          accept: true
+        tls: {}
+        version: v1.2
+        kafka:
+          entityOperator:
+            tlsSidecar:
+              resources:
+                limits:
+                  memory: 128Mi
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+            topicOperator:
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 200m
+                  memory: 512Mi
+            userOperator:
+              resources:
+                limits:
+                  memory: 512Mi
+                requests:
+                  cpu: 200m
+                  memory: 512Mi
+          kafka:
+            config:
+              offsets.topic.replication.factor: 1
+              transaction.state.log.min.isr: 1
+              transaction.state.log.replication.factor: 1
+            replicas: 1
+            resources:
+              limits:
+                memory: 512Mi
+              requests:
+                cpu: 200m
+                memory: 512Mi
+            storage:
+              type: persistent-claim
+              size: 4Gi
+          zookeeper:
+            replicas: 1
+            resources:
+              limits:
+                memory: 512Mi
+              requests:
+                cpu: 200m
+                memory: 512Mi
+            storage:
+              type: persistent-claim
+              size: 2Gi
+    kind: AutomationBase
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: iaf-automationbase
+    namespace: websphere-automation
+    wait: true
+    wait_condition:
+      type: Ready
+    wait_sleep: 10
+    wait_timeout: 1800
+  register: _result
+  when: not automation_base_ready
+
+- name: Check for existing CartridgeRequirements instance
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    api_version: base.automation.ibm.com/v1beta1
+    kind: CartridgeRequirements
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: websphereauto
+    namespace: websphere-automation
+  register: _result
+
+- name: Set fact for when the CartridgeRequirements instance is ready
+  set_fact:
+    cartridge_requirements_ready: "{{ _result.resources | length > 0 and (_result.resources[0].status.conditions | map(attribute='status') | default([]) | unique) == ['True'] }}"
+
+- name: Create CartridgeRequirements instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: base.automation.ibm.com/v1beta1
+    definition:
+      metadata:
+        annotations:
+          com.ibm.automation.cartridge: websphereauto
+        labels:
+          app.kubernetes.io/instance: websphereauto
+          app.kubernetes.io/managed-by: websphere-automation-operator
+          app.kubernetes.io/name: websphereauto
+          app.kubernetes.io/part-of: wsa
+      spec:
+        license:
+          accept: true
+        requirements:
+          - Events
+        version: v1.2
+    kind: CartridgeRequirements
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: websphereauto
+    namespace: websphere-automation
+    wait: true
+    wait_condition:
+      type: Ready
+    wait_sleep: 10
+    wait_timeout: 1200
+  register: _result
+  when: not cartridge_requirements_ready
+
+- name: Create WebSphereAutomation instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: automation.websphere.ibm.com/v1
+    definition:
+      spec:
+        dataStore:
+          replicas: 1
+        license:
+          accept: true
+        replicas: 1
+    kind: WebSphereAutomation
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: wsa
+    namespace: websphere-automation
+    wait: true
+    wait_condition:
+      type: Ready
+    wait_sleep: 10
+    wait_timeout: 1200
+  register: _result
+
+- name: Create WebSphereSecure instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: automation.websphere.ibm.com/v1
+    definition:
+      spec:
+        license:
+          accept: true
+        replicas: 1
+    kind: WebSphereSecure
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: wsa-secure
+    namespace: websphere-automation
+    wait: true
+    wait_condition:
+      type: Ready
+    wait_sleep: 10
+    wait_timeout: 1200
+  register: _result
+
+- name: Create WebSphereHealth instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: automation.websphere.ibm.com/v1
+    definition:
+      spec:
+        license:
+          accept: true
+        replicas: 1
+    kind: WebSphereHealth
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: wsa-health
+    namespace: websphere-automation
+    wait: true
+    wait_condition:
+      type: Ready
+    wait_sleep: 10
+    wait_timeout: 1200
+  register: _result

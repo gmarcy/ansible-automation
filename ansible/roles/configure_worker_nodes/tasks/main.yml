@@ -1,0 +1,21 @@
+---
+
+- name: Get kubernetes node status
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Node
+    kubeconfig: "{{ fetched_files_path }}kubeconfig"
+    name: "{{ hostvars[inventory_hostname].fqdn }}"
+  register: _result
+  delegate_to: 'localhost'
+
+- name: Set fact if worker node is ready
+  set_fact:
+    worker_node_ready: "{{ item.status == 'True' }}"
+  loop: "{{ _result.resources[0].status.conditions | default([]) }}"
+  when: item.type == 'Ready'
+
+- name: Run the kubeadm join command
+  command: "{{ kubeadm_join_command }}"
+  register: _result
+  when: not (worker_node_ready | default(false))

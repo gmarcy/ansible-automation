@@ -1,0 +1,207 @@
+---
+
+- name: Set facts for new cluster
+  set_fact:
+    cluster_size: "{{ hostvars['cluster-config']['cluster']['clustersize'] | default('l') }}"
+    os: "{{ hostvars['cluster-config']['cluster']['os'] | default('Ubuntu 18.04') }}"
+    cluster_name: "{{ hostvars['localhost-facts']['cluster_name'] | default(hostvars['cluster-config']['cluster']['clustername']) }}"
+    site: "{{ hostvars['cluster-config']['cluster']['site'] }}"
+    master_node_count: "{{ hostvars['cluster-config']['cluster']['master_node_count'] | default('1') }}"
+    worker_node_count: "{{ hostvars['cluster-config']['cluster']['worker_node_count'] | default('3') }}"
+    kubernetes_version: "{{ hostvars['cluster-config']['kubernetes']['version'] }}"
+    local_storage_required: "{{ hostvars['cluster-config']['local_storage']['is_local_storage_required'] | default(true) }}"
+    nfs_required: "{{ hostvars['cluster-config']['nfs']['is_nfs_required'] | default(false) }}"
+    nfs_master_local_storage: "{{ hostvars['cluster-config']['nfs']['master_local_storage'] | default(0) }}"
+    nfs_storage_class_name: "{{ hostvars['cluster-config']['nfs']['storage_class_name'] | default('nfs-storage') }}"
+    nfs_namespace: "{{ hostvars['cluster-config']['nfs']['namespace'] | default('default') }}"
+
+- name: Assert that we have required Fyre variables set
+  assert:
+    that:
+    - lookup('env', 'FYRE_USER') | length > 0
+    - lookup('env', 'FYRE_APIKEY') | length > 0
+    msg: "ERROR: Please set Env Variables  FYRE_USER  FYRE_APIKEY"
+
+- name: Set facts for Fyre
+  set_fact:
+    fyre_user: "{{ lookup('env', 'FYRE_USER') }}"
+    fyre_apikey: "{{ lookup('env', 'FYRE_APIKEY') }}"
+
+- name: Assert that we have required Docker variables set
+  assert:
+    that:
+    - lookup('env', 'DOCKER_USER') | length > 0
+    - lookup('env', 'DOCKER_PASSWORD') | length > 0
+    msg: "ERROR: Please set Env Variables  DOCKER_USER  DOCKER_PASSWORD"
+
+- name: Assert that we have a cluster name
+  assert:
+    that: cluster_name | length > 0
+    msg: "Please provide cluster name in config.yaml"
+
+- name: Set facts for node cpu and memory size based on cluster size
+  set_fact:
+    cpu: "{{ tshirt_sizes[cluster_size]['cpu'] }}"
+    memory: "{{ tshirt_sizes[cluster_size]['memory'] }}"
+
+- name: Check to see if we already have a cluster with the name we want
+  uri:
+    url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showclusters"
+    method: GET
+    user:  "{{ fyre_user }}"
+    validate_certs: false
+    password: "{{ fyre_apikey }}"
+    force_basic_auth: true
+    return_content: yes
+  changed_when: false
+  register: cluster_status_response
+  until: cluster_status_response.status != -1
+
+- name: Set fact for check that cluster already exists
+  set_fact:
+    cluster_exists: "{{ cluster_name in cluster_status_response.json.clusters | map(attribute='name') }}"
+
+- name: Set cluster_status_json fact
+  set_fact:
+    cluster_status_json: "{{ item }}"
+  loop: "{{ cluster_status_response.json.clusters }}"
+  when: item.name == cluster_name
+
+- name: Print a message about the state of the cluster
+  debug:
+    msg: "{{ 'Cluster ' + cluster_name + (' exists.' if cluster_exists else ' does not exist.') }}" 
+
+- block:
+
+    - name: Check to see if we have enough quota for the request
+      uri:
+        url: "https://api.fyre.ibm.com/rest/v1/?operation=getuserproductgroupquota&product_group_id={{ product_group_id }}&user_email={{ fyre_user_email }}"
+        method: GET
+        user:  "{{ fyre_user }}"
+        validate_certs: false
+        password: "{{ fyre_apikey }}"
+        force_basic_auth: true
+        return_content: yes
+      changed_when: false
+      register: user_quota
+      vars:
+        product_group_id: '52'
+      delay: 20
+      retries: 30
+      until: (user_quota.json.memory_quota_gb|int) - (user_quota.json.memory_allocated_gb|int) >= ((master_node_count|int) + (worker_node_count|int)) * (memory|int)
+
+    - name: Create Fyre stack
+      uri:
+        url: 'https://api.fyre.ibm.com/rest/v1/?operation=build'
+        method: "POST"
+        user: "{{ fyre_user }}"
+        password: "{{ fyre_apikey }}"
+        validate_certs: false
+        body_format: "json"
+        force_basic_auth: true
+        body: "{{ lookup('template', 'create-' + (cluster_type | lower ) + '-cluster.yml.j2') | from_yaml }}"
+      register: fyre_status
+      vars:
+        product_group_id: '52'
+
+    - name: Set fact for request_id
+      set_fact:
+        request_id: "{{ fyre_status.json.request_id }}"
+
+    - name: Wait until cluster is finished building
+      uri:
+        url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showrequests&request_id={{ request_id }}"
+        method: GET
+        user:  "{{ fyre_user }}"
+        validate_certs: false
+        password: "{{ fyre_apikey }}"
+        force_basic_auth: true
+        return_content: yes
+      changed_when: false
+      register: request_status_response
+      until: (request_status_response.status == 200) and request_status_response.json is defined and not request_status_response.json.request[0].status is match('.*building.*')
+      retries: 600
+      delay: 20
+
+    - name: Check to see if we already have a cluster with the name we want
+      uri:
+        url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showclusters"
+        method: GET
+        user:  "{{ fyre_user }}"
+        validate_certs: false
+        password: "{{ fyre_apikey }}"
+        force_basic_auth: true
+        return_content: yes
+      changed_when: false
+      register: cluster_status_response
+
+    - name: Set cluster_status_json fact
+      set_fact:
+        cluster_status_json: "{{ item }}"
+      loop: "{{ cluster_status_response.json.clusters }}"
+      when: item.name == cluster_name
+
+  when: not cluster_exists
+
+- name: Assert that we got a cluster with the name we requested
+  assert:
+    that: cluster_name == cluster_status_json.name
+
+- name: Fetch the cluster details
+  uri:
+    url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showclusterdetails&cluster_name={{ cluster_name }}"
+    method: GET
+    user:  "{{ fyre_user }}"
+    validate_certs: false
+    password: "{{ fyre_apikey }}"
+    force_basic_auth: true
+    return_content: yes
+  changed_when: false
+  register: cluster_details_response
+
+- name: Set fact for cluster_details_json
+  set_fact:
+    cluster_details_json: "{{ cluster_details_response.json[cluster_name] }}"
+
+- name: Create groups containing all cluster, master, and worker nodes
+  add_host:
+    name: "{{ item.node }}"
+    groups:
+    - cluster_nodes
+    - "{{ 'master_nodes' if item.node is match(cluster_name + '-master') else 'worker_nodes' }}"
+    ansible_connection: ssh
+    ansible_ssh_user: root
+    fqdn: "{{ item.node + '.fyre.ibm.com' }}"
+    short_hostname: "{{ item.node }}"
+    privateip: "{{ item.privateip }}"
+    publicip: "{{ item.publicip }}"
+  loop: "{{ cluster_details_json }}"
+
+- name: Set the ansible_host for all master nodes
+  set_fact:
+    ansible_host: "{{ hostvars[item].publicip }}"
+  loop: "{{ groups['master_nodes'] }}"
+  delegate_to: "{{ item }}"
+  delegate_facts: true
+
+- name: Set fact with unmodified value of ansible_ssh_common_args
+  set_fact:
+    ssh_common_args: "{{ ansible_ssh_common_args }}"
+    first_master_node_host: "{{ hostvars[groups['master_nodes'][0]].ansible_host }}"
+
+- name: Set ssh proxy command for all worker nodes
+  set_fact:
+    ansible_host: "{{ hostvars[item].privateip }}"
+    ansible_ssh_common_args:
+      "{{ ssh_common_args }} -o ProxyCommand='ssh {{ ssh_common_args }} -W %h:%p -q root@{{ first_master_node_host }}'"
+  loop: "{{ groups['worker_nodes'] }}"
+  delegate_to: "{{ item }}"
+  delegate_facts: true
+
+- name: Clear register results
+  set_fact:
+    cluster_status_response: {}
+    user_quota: {}
+    fyre_status: {}
+    request_status_response: {}
+    cluster_details_response: {}

@@ -1,0 +1,27 @@
+---
+- name: install automation catalog
+  block:
+    - name: copy automation catalog yaml (k8s)
+      template:
+        src: automation_catalog.yml
+        dest: /tmp/automation_catalog.yml
+    - name: apply automation catalog yaml
+      shell: "oc apply -f /tmp/automation_catalog.yml"
+    - name: Wait until automation catalog healthy
+      shell: "oc -n openshift-marketplace get pod -l olm.catalogSource={{operator_catalog_source}} -o jsonpath='{ .items[*].status.phase }'"
+      register: automation_catalog
+      until: automation_catalog.stdout.find('Running') != -1
+      changed_when: false
+      delay: 40
+      retries: 150
+  when: operator_catalog_source != "ibm-operator-catalog" #ibm-operator-catalog doesn't need to be created as it's the public / GA IBM operators
+  
+- name: check if we need to create namespace for websphere automation instance
+  shell: "oc get projects | grep {{ target_namespace }}" #docs say websphere-automation as hardcoded example
+  register: project_exists
+  failed_when: false
+  changed_when: false
+
+- name: create namespace for websphere automation instance
+  shell: "oc new-project {{ target_namespace }}" #docs say websphere-automation as hardcoded example
+  when: project_exists.rc != 0

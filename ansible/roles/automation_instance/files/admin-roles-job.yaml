@@ -1,0 +1,35 @@
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: wsa-selfsecure-admin-default-role
+spec:
+  template:
+    metadata:
+    spec:
+      containers:
+      - name: wsa-selfsecure-admin-default-role
+        command:
+        - bash
+        - /usermgmt-util.sh
+        env:
+        - name: ZEN_SERVICE_BROKER_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: zen-service-broker-secret
+              key: token
+        securityContext:
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+        image: "quay.io/bitnami/python:3.8"
+        imagePullPolicy: "IfNotPresent"
+        volumeMounts:
+        - mountPath: /usermgmt-util.sh
+          subPath: script.sh
+          name: wsa-selfsecure-util-vol
+      volumes:
+      - name: wsa-selfsecure-util-vol
+        configMap:
+          name: wsa-selfsecure-admin-default-role
+      restartPolicy: OnFailure

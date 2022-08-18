@@ -1,0 +1,22 @@
+---
+  - name: Create iaf_configure_cluster.sh
+    copy:
+      content: "{{ lookup('file', 'iaf_configure_cluster.sh') }}"
+      dest: ../iaf_configure_cluster.sh
+
+  - name: run configure cluster script
+    shell: "bash ../iaf_configure_cluster.sh -s > ../iaf_configure_cluster.log 2>&1 || (cat ../iaf_configure_cluster.log && false)" # -s flag skips prompt
+    environment:
+      CP_STG_USERNAME: "{{ hostvars['playbook-secrets']['cp_stg_username'] }}"
+      CP_STG_PASSWORD: "{{ hostvars['playbook-secrets']['cp_stg_password'] }}"
+      CP_USERNAME: "{{ hostvars['playbook-secrets']['cp_username'] }}"
+      CP_PASSWORD: "{{ hostvars['playbook-secrets']['cp_password'] }}"
+      DOCKER_USERNAME: "{{ hostvars['playbook-secrets']['docker_io_user'] }}"
+      DOCKER_PASSWORD: "{{ hostvars['playbook-secrets']['docker_io_password'] }}"
+      ARTIFACTORY_USERNAME: "{{ hostvars['playbook-secrets']['na_artifactory']['user'] }}"
+      ARTIFACTORY_PASSWORD: "{{ hostvars['playbook-secrets']['na_artifactory']['token'] }}"
+
+  - name: Allow pods to run on master
+    shell: "oc patch schedulers.config.openshift.io cluster --type json -p '[{\"op\": \"add\", \"path\": \"/spec/mastersSchedulable\", \"value\": true}]'"
+      
+      

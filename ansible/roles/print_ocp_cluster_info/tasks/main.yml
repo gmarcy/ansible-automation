@@ -1,0 +1,11 @@
+---
+
+- name: Print Information for OC Login
+  debug:
+    msg: 
+      - "System is ready with WASAutomation Installed, Cluster can be found at: "
+      - "Access URL: {{ hostvars[groups['ocp_clusters'][0]]['ocp_access_url'] }}"
+      - "API URL: https://{{ hostvars[groups['ocp_clusters'][0]]['ocp_api_url'] }}:6443"
+      - "User: kubeadmin"
+      - "password: {{ hostvars[groups['ocp_clusters'][0]]['kubeadmin_password'] }}"
+  changed_when: true

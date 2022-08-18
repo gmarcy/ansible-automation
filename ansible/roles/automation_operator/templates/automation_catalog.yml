@@ -1,0 +1,9 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+   name: {{operator_catalog_source}}
+   namespace: openshift-marketplace
+spec:
+   displayName: IBM WebSphere Automation Catalog
+   sourceType: grpc
+   image: {{ operator_docker_registry }}/{{ operator_catalog_image }}:{{ operator_catalog_version }}

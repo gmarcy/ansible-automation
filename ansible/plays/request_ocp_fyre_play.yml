@@ -1,0 +1,22 @@
+---
+
+- name: Request an OCP+ cluster from Fyre
+  hosts: ocp_controller
+  gather_facts: false
+  roles:
+  - role: request_ocp_fyre
+    fyreuser: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
+    fyreapikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
+    fyre_ocp_inf_group: ocp_clusters
+    fyre_ocptype: ocpplus
+    clusterName: "{{ hostvars[inventory_hostname]['clusterName'] }}"
+    fyre_site: "{{ hostvars[inventory_hostname]['fyreSite'] }}"
+    ocpVersion: "{{ hostvars[inventory_hostname]['ocpVersion'] | default('4.6.16') }}"
+    ocpPlatform: x
+    fyre_master_quantity: 3
+    fyre_master_cpu: 8
+    fyre_master_memory: 16
+    fyre_worker_quantity: 3
+    fyre_worker_cpu: 8
+    fyre_worker_memory: 16
+    #fyre_worker_additional_disk: 300

@@ -1,10 +1,10 @@
 ---
 
-- name: Create localhost_facts localhost group
+- name: Create localhost_facts group
   hosts: localhost
   gather_facts: false
   tasks:
-  - name: Create localhost_facts group
+  - name: Create localhost-facts host
     add_host:
       name: localhost-facts
       group: localhost_facts

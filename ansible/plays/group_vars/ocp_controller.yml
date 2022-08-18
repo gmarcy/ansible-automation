@@ -1,0 +1,11 @@
+---
+
+ocpVersion: 4.10.18
+operator_singlenamespace: false
+install_healing: true
+replicas_1: true
+websphere_automation_version: 1.4.0
+operator_channel: v1.4
+clusterName: gmarcy-wsadev-poc
+fyreSite: rtp
+make_me_a_cluster: true

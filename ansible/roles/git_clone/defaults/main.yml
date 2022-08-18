@@ -1,0 +1,3 @@
+---
+git_default_branch: "main"
+git_branch: "{{ git_version is match('tags/.*') | ternary(git_default_branch, git_version) }}"

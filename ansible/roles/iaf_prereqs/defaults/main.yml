@@ -1,0 +1,4 @@
+---
+iaf_repo_name: "abp-deploy"
+iaf_repo: "git@github.ibm.com:automation-base-pak/{{ iaf_repo_name }}.git"
+iaf_project: "openshift-operators"

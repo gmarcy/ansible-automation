@@ -1,0 +1,29 @@
+---
+- name: copy was automation operator yaml (k8s) (Single Namespace)
+  template:
+    src: automation_operator_singlenamespace.yml
+    dest: /tmp/automation_operator.yml
+  when: operator_singlenamespace == true
+- name: copy was automation operator yaml (k8s)
+  template:
+    src: automation_operator.yml
+    dest: /tmp/automation_operator.yml
+  when: operator_singlenamespace == false
+- name: apply was automation operator yaml
+  shell: "oc apply -f /tmp/automation_operator.yml"
+- name: Wait until was automation operator healthy
+  shell: "oc -n openshift-operators get pod -l app.kubernetes.io/name=websphere-automation-operator -o jsonpath='{ .items[*].status.phase }'"
+  register: automation_operator
+  when: operator_singlenamespace == false
+  until: automation_operator.stdout.find('Running') != -1
+  changed_when: false
+  delay: 40
+  retries: 150
+- name: Wait until was automation operator healthy (Single Namespace)
+  shell: "oc -n {{ target_namespace }} get pod -l app.kubernetes.io/name=websphere-automation-operator -o jsonpath='{ .items[*].status.phase }'"
+  register: automation_operator
+  when: operator_singlenamespace == true
+  until: automation_operator.stdout.find('Running') != -1
+  changed_when: false
+  delay: 40
+  retries: 150 

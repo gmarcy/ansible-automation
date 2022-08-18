@@ -1,0 +1,28 @@
+---
+  - name: Create Fyre stack
+    uri:
+      url: "{{fyreocpplus_ocpdeployurl}}"
+      method: "POST"
+      user: "{{ fyreuser }}"
+      password: "{{ fyreapikey }}"
+      validate_certs: False
+      body_format: "json"
+      body:
+        name : "{{ clusterName }}"
+        ocp_version: "{{ ocpVersion }}"
+        platform: "{{ ocpPlatform }}"
+        site: "{{fyre_site | default(omit)}}"
+        product_group_id: "{{ fyre_group_id }}"
+        ssh_key: "{{ ssh_public_key }}"
+        worker:
+          - count: "{{ fyre_worker_quantity }}"
+            cpu: "{{ fyre_worker_cpu }}"
+            memory: "{{ fyre_worker_memory }}"
+            additional_disk:
+              - "{{ fyre_worker_additional_disk | default(omit) }}"
+        master:
+          - count: "{{ fyre_master_quantity }}"
+            cpu: "{{ fyre_master_cpu }}"
+            memory: "{{ fyre_master_memory }}"
+    register: fyrestatus
+    

@@ -1,0 +1,17 @@
+---
+
+- name: Setup nfs storage
+  hosts: master_nodes
+  gather_facts: false
+  roles:
+  - role: setup_nfs_storage
+    when: hostvars['provision-cluster']['nfs_required']
+
+- name: Deploy nfs provisioner
+  hosts: setup_storage
+  gather_facts: false
+  roles:
+  - role: deploy_nfs_provisioner
+    kubeconfig_path: "{{ fetched_files_path }}kubeconfig"
+    nfs_storage_namespace: "{{ hostvars['provision-cluster']['nfs_namespace'] }}"
+    when: hostvars['provision-cluster']['nfs_required']

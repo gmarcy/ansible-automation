@@ -1,0 +1,41 @@
+---
+
+- name: Check for existing CatalogSource
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: CatalogSource
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: ibm-operator-catalog
+    namespace: openshift-marketplace
+  register: _result
+
+- name: Set fact for IBM Operator CatalogSource
+  set_fact:
+    ibm_operator_catalog_installed: "{{ _result.resources | length > 0 }}"
+
+- name: Create IBM Operator CatalogSource
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: CatalogSource
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: ibm-operator-catalog
+    namespace: openshift-marketplace
+    definition:
+      metadata:
+        annotations:
+          olm.catalogImageTemplate: "icr.io/cpopen/ibm-operator-catalog:v{kube_major_version}.{kube_minor_version}"
+      spec:
+        displayName: IBM Operator Catalog
+        publisher: IBM
+        sourceType: grpc
+        image: docker.io/ibmcom/ibm-operator-catalog:latest
+        updateStrategy:
+          registryPoll:
+            interval: 45m
+    wait: true
+    wait_condition:
+      type: ResolvedImage
+  register: _result
+  when: not ibm_operator_catalog_installed

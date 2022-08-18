@@ -1,0 +1,21 @@
+---
+
+- name: Login as kubeadmin on the OCP+ cluster
+  hosts: ocp_controller
+  gather_facts: false
+  vars:
+    load_secrets_dir: "{{ playbook_dir }}/secrets"
+    operator_branch: main
+    operator_repo: git@github.ibm.com:websphere/automation-operator
+    target_namespace: "wasautomation"
+    operator_singlenamespace: "{{ hostvars[inventory_hostname]['operator_singlenamespace'] | default('false') | bool }}"
+    install_healing: "{{ hostvars[inventory_hostname]['install_healing'] | default('false') | bool }}"
+    websphere_automation_version: "{{ hostvars[inventory_hostname]['websphere_automation_version'] | default('auto') }}"
+    operator_channel: "{{ hostvars[inventory_hostname]['operator_channel'] | default('v1.1') }}"
+  roles:
+  - role: oc_client_install
+  - role: ocp_login
+    kubeadmin_user: "kubeadmin"
+    kubeadmin_password: "{{ hostvars[groups['ocp_clusters'][0]]['kubeadmin_password'] }}"
+    ocp_api_url: "{{ hostvars[groups['ocp_clusters'][0]]['ocp_api_url'] }}"
+    ocp_api_port: "{{ hostvars[groups['ocp_clusters'][0]]['ocp_api_port'] }}"

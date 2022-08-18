@@ -15,16 +15,6 @@
 
 - block:
 
-    - debug: var=hostname
-      loop: "{{ groups['cluster_hosts'] | zip(groups['cluster_hosts'] | map('extract', hostvars, 'host_inventory') | map(attribute='disks')) }}"
-      vars:
-        hostname: "{{ item[0] }}"
-
-    - debug: var=paths
-      loop: "{{ groups['cluster_hosts'] | zip(groups['cluster_hosts'] | map('extract', hostvars, 'host_inventory') | map(attribute='disks')) }}"
-      vars:
-        paths: "{{ item[1] | map(attribute='path') | zip(item[1] | map(attribute='installation_eligibility.eligible', default=false)) }}"
-
     - name: Collect the paths and eligibility of all disks on all cluster hosts
       set_fact:
         cluster_disks: "{{ cluster_disks | default([]) + ([hostname] | product(paths)) }}"

@@ -1,0 +1,7 @@
+apiVersion: automation.websphere.ibm.com/v1
+kind: WebSphereHealth
+metadata:
+   name: wsa-health
+spec:
+   license:
+      accept: true      

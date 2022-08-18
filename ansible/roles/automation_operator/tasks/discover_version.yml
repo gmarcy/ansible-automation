@@ -1,0 +1,30 @@
+---
+- name: git clone
+  import_role: 
+    name: git_clone
+  vars:
+    git_repo: "{{ operator_repo }}"
+    git_version: "{{ operator_branch }}"
+    git_repo_dest: "{{ lookup('env', 'HOME') }}/workspace/automation-operator"
+  delegate_to: localhost
+  when: operator_catalog_source != "ibm-operator-catalog"
+
+- name: obtain dynamic version based on branch
+  shell: "curl -X GET -u {{ na_artifactory.user }}:{{ na_artifactory.token }} https://{{ operator_docker_registry }}/v2/{{ operator_catalog_image }}/tags/list 2>/dev/null | jq -r .tags[] | sort -r --version-sort | {{ operator_catalog_filter }}"
+  args:
+    warn: false
+  when: websphere_automation_version == "auto" and operator_catalog_source != "ibm-operator-catalog"
+  register: dynamic_version
+  until: dynamic_version.rc == 0
+  delay: 60
+  retries: 10
+
+- name: set catalog version fact (auto)
+  set_fact:
+    operator_catalog_version: "{{ dynamic_version.stdout_lines[0] }}"
+  when: websphere_automation_version == "auto"  and operator_catalog_source != "ibm-operator-catalog"
+
+- name: set catalog version fact (manual)
+  set_fact:
+    operator_catalog_version: "{{ websphere_automation_version }}"
+  when: websphere_automation_version != "auto" and operator_catalog_source != "ibm-operator-catalog" 

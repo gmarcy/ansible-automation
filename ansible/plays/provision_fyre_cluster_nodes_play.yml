@@ -1,0 +1,8 @@
+---
+
+- name: Provision Fyre nodes for a kubernetes cluster
+  hosts: provision_cluster
+  gather_facts: false
+  roles:
+  - role: provision_fyre_cluster_nodes
+    fyre_user_email: "{{ hostvars['playbook-secrets']['na_artifactory']['user'] }}"

@@ -1,0 +1,241 @@
+---
+# tasks csi-cephfs install
+
+
+- name: Wait until cluster is available
+  shell: "oc get projects"
+  register: cluster_available
+  until: cluster_available.rc == 0
+  changed_when: false
+  delay: 20
+  retries: 30
+
+- name: Check if CephFS is already installed
+  shell: "oc  get pods -n rook-ceph 2>/dev/null | grep -e Running"
+  register: "cephfs_status"
+  failed_when: false
+  changed_when: false
+
+- name: Install CephFS
+  block:
+    - name: Create setup directory
+      file:
+        path: "{{ cephfs_bastion_setup_dir }}"
+        state: "{{ item }}"
+        mode: '0755'
+      with_items:
+      - directory
+
+    - name: Copy csi-cephfs script to dest
+      copy:
+        src: files/csi-ceph.sh
+        dest: "{{ cephfs_bastion_setup_dir }}/csi-ceph.sh"
+        mode: '0755'
+
+    - name: Copy wait-for-csi-cephfs script to dest
+      copy:
+        src: files/wait-for-csi-ceph.sh
+        dest: "{{ cephfs_bastion_setup_dir }}/wait-for-csi-ceph.sh"
+        mode: '0755'
+
+    - name: Replacement for csi-ceph.sh
+      block:
+      vars:
+        rookRelease: "{{ rook_cephfs_release }}"
+        device: "{{ device_name }}"
+        new_default_sc: "{{ default_sc }}"
+        registry: "{{ registry }}"
+        registry_user: "{{ registry_user }}"
+        registry_pwd: "{{ registry_pwd }}"
+
+        - name: Check that user and password were provided for the registry
+          assert:
+            that: registry_user | length > 0 and registry_pwd | length > 0
+            msg: "If setting custom Docker registry authentication, then you must specify valid registry user and registry password arguments"
+          when: registry | length > 0
+
+        - name: Install ceph
+          block:
+
+            - name: Set rook_setup_dir fact
+              set_fact:
+                rook_setup_dir: "{{ cephfs_bastion_setup_dir }}/rook"
+
+            - name: Remove any previous clone of the rook git repo
+              file:
+                path: "{{ rook_setup_dir }}"
+                state: "{{ item }}"
+              loop:
+              - absent
+              - directory
+
+            - name: Clone the rook master or release-major.minor branch
+              git:
+                repo: http://github.com/rook/rook.git
+                dest: "{{ cephfs_bastion_setup_dir }}/rook"
+                version: "{{ 'master' if rookRelease == 'master' else 'release-' + (rookRelease | regex_replace('v([0-9]+\.[0-9]+)\..*', '\1')) }}"
+
+            - name: Clone the rook HEAD or rookRelease tag
+              git:
+                repo: http://github.com/rook/rook.git
+                dest: "{{ cephfs_bastion_setup_dir }}/rook"
+                version: "{{ 'HEAD' if rookRelease == 'master' else rookRelease }}"
+
+            - name: Set majorRelease fact
+              set_fact:
+                majorRelease: "{{ rookRelease | regex_replace('(v[0-9]+\.[0-9]+)\..*', '\1') }}"
+
+            - name: Set path for examples within rook repo
+              set_fact:
+                rookPath: "{{ rook_setup_dir + ('/cluster/examples/kubernetes/ceph' if (majorRelease | regex_replace('v[0-9]+\.([0-9]+)\..*', '\1') | int >= 8) else '/deploy/examples') }}"
+
+            - name: Apply crds.yaml to the cluster
+              kubernetes.k8s:
+                xx: "{{ lookup('file', rookPath + '/crds.yaml') }}"
+
+**********************************
+
+rookPath="rook/cluster/examples/kubernetes/ceph"
+[[ $(cut -d '.' -f2 <<< $majorRelease) -ge 8 ]] && rookPath=rook/deploy/examples || true
+if [[ $majorRelease != "v1.4" ]]
+then
+  echo "Doing crds.yaml"
+  oc create -f $rookPath/crds.yaml
+  echo "crds.yaml exit $?"
+else
+  echo "No reason to apply crds.yaml as file may not exist"
+fi
+echo "Doing common.yaml"
+oc create -f $rookPath/common.yaml
+echo "common.yaml exit $?"
+
+echo "Setting up Docker registry image pull secrets"
+if [[ -z $registry ]]; then
+  echo "Using unauthenticated Docker registry pulls. Skipping ServiceAccount patching"
+else 
+  echo "Creating image pull secret for $registry and patching rook-ceph ServiceAccounts"
+  oc project rook-ceph
+  oc create secret docker-registry dockerhub-secret --docker-server=$registry --docker-username=$registry_user --docker-password=$registry_pwd --docker-email=unused
+  oc patch serviceaccount default -p '{"imagePullSecrets": [{"name": "dockerhub-secret"}]}' || true
+  oc patch serviceaccount rook-ceph-system -p '{"imagePullSecrets": [{"name": "dockerhub-secret"}]}' || true
+  oc patch serviceaccount rook-ceph-mgr -p '{"imagePullSecrets": [{"name": "dockerhub-secret"}]}' || true
+  oc patch serviceaccount rook-ceph-osd -p '{"imagePullSecrets": [{"name": "dockerhub-secret"}]}' || true
+  oc patch serviceaccount rook-ceph-cmd-reporter -p '{"imagePullSecrets": [{"name": "dockerhub-secret"}]}' || true
+fi
+echo "setup Docker registry image pull secrets exit"
+
+echo "Doing operator-openshift.yaml"
+oc create -f $rookPath/operator-openshift.yaml
+echo "operator-openshift.yaml exit $?"
+sleep_count=30
+while [[ $sleep_count -gt 0 ]]; do
+  oc  get po -n rook-ceph | grep  -e  rook-ceph-operator | tr -s ' ' | grep Running
+  if [ $? -ne 0 ] ; then
+    echo "Waiting for ceph operator to go to Running"
+    sleep 1m
+    ((sleep_count--))
+  else
+    echo "ceph operator Running"
+    break
+  fi
+done
+echo "Doing sed of useAllDevices false"
+sed -i 's/useAllDevices: true/useAllDevices: false/g' $rookPath/cluster.yaml
+echo "Exit from useAllDevice $?"
+echo "Doing sed of deviceFilter"
+sed -i 's/#deviceFilter:/deviceFilter: ^vd[b-z]$/g' $rookPath/cluster.yaml
+echo "Exit from deviceFilter $?"
+echo "Doing cluster.yaml create"
+oc create -f $rookPath/cluster.yaml
+echo "Exit from cluster.yaml $?"
+
+num_worker_nodes=$(oc get no | tr -s ' ' | cut -f3 -d' ' | grep worker  | wc -l)
+echo "Check for the number of ceph nodes running is equal to numbers of worker nodes - wait up to 2 hour"
+ceph_sleep_count=60
+while [[ $ceph_sleep_count -ne 0 ]]; do
+  num_ceph_nodes=$(oc get po -n rook-ceph | grep rook-ceph-osd | grep -v prepare | grep -e Running | wc -l)
+  if [[ $num_ceph_nodes -ge $num_worker_nodes ]] ; then
+    echo "Waiting for ceph nodes to come active"
+    sleep 1m
+    ((ceph_sleep_count--))
+    echo "ceph_sleep_count = $ceph_sleep_count"
+  else
+    echo "ceph nodes are active."
+    break
+  fi
+done
+echo "Doing filessystem-test.yaml"
+oc create -f $rookPath/filesystem-test.yaml
+echo "Exit from filesystem-test.yaml $?"
+oc create -f $rookPath/csi/cephfs/storageclass.yaml
+sed -i "s/rook-cephfs/csi-cephfs/g" $rookPath/csi/cephfs/storageclass.yaml
+oc create -f $rookPath/csi/cephfs/storageclass.yaml
+default_storage_class=$(oc get sc  | grep -e default | cut -f1 -d' ' | tr -s ' ')
+echo "default_storage_class is $default_storage_class"
+if [[ -z $default_storage_class ]]; then
+  echo "No default storage class defined"
+else
+  echo "Set storageclass $default_storage_class to not be default"
+  oc patch storageclass $default_storage_class -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
+fi
+echo "Set default storageclass to $new_default_sc"
+oc patch storageclass $new_default_sc -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+oc create -f $rookPath/csi/rbd/storageclass-test.yaml
+**********************************
+
+    - name: Install csi-cephfs
+      shell: "{{ cephfs_bastion_setup_dir }}/csi-ceph.sh {{ rook_cephfs_release }}  {{ device_name }} {{ default_sc }} {{ registry }} {{ registry_user }} '{{ registry_pwd }}'"
+      args:
+          warn: false
+      register: cephinstall
+
+    - name: Viewing csi-cephfs install log
+      debug:
+        msg: "{{ cephinstall.stdout_lines }}"
+
+**********************************
+#!/bin/bash
+
+sleep_count=30
+while [[ $sleep_count -gt 0 ]]; do
+  po_status=$(oc  get po -n rook-ceph | grep  -e  rook-ceph-mds-myfs | tr -s ' ')
+  if [[ -z $po_status ]] ; then
+    echo "Waiting for rook-ceph-mds-myfs pods to start"
+    sleep 1m
+    ((sleep_count--))
+  else
+    echo "rook-ceph-mds-myfs pods started"
+    break
+  fi
+done
+while [[ $sleep_count -gt 0 ]]; do
+  po_status=$(oc  get po -n rook-ceph | grep  -e  rook-ceph-mds-myfs | grep -e Running | tr -s ' ')
+  if [[ -z $po_status ]] ; then
+    echo "Waiting for rook-ceph-mds-myfs pods to go to Running"
+    sleep 1m
+    ((sleep_count--))
+  else
+    echo "rook-ceph-mds-myfs pods Running"
+    break
+  fi
+done
+**********************************
+
+    - name: Waiting for rook-ceph-mds-myfs pods to go to Running
+      shell: "{{ cephfs_bastion_setup_dir }}/wait-for-csi-ceph.sh"
+      args:
+          warn: false
+      register: waitceph
+
+    - name: Viewing Waiting for rook-ceph-mds-myfs pods to go to Running Log
+      debug:
+        msg: "{{ waitceph.stdout_lines }}"
+
+    - name: "Wait until oc get cephclusters is ready"
+      shell: "oc get cephclusters.ceph.rook.io rook-ceph -n rook-ceph -o jsonpath='{.status.phase}'"
+      register: cephclusters
+      until: cephclusters.stdout.find('Ready') != -1
+      changed_when: false
+      delay: 40
+      retries: 180
+  when: cephfs_status.rc != 0

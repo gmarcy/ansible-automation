@@ -1,0 +1,13 @@
+---
+
+- name: Setup pre-reqs on master nodes
+  hosts: master_nodes
+  gather_facts: false
+  roles:
+  - role: setup_prereqs
+
+- name: Setup pre-reqs on worker nodes
+  hosts: worker_nodes
+  gather_facts: false
+  roles:
+  - role: setup_prereqs

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wsa-selfsecure-admin-default-role
+data:
+  script.sh: |
+    #!/bin/bash
+
+    sudo pip install jq
+
+    curl -k -X PUT \
+    "https://usermgmt-svc:3443/v1/user/admin?add_roles=true" \
+    -H "secret: ${ZEN_SERVICE_BROKER_SECRET}" \
+    -H 'Content-Type: application/json' \
+    -d "{\"username\": \"admin\", \"user_roles\": [\"websphere_automation_administrator_role\", \"websphere_automation_viewer_role\"]}"

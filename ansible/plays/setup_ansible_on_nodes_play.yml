@@ -1,0 +1,12 @@
+---
+
+- name: Gather facts from cluster nodes
+  hosts: cluster_nodes
+  remote_user: root
+  gather_facts: false
+  roles:
+  - role: gather_host_facts
+    gather_packages_info: false
+    gather_services_info: false
+  - role: setup_ansible_host
+    ansible_ssh_user: root

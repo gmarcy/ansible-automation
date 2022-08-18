@@ -1,0 +1,2 @@
+---
+- import_tasks: automation_operator.yml

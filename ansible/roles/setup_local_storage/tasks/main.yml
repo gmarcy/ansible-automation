@@ -1,0 +1,111 @@
+---
+
+- name: Create StorageClass common-services-stgclass
+  kubernetes.core.k8s:
+    api_version: storage.k8s.io/v1
+    definition:
+      metadata:
+        annotations:
+          storageclass.kubernetes.io/is-default-class: 'true'
+      provisioner: "{{ provisioner }}"
+      reclaimPolicy: Retain
+      volumeBindingMode: "{{ volume_binding_mode }}"
+      allowVolumeExpansion: true
+    kind: StorageClass
+    kubeconfig: "{{ fetched_files_path }}kubeconfig"
+    name: common-services-stgclass
+  vars:
+    #provisioner: 'kubernetes.io/no-provisioner'
+    provisioner: 'kubernetes.io/local'
+    #volumeBindingMode: 'Immediate'
+    volume_binding_mode: 'WaitForFirstConsumer'
+  register: _result
+  delegate_to: 'localhost'
+
+- name: Create StorageClass local-storage
+  kubernetes.core.k8s:
+    api_version: storage.k8s.io/v1
+    definition:
+      provisioner: kubernetes.io/no-provisioner
+      volumeBindingMode: WaitForFirstConsumer
+    kind: StorageClass
+    kubeconfig: "{{ fetched_files_path }}kubeconfig"
+    name: local-storage
+  register: _result
+
+- name: Create PersistentVolumes for mongo
+  kubernetes.core.k8s:
+    api_version: v1
+    definition:
+      spec:
+        capacity:
+          storage: 20Gi
+        volumeMode: Filesystem
+        accessModes:
+        - ReadWriteOnce
+        persistentVolumeReclaimPolicy: Retain
+        storageClassName: local-storage
+        local:
+          path: "{{ item.pv_path }}"
+        nodeAffinity:
+          required:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - "{{ cluster_name }}-worker-1.fyre.ibm.com"
+                - "{{ cluster_name }}-worker-2.fyre.ibm.com"
+                - "{{ cluster_name }}-worker-3.fyre.ibm.com"
+    kind: PersistentVolume
+    kubeconfig: "{{ fetched_files_path }}kubeconfig"
+    name: "{{ item.pv_name }}"
+  register: _result
+  loop:
+    - pv_name: mongo-pv0
+      pv_path: /data/mongo0
+    - pv_name: mongo-pv1
+      pv_path: /data/mongo1
+    - pv_name: mongo-pv2
+      pv_path: /data/mongo2
+
+- name: Create Namespace ibm-common-services
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    kubeconfig: "{{ fetched_files_path }}kubeconfig"
+    name: ibm-common-services
+  register: _result
+
+- name: Create PersistentVolumeClaims for mongo
+  kubernetes.core.k8s:
+    api_version: v1
+    definition:
+      metadata:
+        labels:
+          app: icp-mongodb
+          release: mongodb
+      spec:
+        storageClassName: local-storage
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi
+        volumeMode: Filesystem
+        volumeName: "{{ item.pvc_volname }}"
+    kind: PersistentVolumeClaim
+    kubeconfig: "{{ fetched_files_path }}kubeconfig"
+    name: "{{ item.pvc_name }}"
+    namespace: ibm-common-services
+  register: _result
+  loop:
+    - pvc_name: mongodbdir-icp-mongodb-0
+      pvc_volname: mongo-pv0
+    - pvc_name: mongodbdir-icp-mongodb-1
+      pvc_volname: mongo-pv1
+    - pvc_name: mongodbdir-icp-mongodb-2
+      pvc_volname: mongo-pv2
+  delay: 10
+  retries: 12
+  until: _result.result.status.phase == 'Bound'

@@ -1,0 +1,77 @@
+---
+# Create Instance
+- name: copy was automation instance yaml (k8s)
+  template:
+    src: automation_instance.yml
+    dest: /tmp/automation_instance.yml
+  when: operator_airgap == false
+- name: copy was automation instance yaml (k8s)
+  template:
+    src: automation_instance_airgap.yml
+    dest: /tmp/automation_instance.yml    
+  when: operator_airgap == true
+- name: apply was automation instance yaml
+  shell: "oc apply -n {{ target_namespace }} -f /tmp/automation_instance.yml"
+- name: Install Healing
+  when: install_healing == true
+  block:
+  - name: copy was automation instance yaml (k8s)
+    template:
+      src: automation_instance_healing.yml
+      dest: /tmp/automation_instance_healing.yml    
+  - name: apply was automation instance healing yaml
+    shell: "oc apply -n {{ target_namespace }} -f /tmp/automation_instance_healing.yml"  
+
+# Wait for Install to complete
+- name: "Wait until was automation instance healthy: cartridge"
+  shell: "oc get cartridge websphereauto -n {{ target_namespace }} -o jsonpath='{ .status.conditions[?(@.type==\"Ready\")].status }'"
+  register: cartridge
+  until: cartridge.stdout.find('True') != -1
+  changed_when: false
+  delay: 40
+  retries: 90
+- name: "Wait until was automation instance healthy: cartridgerequirements"
+  shell: "oc get cartridgerequirements websphereauto -n {{ target_namespace }} -o jsonpath='{ .status.conditions[?(@.type==\"Ready\")].status }'"
+  register: cartridgerequirements
+  until: cartridgerequirements.stdout.find('True') != -1
+  changed_when: false
+  delay: 40
+  retries: 90
+- name: "Wait until was automation instance healthy: WebSphereAutomation"
+  shell: "oc get WebSphereAutomation wsa -n {{ target_namespace }} -o jsonpath='{ .status.conditions[?(@.type==\"Ready\")].status }'"
+  register: cartridge
+  until: cartridge.stdout.find('True') != -1
+  changed_when: false
+  delay: 40
+  retries: 90
+
+# Post Install Checks    
+- name: "Wait for cve monitor job to complete"
+  shell: "oc wait --for=condition=complete --timeout=3600s job/wsa-secure-cve-monitor-init -n {{ target_namespace }}"  
+  changed_when: false
+  when: operator_airgap == false
+- name: "Check cve monitor job successful"
+  shell: "oc get job wsa-secure-cve-monitor-init -n {{ target_namespace }} -o jsonpath='{.status.succeeded}'"
+  register: cvejobresult
+  until: cvejobresult.stdout.find('1') != -1
+  changed_when: false
+  when: operator_airgap == false
+- name: Check if Admin role already setup
+  shell: "oc describe job -n {{ target_namespace }} wsa-selfsecure-admin-default-role"
+  failed_when: false
+  changed_when: false
+  register: admin_role
+- name: Copy admin roles yaml files
+  copy:
+    content: "{{ lookup('file', item) }}"
+    dest: "./{{ item }}"
+  with_items:
+  - admin-roles-configmap.yaml
+  - admin-roles-job.yaml
+  when: "admin_role.rc != 0"
+- name: "Setup Admin Role"
+  shell: "oc apply -n {{ target_namespace }} -f ./{{ item }}"
+  with_items:
+  - admin-roles-configmap.yaml
+  - admin-roles-job.yaml
+  when: "admin_role.rc != 0"

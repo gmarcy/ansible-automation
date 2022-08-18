@@ -1,0 +1,12 @@
+---
+
+- name: Create worker node mongo data directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0777'
+  loop:
+    - /data
+    - /data/mongo0
+    - /data/mongo1
+    - /data/mongo2

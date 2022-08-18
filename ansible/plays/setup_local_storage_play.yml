@@ -1,0 +1,16 @@
+---
+
+- name: Create mongo data folders on all worker nodes
+  hosts: worker_nodes
+  gather_facts: false
+  roles:
+  - role: create_mongo_data_folders
+    when: hostvars['provision_cluster']['local_storage_required']
+
+- name: Create local storage cluster artifacts
+  hosts: setup_storage
+  gather_facts: false
+  roles:
+  - role: setup_local_storage
+    cluster_name: "{{ hostvars['provision_cluster']['cluster_name'] }}"
+    when: hostvars['provision_cluster']['local_storage_required']

@@ -1,0 +1,72 @@
+---
+
+- name: Create IBM WebSphere Automation Subscription
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: Subscription
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: ibm-websphere-automation
+    namespace: openshift-operators
+    definition:
+      spec:
+        channel: v1.4
+        installPlanApproval: Automatic
+        name: ibm-websphere-automation
+        source: ibm-operator-catalog
+        sourceNamespace: openshift-marketplace
+    wait: true
+    wait_condition:
+      type: CatalogSourcesUnhealthy
+      status: false
+  register: _result
+
+- name: Wait until the WSA operator pod is running
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    kind: Pod
+    kubeconfig: "{{ kubeconfig_path }}"
+    label_selectors:
+    - app.kubernetes.io/name=websphere-automation-operator
+    namespace: openshift-operators
+    wait: true
+    wait_condition:
+      type: Ready
+  register: _result
+
+- name: Create CommonService instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operator.ibm.com/v3
+    definition:
+      spec:
+        size: starterset
+    kind: CommonService
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: common-service
+    namespace: ibm-common-services
+  register: _result
+
+- name: Wait until all the openshift-operators csv succeed
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: ClusterServiceVersion
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: openshift-operators
+  register: _result
+  delay: 30
+  retries: 120
+  until: _result.resources | map(attribute='status.phase') | unique == ['Succeeded']
+
+- name: Wait until all the ibm-common-services csv succeed
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: ClusterServiceVersion
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: ibm-common-services
+  register: _result
+  delay: 30
+  retries: 120
+  until: _result.resources | map(attribute='status.phase') | unique == ['Succeeded']

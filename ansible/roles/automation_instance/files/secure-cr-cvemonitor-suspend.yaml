@@ -1,0 +1,9 @@
+apiVersion: automation.websphere.ibm.com/v1
+kind: WebSphereSecure
+metadata:
+  name: wsa-secure
+spec:
+  license:
+    accept: false
+  cveMonitor:
+    suspend: true

@@ -1,0 +1,104 @@
+---
+
+- name: Check to see if we have already run the kubeadm init
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: _result_stat
+
+- block:
+
+    - name: Pull kubernetes images
+      command: kubeadm config images pull
+      register: _result
+
+    - name: Setup Kubernetes
+      command: kubeadm init --pod-network-cidr=192.168.0.0/16
+      register: _result
+
+  when: not _result_stat.stat.exists
+
+- name: Check to see if we already have fetched the kubeconfig
+  stat:
+    path: "{{ fetched_files_path }}kubeconfig"
+  register: _result_stat
+  delegate_to: 'localhost'
+
+- block:
+
+    - name: Create ~/.kube folder
+      file:
+        path: ~/.kube
+        state: directory
+
+    - name: Copy kubeconfig
+      copy:
+        remote_src: true
+        src: /etc/kubernetes/admin.conf
+        dest: ~/.kube/config
+
+    - name: Create fetched files folder
+      file:
+        path: "{{ fetched_files_path }}"
+        state: directory
+      delegate_to: 'localhost'
+
+    - name: Fetch a copy of the kubeconfig for localhost
+      fetch:
+        dest: "{{ fetched_files_path }}"
+        src: /etc/kubernetes/admin.conf
+        flat: true
+
+    - name: Rename admin.conf to kubeconfig
+      command: mv {{ fetched_files_path }}admin.conf {{ fetched_files_path }}kubeconfig
+      register: _result
+      changed_when: _result.rc == 0
+      delegate_to: 'localhost'
+
+  when: not _result_stat.stat.exists
+
+- name: Get kubernetes node status
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Node
+    kubeconfig: "{{ fetched_files_path }}kubeconfig"
+    name: "{{ hostvars[inventory_hostname].fqdn }}"
+  register: _result
+  delegate_to: 'localhost'
+  delay: 10
+  retries: 120
+  until: _result.resources | length > 0 and _result.resources[0].status.nodeInfo is defined
+
+- name: Set fact if master node is ready
+  set_fact:
+    master_node_ready: "{{ item.status == 'True' }}"
+  loop: "{{ _result.resources[0].status.conditions }}"
+  when: item.type == 'Ready'
+
+- block:
+
+    - name: Create pull secret
+      shell: |
+        kubectl create secret docker-registry global-pull-secret --docker-username={{ docker_user }} --docker-password={{ docker_password }} -n=kube-system
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      args:
+        executable: /bin/bash
+
+    - name: Copy canal.yaml
+      copy:
+        src: canal.yaml
+        dest: ~/canal.yaml
+
+    - name: Install Calico
+      command: kubectl apply -f ~/canal.yaml
+
+  when: not master_node_ready
+
+- name: Run kubeadm to get the join command for worker nodes
+  command: kubeadm token create --print-join-command
+  register: _result
+  changed_when: _result is not defined
+
+- name: Set fact with the contents of the kubeadm join command
+  set_fact:
+    kubeadm_join_command: "{{ _result.stdout | trim }}"

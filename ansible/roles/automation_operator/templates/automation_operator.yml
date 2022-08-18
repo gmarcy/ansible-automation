@@ -1,0 +1,11 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+   name: websphere-automation
+   namespace: openshift-operators
+spec:
+   channel: {{ operator_channel }}
+   installPlanApproval: Automatic
+   name: ibm-websphere-automation
+   source: {{operator_catalog_source}}
+   sourceNamespace: openshift-marketplace

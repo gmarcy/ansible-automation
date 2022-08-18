@@ -15,6 +15,17 @@ curl -o /tmp/rpms/cri-tools.rpm -L {{ cri_tools_rpm_url }}
 
 curl -o /tmp/rpms/checkpolicy.rpm -L {{ checkpolicy_rpm_url }}
 
+#curl -o /tmp/rpms/systemd-journal-remote.rpm -L {{ systemd_journal_remote_rpm_url }}
+#curl -o /tmp/rpms/firewalld-filesystem.rpm -L {{ firewalld_filesystem_rpm_url }}
+#curl -o /tmp/rpms/libmicrohttpd.rpm -L {{ libmicrohttpd_rpm_url }}
+#curl -o /tmp/rpms/systemd.rpm -L {{ systemd_rpm_url }}
+#curl -o /tmp/rpms/systemd-libs.rpm -L {{ systemd_libs_rpm_url }}
+#curl -o /tmp/rpms/systemd-pam.rpm -L {{ systemd_pam_rpm_url }}
+#curl -o /tmp/rpms/info.rpm -L {{ info_rpm_url }}
+#curl -o /tmp/rpms/systemd-resolved.rpm -L {{ systemd_resolved_rpm_url }}
+#curl -o /tmp/rpms/systemd-udev.rpm -L {{ systemd_udev_rpm_url }}
+#curl -o /tmp/rpms/systemd-container.rpm -L {{ systemd_container_rpm_url }}
+
 cp -rvf ${mnt}/srv/repo/*.rpm /tmp/rpms
 tmpd=$(mktemp -d)
 mkdir ${tmpd}/{upper,work}

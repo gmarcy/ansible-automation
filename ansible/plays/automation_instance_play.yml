@@ -1,0 +1,16 @@
+---
+
+- name: Install WebSphere Automation instance
+  hosts: ocp_controller
+  gather_facts: false
+  vars:
+    load_secrets_dir: "{{ playbook_dir }}/secrets"
+    operator_branch: main
+    operator_repo: git@github.ibm.com:websphere/automation-operator
+    target_namespace: "wasautomation"
+    operator_singlenamespace: "{{ hostvars[inventory_hostname]['operator_singlenamespace'] | default('false') | bool }}"
+    install_healing: "{{ hostvars[inventory_hostname]['install_healing'] | default('false') | bool }}"
+    websphere_automation_version: "{{ hostvars[inventory_hostname]['websphere_automation_version'] | default('auto') }}"
+    operator_channel: "{{ hostvars[inventory_hostname]['operator_channel'] | default('v1.1') }}"
+  roles:
+  - role: automation_instance

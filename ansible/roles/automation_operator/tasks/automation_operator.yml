@@ -1,0 +1,30 @@
+---
+
+
+- name: Install Operator
+  block:
+    - name: Discover Version
+      include_tasks: discover_version.yml
+    - name: Pre Install (Catalog and Namespace)
+      include_tasks: pre_install.yml
+
+    - name: install operator
+      include_tasks: install_operator.yml
+
+  rescue:
+    - name: "Get Debug Info"
+      shell: "{{ item }}" 
+      register: "debug_info"
+      failed_when: false
+      changed_when: false
+      with_items:
+        - "oc get pods --all-namespaces"
+        - "oc -n openshift-operators get pod -l app.kubernetes.io/name=websphere-automation-operator"
+        - "oc -n {{ target_namespace }} get pod -l app.kubernetes.io/name=websphere-automation-operator"
+    - name: "Print Debug Info"
+      debug:
+        msg: 
+        - "Operator Install Failed during: {{ ansible_failed_task.name }}" 
+        - "with result: {{ ansible_failed_result }}"
+        - "Debug_info: {{ debug_info }}"
+      failed_when: true

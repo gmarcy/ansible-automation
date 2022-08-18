@@ -4,6 +4,6 @@
   include_vars:
     dir: "{{ secrets_dir }}"
     ignore_unknown_extensions: true
-  no_log: true
+  no_log: "{{ hide_playbook_secrets | default(true) }}"
   delegate_to: "{{ inventory_hostname }}"
   delegate_facts: true

@@ -2,7 +2,7 @@
 
 cluster_name: "{{ inventory_cluster_name }}"
 base_dns_domain: "{{ inventory_cluster_domain }}"
-network_cidr: "{{ inventory_cluster_cidr }}"
+network_cidr: "{{ inventory_cluster_cidr | default('') }}"
 http_proxy: "{{ inventory_cluster_proxy }}"
 cluster_host_names: "{{ inventory_cluster_hosts }}"
 single_node: "{{ inventory_cluster_single_node }}"

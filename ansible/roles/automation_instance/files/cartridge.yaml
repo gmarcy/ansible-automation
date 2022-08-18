@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: websphere-automation
+  labels:
+    phase: one
+---
+apiVersion: core.automation.ibm.com/v1beta1
+kind: Cartridge
+metadata:
+  namespace: websphere-automation
+  name: websphereautomation
+  labels:
+    phase: one
+spec:
+  description: WebSphere Automation Cartridge
+  license:
+    accept: true
+  version: 1.0.0
+  zen: true
+---
+apiVersion: base.automation.ibm.com/v1beta1
+kind: AutomationBase
+metadata:
+  name: websphere-automation
+  namespace: websphere-automation
+  labels:
+    phase: one
+spec:
+  version: 1.0.0
+  license:
+    accept: true
+  tls: {}
+  kafka: {}
+---
+apiVersion: base.automation.ibm.com/v1beta1
+kind: CartridgeRequirements
+metadata:
+  name: websphereautomation
+  namespace: websphere-automation
+  annotations:
+    com.ibm.automation.cartridge: websphereautomation
+  labels:
+    phase: two
+spec:
+  requirements:
+    - Events
+  license:
+     accept: true
+  version: 1.0.0
