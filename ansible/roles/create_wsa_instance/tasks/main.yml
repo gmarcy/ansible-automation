@@ -413,6 +413,10 @@
     wait_timeout: 1200
   register: _result
 
+- name: Set fact for UI access URI
+  set_fact:
+    ui_access_uri: "{{ _result.result.status.endpoints.automationUI }}"
+
 - name: Create WebSphereSecure instance
   kubernetes.core.k8s:
     api_key: "{{ api_key }}"
@@ -452,3 +456,17 @@
     wait_sleep: 10
     wait_timeout: 1200
   register: _result
+
+- name: Fetch the credentials to access the UI
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    kind: Secret
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: platform-auth-idp-credentials
+    namespace: ibm-common-services
+  register: _result
+
+- name: Set fact for UI access credentials
+  set_fact:
+    ui_access_credentials: "{{ _result.resources[0].data }}"
+  no_log: true

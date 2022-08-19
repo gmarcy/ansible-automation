@@ -1,0 +1,14 @@
+---
+
+- name: Print information for accessing WebSphere Automation
+  debug:
+    msg: 
+      - "System is ready with WebSphere Automation installed, Cluster can be found at: "
+      - "API URL: {{ hostvars['assisted-install']['cluster_api_url'] }}"
+      - "Console url: {{ hostvars['assisted-install']['console_url'] }}"
+      - "Console username: {{ hostvars['assisted-install']['console_username'] }}"
+      - "Console password: {{ hostvars['assisted-install']['console_password'] }}"
+      - "UI url: {{ hostvars['was-automation']['ui_access_uri'] }}"
+      - "UI username: {{ hostvars['was-automation']['ui_access_credentials']['admin_username'] | b64decode }}"
+      - "UI password: {{ hostvars['was-automation']['ui_access_credentials']['admin_password'] | b64decode }}"
+  changed_when: true

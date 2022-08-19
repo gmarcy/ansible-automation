@@ -8,3 +8,4 @@
 - import_playbook: ../plays/deploy_cluster_local_storage_play.yml
 - import_playbook: ../plays/deploy_nfs_storage_provisioner_play.yml
 - import_playbook: ../plays/install_websphere_automation_play.yml
+- import_playbook: ../plays/print_wsa_access_info_play.yml
