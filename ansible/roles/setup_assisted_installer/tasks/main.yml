@@ -69,6 +69,7 @@
         enable_single_node_dnsmasq: "{{ 'false' if (openshift_distro == 'okd') else 'true' }}"
         os_images: "{{ lookup('file', services_dir + '/' + download_paths.os_images) | from_json }}"
         release_images: "{{ lookup('file', services_dir + '/' + download_paths.release_images) | from_json }}"
+        okd_rpms_image: "{{ ('quay.io/vrutkovs/okd-rpms:' + openshift_version) if (openshift_distro == 'okd') else '' }}"
 
     - name: Create configmap.yml from original and overrides
       copy:

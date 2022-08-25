@@ -84,6 +84,13 @@
       loop: "{{ ignition_config.storage.files }}"
       when: item.path == '/usr/local/bin/agent-fix-bz1964591'
 
+    - name: Fix bad mode on /usr/local/bin/okd-binaries.sh storage file
+      set_fact:
+        unwanted_storage_file_paths: "{{ (unwanted_storage_file_paths | default([])) + ['/usr/local/bin/okd-binaries.sh'] }}"
+        added_storage_files: "{{ (added_storage_files | default([])) | union([item | combine({'mode': 493})]) }}"
+      loop: "{{ ignition_config.storage.files }}"
+      when: item.path == '/usr/local/bin/okd-binaries.sh'
+
     - name: Load journal-upload ignition config into ansible
       set_fact:
         journal_upload_ignition_config: "{{ lookup('template', 'journal-upload-ignition-config.j2') }}"
@@ -108,12 +115,6 @@
         disabled_system_unit_names: "{{ (disabled_system_unit_names | default([])) + ['agent.service'] }}"
       when: disable_assisted_agent_service | default(false)
 
-    - name: Remove /etc/multipath.conf on OKD
-      set_fact:
-        disabled_system_unit_names: "{{ (disabled_system_unit_names | default([])) + ['multipathd.service'] }}"
-        unwanted_storage_file_paths: "{{ (unwanted_storage_file_paths | default([])) + ['/etc/multipath.conf'] }}"
-      when: openshift_distro == 'okd'
-
     - name: Fetch and disable service units we want to disable
       set_fact:
         disabled_systemd_units: "{{ (disabled_systemd_units | default([])) | union([item | combine({'enabled': false})]) }}"
@@ -124,17 +125,6 @@
       set_fact:
         unwanted_systemd_unit_names: "{{ (unwanted_systemd_unit_names | default([])) | union(disabled_system_unit_names | default([])) }}"
         added_systemd_units: "{{ (added_systemd_units | default([])) | union(disabled_systemd_units | default([])) }}"
-
-    - name: Load OKD additions to ignition config
-      set_fact:
-        okd_ignition_config: "{{ lookup('template', 'okd-ignition-config.j2') }}"
-      when: openshift_distro == 'okd'
-
-    - name: Set fact for OKD ignition additions
-      set_fact:
-        added_storage_files: "{{ (added_storage_files | default([])) | union(okd_ignition_config.storage.files) }}"
-        added_systemd_units: "{{ (added_systemd_units | default([])) | union(okd_ignition_config.systemd.units) }}"
-      when: openshift_distro == 'okd'
 
     - name: Set fact for unwanted storage files
       set_fact:

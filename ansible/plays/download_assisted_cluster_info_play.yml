@@ -8,4 +8,5 @@
   - role: download_cluster_credentials
   - role: download_cluster_cli
     base_dns_domain: "{{ hostvars['cluster-facts']['base_dns_domain'] }}"
+    clusters_dir: "{{ hostvars['assisted-install']['clusters_dir'] }}"
     tags: cli

@@ -4,6 +4,9 @@
   hosts: cluster_install
   gather_facts: false
   roles:
+  - role: download_cluster_config
+    cluster_url: "{{ hostvars['assisted-install']['cluster_url'] }}"
+    clusters_dir: "{{ hostvars['assisted-install']['clusters_dir'] }}"
   - role: wait_for_install_complete
     assisted_install_rest_url: "{{ hostvars['assisted-install']['assisted_install_rest_url'] }}"
     cluster_id: "{{ hostvars['assisted-install']['cluster_id'] }}"

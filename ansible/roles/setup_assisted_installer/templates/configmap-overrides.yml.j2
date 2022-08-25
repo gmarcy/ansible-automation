@@ -6,3 +6,6 @@ data:
   OS_IMAGES: '{{ os_images | string | regex_replace("'",'"') | regex_replace('True','true') }}'
   RELEASE_IMAGES: '{{ release_images | string | regex_replace("'",'"') | regex_replace('True','true') }}'
   SERVICE_BASE_URL: http://{{ assisted_installer_address }}:8090
+{% if okd_rpms_image | default('') | length > 0 %}
+  OKD_RPMS_IMAGE: {{ okd_rpms_image }}
+{% endif %}

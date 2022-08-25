@@ -10,9 +10,6 @@
     cluster_installed: "{{ _result_cluster_status.json.status == 'installed' }}"
   changed_when: false
 
-# - name: Include the wait_for_install_complete task
-#   include_tasks: wait_for_install_complete.yml
-
 - block:
 
     - name: Copy the script to report install progress
