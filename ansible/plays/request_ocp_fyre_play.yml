@@ -1,0 +1,28 @@
+---
+
+- name: Request an OpenShift cluster from Fyre
+  hosts: fyre_provisioner
+  gather_facts: false
+  tags: request_ocp_fyre
+  pre_tasks:
+  - debug: var=hostvars['cluster-facts']
+  roles:
+  - role: request_ocp_fyre
+    fyreuser: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
+    fyreapikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
+    fyre_ocp_inf_group: ocp_clusters
+    clusterName: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+    ocpVersion: "{{ hostvars['cluster-facts']['openshift_version'] }}"
+    fyre_ocptype: "{{ hostvars[inventory_hostname]['fyre_ocptype'] }}"
+    fyre_site: "{{ hostvars[inventory_hostname]['fyre_site'] }}"
+    ocpPlatform: "{{ hostvars[inventory_hostname]['fyre_platform'] }}"
+    fyre_master_quantity: "{{ hostvars[inventory_hostname]['fyre_master_quantity'] }}"
+    fyre_master_cpu: "{{ hostvars[inventory_hostname]['fyre_master_cpu'] }}"
+    fyre_master_memory: "{{ hostvars[inventory_hostname]['fyre_master_memory'] }}"
+    fyre_worker_quantity: "{{ hostvars[inventory_hostname]['fyre_worker_quantity'] }}"
+    fyre_worker_cpu: "{{ hostvars[inventory_hostname]['fyre_worker_cpu'] }}"
+    fyre_worker_memory: "{{ hostvars[inventory_hostname]['fyre_worker_memory'] }}"
+    fyre_worker_additional_disk: "{{ hostvars[inventory_hostname]['fyre_worker_additional_disk'] }}"
+  - role: gather_ocp_fyre_facts
+    cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"
+    fyre_ocp_inf_group: ocp_clusters

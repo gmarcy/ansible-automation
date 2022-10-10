@@ -21,7 +21,7 @@
       loop: "{{ groups['cluster_hosts'] | zip(groups['cluster_hosts'] | map('extract', hostvars, 'host_inventory') | map(attribute='disks')) }}"
       vars:
         hostname: "{{ item[0] }}"
-        paths: "{{ item[1] | map(attribute='path') | zip(item[1] | map(attribute='installation_eligibility.eligible')) }}"
+        paths: "{{ item[1] | map(attribute='path') | zip(item[1] | map(attribute='installation_eligibility.eligible', default=false)) }}"
 
     - name: Run ssh to wipe the filesystems of all eligible disks
       command:

@@ -1,0 +1,7 @@
+---
+
+- name: Install openjdk-8-jdk
+  package:
+    name: openjdk-8-jdk
+    state: present
+  become: true

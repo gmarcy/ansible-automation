@@ -14,9 +14,13 @@
     base_url_path: "{{ _result.json.console_url | urlsplit('hostname') | regex_replace('^console-openshift-console.apps.') }}"
   no_log: false
 
+- name: Set fact for cluster API url
+  set_fact:
+    cluster_api_url: "{{ 'https://api.' + base_url_path + ':6443' }}"
+
 - name: Authenticate to the cluster
   community.okd.openshift_auth:
-    host: "{{ 'https://api.' + base_url_path + ':6443' }}"
+    host: "{{ cluster_api_url }}"
     username: "{{ console_username }}"
     password: "{{ console_password }}"
     state: present
@@ -28,3 +32,9 @@
   set_fact:
     api_key: "{{ _result.openshift_auth.api_key }}"
   no_log: false
+
+- name: Set cluster_facts
+  set_fact:
+    api_key: "{{ hostvars[inventory_hostname]['api_key'] }}"
+  delegate_to: 'cluster-facts'
+  delegate_facts: true

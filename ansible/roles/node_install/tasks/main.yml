@@ -1,0 +1,8 @@
+---
+
+- name: Download it
+  command: wget https://nodejs.org/dist/v14.19.0/node-v14.19.0.pkg
+
+- name: Install it
+  become: true
+  command: installer -store -pkg node-v14.19.0.pkg -target /

@@ -1,3 +1,32 @@
 ---
 
-ansible_python_interpreter: /usr/bin/python3
+ansible_ssh_pipelining: true
+ansible_ssh_common_args: '-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=accept-new'
+
+cluster_type: "{{ lookup('env', 'cluster_type') | default('CNCF') }}"
+
+fetched_files_path: "{{ lookup('env','HOME') }}/.cncf/ansible-fetched-files/{{ cluster_name }}/"
+
+ssh_keypair_type: 'rsa'
+ssh_keypair_size: 4096
+ssh_keypair_path: "{{ lookup('env','HOME') + '/.ssh/id_' + ssh_keypair_type }}"
+ssh_pubkey_path: "{{ ssh_keypair_path + '.pub' }}"
+ssh_public_key: "{{ lookup('file', ssh_pubkey_path) }}"
+
+# set nodes cpu and memory size based on cluster size
+tshirt_sizes:
+  s:
+    cpu: 2
+    memory: 2
+  m:
+    cpu: 2
+    memory: 4
+  l:
+    cpu: 4
+    memory: 8
+  x:
+    cpu: 8
+    memory: 16
+  xl:
+    cpu: 16
+    memory: 32

@@ -1,0 +1,13 @@
+---
+
+- name: Install WebSphere Automation instance into OCP cluster
+  hosts: was_automation
+  gather_facts: false
+  tags: was_automation
+  roles:
+  - role: create_wsa_instance
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    default_storage_class: "{{ hostvars['cluster-storage']['default_storage_class'] }}"
+    wsa_namespace: "{{ hostvars[inventory_hostname]['wsa_namespace'] }}"
+    install_healing: "{{ hostvars[inventory_hostname]['install_healing'] | default('false') | bool }}"

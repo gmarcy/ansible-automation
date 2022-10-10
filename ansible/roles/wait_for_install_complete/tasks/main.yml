@@ -10,21 +10,18 @@
     cluster_installed: "{{ _result_cluster_status.json.status == 'installed' }}"
   changed_when: false
 
-# - name: Include the wait_for_install_complete task
-#   include_tasks: wait_for_install_complete.yml
-
 - block:
 
     - name: Copy the script to report install progress
       copy:
         content: "{{ lookup('file', 'show_install_progress.sh') }}"
-        dest: "{{ clusters_dir }}/show_install_progress.sh"
+        dest: "{{ cluster_dir }}/show_install_progress.sh"
         mode: 0755
 
     - name: Wait for the install to complete
       command:
-        cmd: "{{ clusters_dir }}/show_install_progress.sh"
-        chdir: "{{ clusters_dir }}"
+        cmd: "./show_install_progress.sh"
+        chdir: "{{ cluster_dir }}"
       environment:
       - ASSISTED_INSTALL_REST_URL: "{{ assisted_install_rest_url }}"
       - CLUSTER_ID: "{{ cluster_id }}"

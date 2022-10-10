@@ -3,8 +3,8 @@
 - name: Cleanup iPXE folders
   hosts: ipxe_setup
   gather_facts: false
-  vars:
-    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
-    ipxe_folder: "{{ hostvars['assisted-install']['services_dir'] }}/ipxe"
+  tags: cleanup
   roles:
   - role: cleanup_ipxe_folders
+    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+    ipxe_folder: "{{ hostvars['assisted-install']['services_dir'] }}/ipxe"

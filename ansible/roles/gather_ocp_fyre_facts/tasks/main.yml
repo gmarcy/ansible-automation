@@ -1,0 +1,14 @@
+---
+
+- name: Create cluster_dir folder
+  file:
+    path: "{{ cluster_dir }}"
+    state: directory
+  delegate_to: 'cluster-facts'
+
+- name: Fetch a copy of the kubeconfig for localhost
+  fetch:
+    src: auth/kubeconfig
+    dest: "{{ cluster_dir + '/kubeconfig' }}"
+    flat: true
+  delegate_to: "{{ groups[fyre_ocp_inf_group] | first }}"

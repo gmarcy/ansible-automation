@@ -1,0 +1,42 @@
+---
+
+- name: Set devenvUser fact
+  set_fact:
+    devenvUser: "{{ devenvUser }}"
+  delegate_to: localhost
+
+- name: Create non-root user development account
+  include_role: 
+    name: create_user_account
+    public: true
+  vars:
+    account_username: "{{ devenvUser }}"
+    account_ssh_authorized_key: "{{ devenvAuthorizedKey }}"
+    account_shell: "{{ devenvShell }}"
+
+- name: Set devenvPublicKey fact
+  set_fact:
+    devenvPublicKey: "{{ createdAccount.ssh_public_key }}"
+  delegate_to: localhost
+
+- name: Add SSH public key to GitHub account
+  uri:
+    url: https://api.github.ibm.com/user/keys
+    validate_certs: no
+    method: POST
+    body:
+      title: "{{ devenvUser }} WSA development"
+      key: "{{ devenvPublicKey }}"
+    body_format: json
+    headers:
+      Content-Type: "application/json"
+      Authorization: "token {{ GHE_ACCESS_TOKEN }}"
+    status_code:
+    - 201
+    - 422
+  delegate_to: localhost
+
+- name: Add devenvUser to docker group when docker_ce is installed
+  set_fact:
+    docker_group_users:
+    - "{{ devenvUser }}"

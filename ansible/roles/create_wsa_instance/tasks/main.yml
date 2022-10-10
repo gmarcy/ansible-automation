@@ -1,0 +1,130 @@
+---
+
+- set_fact:
+    target_namespace: "{{ wsa_namespace }}"
+
+- name: Create WebSphereAutomation instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: automation.websphere.ibm.com/v1
+    definition:
+      spec:
+        license:
+          accept: true
+        replicas: 1
+    kind: WebSphereAutomation
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: wsa
+    namespace: "{{ target_namespace }}"
+    #wait: true
+    #wait_condition:
+    #  type: Ready
+    #wait_sleep: 10
+    #wait_timeout: 1200
+  register: _result
+
+- name: Create WebSphereSecure instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: automation.websphere.ibm.com/v1
+    definition:
+      spec:
+        license:
+          accept: true
+        replicas: 1
+        cveMonitor:
+      # {% if operator_airgap | bool == true %}    
+      #     suspend: true
+      # {% endif %}
+      # {% if http_proxy | bool == true %}   
+      #     env:
+      #     - name: JVM_ARGS
+      #       valueFrom:
+      #         secretKeyRef:
+      #           key: JVM_ARGS
+      #           name: wsa-custom-ca-cert
+      # {% endif %}
+    kind: WebSphereSecure
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: wsa-secure
+    namespace: "{{ target_namespace }}"
+    wait: true
+    wait_condition:
+      type: Ready
+    wait_sleep: 10
+    wait_timeout: 1200
+  register: _result
+
+- name: Create WebSphereHealth instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: automation.websphere.ibm.com/v1
+    definition:
+      spec:
+        license:
+          accept: true
+        replicas: 1
+    kind: WebSphereHealth
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: wsa-health
+    namespace: "{{ target_namespace }}"
+    wait: true
+    wait_condition:
+      type: Ready
+    wait_sleep: 10
+    wait_timeout: 1200
+  register: _result
+  when: install_healing
+
+- name: Wait for WebSphereAutomation instance to become Ready
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    api_version: automation.websphere.ibm.com/v1
+    kind: WebSphereAutomation
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: wsa
+    namespace: "{{ target_namespace }}"
+    wait: true
+    wait_condition:
+      type: Ready
+    wait_sleep: 40
+    wait_timeout: 3600
+  register: _result
+
+- name: Set fact for UI access URI
+  set_fact:
+    ui_access_uri: "{{ _result.resources[0].status.endpoints.automationUI }}"
+
+- name: Fetch the credentials to access the UI
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    kind: Secret
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: platform-auth-idp-credentials
+    namespace: ibm-common-services
+  register: _result
+
+- name: Set fact for UI access credentials
+  set_fact:
+    ui_access_credentials: "{{ _result.resources[0].data }}"
+  no_log: true
+
+- name: Wait for wsa-secure-cve-monitor-init Job to complete
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    kind: Job
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: wsa-secure-cve-monitor-init
+    namespace: "{{ target_namespace }}"
+    wait: true
+    wait_condition:
+      type: Complete
+    wait_sleep: 40
+    wait_timeout: 3600
+  register: _result
+  when: not operator_airgap
+
+- name: Assert that the job was successful
+  assert:
+    that:  _result.resources | map(attribute='status.succeeded') | unique == [1]
+  when: not operator_airgap

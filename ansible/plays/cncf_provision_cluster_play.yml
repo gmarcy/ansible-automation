@@ -1,0 +1,28 @@
+---
+
+- name: Setup kubernetes on cluster nodes
+  hosts: cluster_nodes
+  gather_facts: false
+  tags: configure_cncf_cluster
+  roles:
+  - role: cncf_kube_docker
+    kubernetes_version: "{{ hostvars['cluster-config']['kubernetes']['version'] }}"
+
+- name: Configure master nodes
+  hosts: master_nodes
+  gather_facts: false
+  tags: configure_cncf_cluster
+  roles:
+  - role: cncf_master_nodes
+    cluster_name: "{{ hostvars['localhost']['cluster_name'] }}"
+    docker_user: "{{ hostvars['playbook-secrets']['docker_io_user'] }}"
+    docker_password: "{{ hostvars['playbook-secrets']['docker_io_password'] }}"
+
+- name: Configure worker nodes
+  hosts: worker_nodes
+  gather_facts: false
+  tags: configure_cncf_cluster
+  roles:
+  - role: cncf_worker_nodes
+    cluster_name: "{{ hostvars['localhost']['cluster_name'] }}"
+    kubeadm_join_command: "{{ hostvars[groups['master_nodes'][0]].kubeadm_join_command }}"

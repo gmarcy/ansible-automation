@@ -1,0 +1,39 @@
+---
+
+wsaRepoList:
+- automation-api
+- automation-core-activity-record-manager
+- automation-core-persistence-api
+- automation-core-persistence-mongo
+- automation-core-rest
+- automation-core-runbook-manager
+- automation-core-runbook-runner
+- automation-core-util
+- automation-healing-analysis-manager
+- automation-healing-analysis-runner
+- automation-healing-common
+- automation-healing-investigation-manager
+- automation-healing-persistence-api
+- automation-healing-persistence-mongo
+- automation-healing-rest
+- automation-healing-storage-api
+- automation-healing-storage-filesystem
+- automation-healing-util
+- automation-healing-webhooks-rest
+- automation-mongo
+- automation-notifier
+- automation-operator
+- automation-registration-processor
+- automation-secure-cve-monitor
+- automation-secure-persistence-api
+- automation-secure-persistence-mongo
+- automation-secure-rest
+- automation-secure-util
+- automation-secure-vulnerability-manager
+- automation-ui
+- automation-usagemetering-rest
+- automation-util
+- automation-util-cli
+- automation-util-kafkaclient
+- automation-util-mongoclient
+- automation-util-notifications

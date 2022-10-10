@@ -1,0 +1,17 @@
+---
+- hosts: ocp_controller
+  vars:
+    load_secrets_dir: "{{ lookup('env', 'load_secrets_dir') | default(playbook_dir + '/secrets') }}"
+  roles:
+  - role: load_secrets
+
+- hosts: fyreApi
+  roles:
+  - role: devenv_fyrevm
+
+- hosts: devenv
+  vars:
+  - ansible_user: root
+  roles:
+  - role: fix_fyre_hosts_file
+  - role: fix_fyre_user_group

@@ -1,0 +1,221 @@
+---
+
+- name: Set facts for these tasks
+  set_fact:
+    operator_docker_registry: wasliberty-intops-docker-local.artifactory.swg-devops.com
+    operator_catalog_image: cp/websphere-automation-operator-catalog
+    operator_singlenamespace: "false"
+
+- name: Install Operator
+  block:
+
+    - when: operator_catalog_source != "ibm-operator-catalog"
+      name: install automation catalog
+      block:
+
+        - name: Check to see if the operator catalog pod is already running
+          kubernetes.core.k8s_info:
+            api_key: "{{ api_key }}"
+            kind: Pod
+            kubeconfig: "{{ kubeconfig_path }}"
+            namespace: openshift-marketplace
+            label_selectors:
+            - olm.catalogSource={{ operator_catalog_source }}
+          register: _result
+
+        - name: Set fact if pod is already running
+          set_fact:
+            operator_catalog_source_running: "{{ _result.resources | map(attribute='status.phase') | unique == ['Running'] }}"
+
+        - when: not operator_catalog_source_running
+          name: install automation catalog
+          block:
+
+            - when: websphere_automation_version == "auto"
+              name: obtain dynamic version based on image tags
+              block:
+
+                - name: load tags from catalog image
+                  uri:
+                    url: https://{{ operator_docker_registry }}/v2/{{ operator_catalog_image }}/tags/list
+                    user: "{{ operator_catalog_user }}"
+                    password: "{{ operator_catalog_password }}"
+                    force_basic_auth: true
+                    validate_certs: false
+                  register: _result
+
+                - name: find best matching tag
+                  set_fact:
+                    dynamic_operator_version: "{{ item }}"
+                  loop: "{{ _result.json.tags | sort }}"
+                  when: >
+                    (operator_branch == 'main' and item is not match('.*pre.*') and item is match('^[0-9]+\.[0-9]+\.[0-9]+.*')) or
+                    (operator_branch != 'main' and item is match('.*(pre\.)?' + operator_branch + '.*'))
+    
+                - name: set catalog version fact (auto)
+                  set_fact:
+                    operator_catalog_version: "{{ dynamic_operator_version }}"
+
+            - when: websphere_automation_version != "auto"
+              name: set catalog version fact (manual)
+              set_fact:
+                operator_catalog_version: "{{ websphere_automation_version }}"
+
+            - name: Create the catalog source
+              kubernetes.core.k8s:
+                api_key: "{{ api_key }}"
+                api_version: operators.coreos.com/v1alpha1
+                kind: CatalogSource
+                kubeconfig: "{{ kubeconfig_path }}"
+                name: "{{ operator_catalog_source }}"
+                namespace: openshift-marketplace
+                definition:
+                  spec:
+                     displayName: IBM WebSphere Automation Catalog
+                     sourceType: grpc
+                     image: "{{ operator_docker_registry }}/{{ operator_catalog_image }}:{{ operator_catalog_version }}"
+              register: _result
+              delay: 20
+              retries: 30
+              until: _result.result.status is defined and (_result.result.status.connectionState.lastObservedState == 'READY')
+
+            - name: Wait until automation catalog healthy
+              kubernetes.core.k8s_info:
+                api_key: "{{ api_key }}"
+                kind: Pod
+                kubeconfig: "{{ kubeconfig_path }}"
+                namespace: openshift-marketplace
+                label_selectors:
+                - olm.catalogSource={{ operator_catalog_source }}
+                wait: true
+                wait_condition:
+                  type: Ready
+                wait_sleep: 20
+                wait_timeout: 120
+              register: _result
+
+    - name: Ensure target_namespace exists
+      kubernetes.core.k8s:
+        api_key: "{{ api_key }}"
+        kind: Namespace
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: "{{ target_namespace }}"
+        state: present
+      register: _result
+
+    - name: Create OperatorGroup for singlenamespace deployment
+      kubernetes.core.k8s:
+        api_key: "{{ api_key }}"
+        api_version: operators.coreos.com/v1
+        kind: OperatorGroup
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: ibm-websphere-automation-group
+        namespace: "{{ target_namespace }}"
+        definition:
+          spec:
+            targetNamespaces:
+            - "{{ target_namespace }}"
+      when: operator_singlenamespace == true
+
+    - name: Create Subscription for singlenamespace operator
+      kubernetes.core.k8s:
+        api_key: "{{ api_key }}"
+        api_version: operators.coreos.com/v1alpha1
+        kind: Subscription
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: ibm-websphere-automation
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            labels:
+              operators.coreos.com/ibm-websphere-automation.{{ target_namespace }}: ''
+          spec:
+            channel: "{{ operator_channel }}"
+            installPlanApproval: Automatic
+            name: ibm-websphere-automation
+            source: "{{ operator_catalog_source }}"
+            sourceNamespace: openshift-marketplace
+        wait: true
+        wait_condition:
+          type: CatalogSourcesUnhealthy
+          status: false
+      register: _result
+      when: operator_singlenamespace == true
+
+    - name: Create Subscription for all namespaces operator
+      kubernetes.core.k8s:
+        api_key: "{{ api_key }}"
+        api_version: operators.coreos.com/v1alpha1
+        kind: Subscription
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: websphere-automation
+        namespace: openshift-operators
+        definition:
+          spec:
+            channel: "{{ operator_channel }}"
+            installPlanApproval: Automatic
+            name: ibm-websphere-automation
+            source: "{{ operator_catalog_source }}"
+            sourceNamespace: openshift-marketplace
+        wait: true
+        wait_condition:
+          type: CatalogSourcesUnhealthy
+          status: false
+      register: _result
+      when: operator_singlenamespace == false
+
+    - name: Wait for WSA operator controller manager
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key }}"
+        kind: Deployment
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: websphere-automation-operator-controller-manager
+        namespace: "{{ target_namespace if operator_singlenamespace else 'openshift-operators' }}"
+        wait: true
+        wait_condition:
+          type: Available
+        wait_sleep: 20
+        wait_timeout: 300
+      register: _result
+
+    - name: Wait until all the openshift-operators csv succeed
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key }}"
+        api_version: operators.coreos.com/v1alpha1
+        kind: ClusterServiceVersion
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: openshift-operators
+      register: _result
+      delay: 30
+      retries: 120
+      until: _result.resources | map(attribute='status.phase') | unique == ['Succeeded']
+
+    - name: Wait until all the ibm-common-services csv succeed
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key }}"
+        api_version: operators.coreos.com/v1alpha1
+        kind: ClusterServiceVersion
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: ibm-common-services
+      register: _result
+      delay: 30
+      retries: 120
+      until: _result.resources | map(attribute='status.phase') | unique == ['Succeeded']
+
+  rescue:
+    - name: "Get Debug Info"
+      shell: "{{ item }}" 
+      register: "debug_info"
+      failed_when: false
+      changed_when: false
+      with_items:
+        - "oc get pods --all-namespaces"
+        - "oc -n openshift-operators get pod -l app.kubernetes.io/name=websphere-automation-operator"
+        - "oc -n {{ target_namespace }} get pod -l app.kubernetes.io/name=websphere-automation-operator"
+    - name: "Print Debug Info"
+      debug:
+        msg: 
+        - "Operator Install Failed during: {{ ansible_failed_task.name }}" 
+        - "with result: {{ ansible_failed_result }}"
+        - "Debug_info: {{ debug_info }}"
+      failed_when: true

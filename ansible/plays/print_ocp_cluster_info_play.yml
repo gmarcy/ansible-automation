@@ -1,0 +1,8 @@
+---
+
+- name: Print WSA cluster information
+  hosts: was_automation
+  gather_facts: false
+  tags: wsa_cluster
+  roles:
+  - role: print_ocp_cluster_info

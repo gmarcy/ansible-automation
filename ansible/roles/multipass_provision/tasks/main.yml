@@ -1,0 +1,51 @@
+---
+
+- name: create ssh dir
+  file:
+    path: "{{ localHome + '/.ssh' }}"
+    state: directory
+    mode: '0700'
+
+- name: Ensure SSH Key
+  community.crypto.openssh_keypair:
+    path: "{{ devenvIdentityFile }}"
+    regenerate: never
+
+- name: Set fact for devenvHost
+  set_fact:
+    devenvHost: "{{ devenvHost }}"
+
+- name: Purge deleted multipass vms
+  command: multipass purge
+
+- name: List existing multipass vms
+  command: multipass list --format json
+  register: vm_list
+
+- name: Set fact for vms
+  set_fact:
+    multipass_vms: "{{ vm_list.stdout | from_json }}"
+
+- name: Set fact for our devenv host
+  set_fact:
+    devenvVmInfo: "{{ item }}"
+  loop: "{{ multipass_vms.list }}"
+  when: item.name == devenvHost
+
+- name: Start devenv host vm if it is stopped
+  command: multipass start {{ devenvHost }}
+  when: devenvVmInfo is defined and devenvVmInfo.state == 'Stopped'
+
+- name: Create multipass devenv host if it does not exist
+  block:
+
+    - name: Create cloud-init.yml from template
+      template:
+        src: cloud-init.yaml.j2
+        dest: ~/mp-cloud-init.yaml
+        mode: '0600'
+
+    - name: Start devenv host vm if it is stopped
+      command: multipass launch --name {{ devenvHost }} --cpus 4 --mem 8G --disk 128G --cloud-init ~/mp-cloud-init.yaml lts
+
+  when: devenvVmInfo is not defined

@@ -1,0 +1,5 @@
+operator_airgap: false
+install_healing: true
+http_proxy: false
+replicas_1: false
+make_me_a_cluster: false

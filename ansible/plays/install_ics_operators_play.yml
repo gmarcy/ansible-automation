@@ -1,0 +1,20 @@
+---
+
+- name: Install IBM Common Services Operators into OCP cluster
+  hosts: was_automation
+  gather_facts: false
+  tags: was_automation
+  vars:
+    operator_branch: main
+    operator_repo: git@github.ibm.com:websphere/automation-operator
+    target_namespace: "wasautomation"
+    operator_singlenamespace: "{{ hostvars[inventory_hostname]['operator_singlenamespace'] | default('false') | bool }}"
+    websphere_automation_version: "{{ hostvars[inventory_hostname]['websphere_automation_version'] | default('auto') }}"
+    operator_channel: "{{ hostvars[inventory_hostname]['operator_channel'] }}"
+    operator_catalog_source: websphere-automation-catalog
+  roles:
+  - role: install_ics_operators
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    operator_catalog_user: "{{ hostvars['playbook-secrets']['na_artifactory']['user'] }}"
+    operator_catalog_password: "{{ hostvars['playbook-secrets']['na_artifactory']['token'] }}"

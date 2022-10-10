@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.ibm.ws.automation</groupId>
+  <artifactId>parent</artifactId>
+  <version>0.0.1</version>
+  <packaging>pom</packaging>
+
+  <modules>
+    <module>automation-util-cli</module>
+    <module>automation-util-kafkaclient</module>
+    <module>automation-util-notifications</module>
+    <module>automation-util</module>
+    <module>automation-api</module>
+    <module>automation-util-mongoclient</module>
+    <module>automation-core-persistence-api</module>
+    <module>automation-healing-persistence-api</module>
+    <module>automation-healing-storage-api</module>
+    <module>automation-secure-persistence-api</module>
+    <module>automation-core-persistence-mongo</module>
+    <module>automation-core-util</module>
+    <module>automation-healing-storage-filesystem</module>
+    <module>automation-healing-util</module>
+    <module>automation-secure-util</module>
+    <module>automation-core-rest</module>
+    <module>automation-healing-persistence-mongo</module>
+    <module>automation-healing-webhooks-rest</module>
+    <module>automation-usagemetering-rest</module>
+    <module>automation-secure-persistence-mongo</module>
+    <module>automation-registration-processor</module>
+    <module>automation-secure-cve-monitor</module>
+    <module>automation-secure-rest</module>
+    <module>automation-secure-vulnerability-manager</module>
+    <module>automation-core-activity-record-manager</module>
+    <module>automation-core-runbook-manager</module>
+    <module>automation-core-runbook-runner</module>
+    <module>automation-healing-analysis-manager</module>
+    <module>automation-healing-analysis-runner</module>
+    <module>automation-healing-investigation-manager</module>
+    <module>automation-healing-rest</module>
+    <module>automation-notifier</module>
+  </modules>
+
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.13.1</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>${project.artifactId}</finalName>
+      <plugins>
+        <plugin>
+          <artifactId>maven-resources-plugin</artifactId>
+          <version>3.2.0</version>
+        </plugin>
+      </plugins>
+  </build>
+</project>

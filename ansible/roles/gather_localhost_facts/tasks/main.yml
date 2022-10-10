@@ -1,59 +1,49 @@
 ---
 
-- name: Create cluster_facts group
-  add_host:
-    name: cluster-facts
-    group: cluster_facts
-    ansible_host: localhost
-    ansible_connection: local
-  changed_when: false
-
 - name: Gather network facts
   ansible.builtin.gather_facts:
     gather_subset: "!all,network"
 
-- name: Find the address on the same network as the cluster_host
-  set_fact:
-    address_on_cluster_network: "{{ ipv4_address }}"
-  loop: "{{ hostvars['localhost-facts']['ansible_interfaces'] }}"
-  vars:
-    underscore_item: "{{ item | regex_replace('-', '_') }}"
-    ansible_item: "{{ hostvars['localhost-facts']['ansible_facts'][underscore_item] }}"
-    interface_active: "{{ ansible_item['active'] | default(false) and ansible_item['ipv4']['address'] is defined and ansible_item['ipv4']['netmask'] is defined }}"
-    ipv4_address: "{{ ansible_item['ipv4']['address'] | default(omit) }}"
-    ipv4_netmask: "{{ ansible_item['ipv4']['netmask'] | default(omit) }}"
-  when: interface_active|bool and (ipv4_address + '/' + ipv4_netmask) | ansible.utils.ipaddr('network/prefix') | ansible.utils.network_in_network(hostvars['cluster-facts']['network_cidr'])
+- name: When there is a network_cidr in cluster-facts
+  block:
 
-- name: Assert we found an address
-  assert:
-    that: hostvars['localhost-facts']['address_on_cluster_network'] is defined
-    fail_msg: "The local host does not appear to have an address on the cluster network {{ hostvars['cluster-facts']['network_cidr'] }}"
+    - name: Find the address on the same network as the cluster_host
+      set_fact:
+        address_on_cluster_network: "{{ ipv4_address }}"
+      loop: "{{ hostvars['localhost-facts']['ansible_interfaces'] }}"
+      vars:
+        underscore_item: "{{ item | regex_replace('-', '_') }}"
+        ansible_item: "{{ hostvars['localhost-facts']['ansible_facts'][underscore_item] }}"
+        interface_active: "{{ ansible_item['active'] | default(false) and ansible_item['ipv4']['address'] is defined and ansible_item['ipv4']['netmask'] is defined }}"
+        ipv4_address: "{{ ansible_item['ipv4']['address'] | default(omit) }}"
+        ipv4_netmask: "{{ ansible_item['ipv4']['netmask'] | default(omit) }}"
+      when: interface_active|bool and (ipv4_address + '/' + ipv4_netmask) | ansible.utils.ipaddr('network/prefix') | ansible.utils.network_in_network(hostvars['cluster-facts']['network_cidr'])
 
-- name: Set local_path fact
-  set_fact:
-    local_path: "{{ hostvars['localhost-facts']['ansible_env']['PATH'] }}"
+    - name: Assert we found an address
+      assert:
+        that: hostvars['localhost-facts']['address_on_cluster_network'] is defined
+        fail_msg: "The local host does not appear to have an address on the cluster network {{ hostvars['cluster-facts']['network_cidr'] }}"
+
+  when: hostvars['cluster-facts']['network_cidr'] | default('') | length > 0
 
 - name: Clear ansible_facts
   set_fact:
     ansible_facts: {}
 
-- name: Create additional localhost groups
-  add_host:
-    name: "{{ item.name }}"
-    group: "{{ item.group }}"
-    ansible_host: localhost
-    ansible_connection: local
-  changed_when: false
-  loop:
-  - name: playbook-secrets
-    group: playbook_secrets
-  - name: ipxe-setup
-    group: ipxe_setup
-  - name: ipmi-control
-    group: ipmi_control
-  - name: assisted-install
-    group: assisted_install
-  - name: cluster-install
-    group: cluster_install
-  - name: cluster-storage
-    group: cluster_storage
+- name: Set derived localhost facts
+  set_fact:
+    cpu_arch: "{{ 'amd64' if (ansible_architecture == 'x86_64') else ansible_architecture }}"
+    os_family: "{{ 'mac' if (ansible_os_family == 'Darwin') else ('windows' if (ansible_os_family == 'Windows') else 'linux') }}"
+    local_path: "{{ ansible_env['PATH'] }}"
+
+- name: Create an ssh keypair if one does not exist
+  community.crypto.openssh_keypair:
+    path: "{{ ssh_keypair_path }}"
+    type: "{{ ssh_keypair_type }}"
+    size: "{{ ssh_keypair_size }}"
+    regenerate: 'never'
+  register: _result_keypair
+
+- name: Create authorized_key from keypair
+  ansible.builtin.set_fact:
+    authorized_key: "{{ _result_keypair.public_key + ' ' + _result_keypair.comment }}"

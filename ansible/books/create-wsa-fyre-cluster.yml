@@ -1,0 +1,46 @@
+---
+
+- name: Create localhost groups for this playbook
+  hosts: localhost
+  gather_facts: false
+  tags: localhost_facts
+  roles:
+  - role: create_localhost_groups
+    localhost_groups:
+    - host_name: localhost-facts
+      group_name: localhost_facts
+    - host_name: cluster-facts
+      group_name: cluster_facts
+    - host_name: playbook-secrets
+      group_name: playbook_secrets
+    - host_name: setup-storage
+      group_name: setup_storage
+    - host_name: ipxe-setup
+      group_name: ipxe_setup
+    - host_name: ipmi-control
+      group_name: ipmi_control
+    - host_name: assisted-install
+      group_name: assisted_install
+    - host_name: cluster-install
+      group_name: cluster_install
+    - host_name: cluster-storage
+      group_name: cluster_storage
+    - host_name: fyre-provisioner
+      group_name: fyre_provisioner
+    - host_name: was-automation
+      group_name: was_automation
+
+- import_playbook: ../plays/gather_localhost_facts_play.yml
+- import_playbook: ../plays/load_playbook_secrets_play.yml
+- import_playbook: ../plays/request_ocp_fyre_play.yml
+- import_playbook: ../plays/gather_cluster_facts_play.yml
+- import_playbook: ../plays/ocp_login_play.yml
+- import_playbook: ../plays/allow_pods_to_run_on_master_play.yml
+- import_playbook: ../plays/csi_cephfs_fyre_play.yml
+- import_playbook: ../plays/add_pull_secrets_play.yml
+- import_playbook: ../plays/add_repository_mirror_config_play.yml
+- import_playbook: ../plays/install_ibm_catalog_play.yml
+- import_playbook: ../plays/install_wsa_operator_play.yml
+- import_playbook: ../plays/automation_instance_play.yml
+#- import_playbook: ../plays/install_wsa_instance_play.yml
+- import_playbook: ../plays/print_ocp_cluster_info_play.yml

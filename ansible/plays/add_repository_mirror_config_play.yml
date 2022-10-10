@@ -1,0 +1,29 @@
+---
+
+- name: Add repository mirror config
+  hosts: cluster_facts
+  gather_facts: false
+  tags: mirror_config
+  roles:
+  - role: add_repository_mirror_config
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    mirror_configs:
+    - mirrors:
+      - cp.stg.icr.io/cp
+      - wasliberty-intops-docker-local.artifactory.swg-devops.com/cp
+      source: cp.icr.io/cp
+    - mirrors:
+      - cp.stg.icr.io/cp
+      - wasliberty-intops-docker-local.artifactory.swg-devops.com/cp
+      source: icr.io/cpopen
+    - mirrors:
+      - cp.stg.icr.io/cp
+      - wasliberty-intops-docker-local.artifactory.swg-devops.com/cp
+      source: docker.io/ibmcom
+    - mirrors:
+      - hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com/ibmcom
+      source: quay.io/opencloudio
+    - mirrors:
+      - hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com/ibmcom
+      source: cp.icr.io/cp/cpd

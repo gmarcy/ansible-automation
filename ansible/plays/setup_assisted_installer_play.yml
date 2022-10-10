@@ -3,7 +3,9 @@
 - name: Setup assisted-installer pod
   hosts: assisted_install
   gather_facts: false
+  tags: assisted_install
   roles:
   - role: setup_assisted_installer
     assisted_installer_address: "{{ hostvars['localhost-facts']['address_on_cluster_network'] }}"
+    openshift_version: "{{ hostvars['cluster-facts']['openshift_version'] }}"
     tags: installer_pod

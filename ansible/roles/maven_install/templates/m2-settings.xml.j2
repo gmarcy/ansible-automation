@@ -1,0 +1,95 @@
+<settings xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.1.0 http://maven.apache.org/xsd/settings-1.1.0.xsd" xmlns="http://maven.apache.org/SETTINGS/1.1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <servers>
+
+    <server>
+      <id>artifactory-release</id>
+      <username>{{ artifactoryUser }}</username>
+      <password>{{ mavenArtifactoryPassword }}</password>
+    </server>
+
+    <server>
+      <id>artifactory-snapshot</id>
+      <username>{{ artifactoryUser }}</username>
+      <password>{{ mavenArtifactoryPassword }}</password>
+    </server>
+
+    <server>
+      <id>artifactory-plugins</id>
+      <username>{{ artifactoryUser }}</username>
+      <password>{{ mavenArtifactoryPassword }}</password>
+    </server>
+
+  </servers>
+
+<!--Set the plugins profile as active to work around Maven 
+Bug https://issues.apache.org/jira/browse/MNG-5984-->
+  <activeProfiles>
+    <activeProfile>artifactory-plugins</activeProfile>
+  </activeProfiles>
+
+  <profiles>
+    <profile>
+      <id>artifactory-release</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+
+      <repositories>
+
+        <repository>
+          <id>artifactory-release</id>
+          <snapshots>
+            <enabled>false</enabled>
+          </snapshots>
+          <name>artifactory-dal10-node2.swg-devops.com-release</name>
+          <url>https://na.artifactory.swg-devops.com:443/artifactory/wasliberty-intops-release-maven-local</url>
+        </repository>
+
+      </repositories>
+    </profile>
+
+    <profile>
+      <id>artifactory-snapshot</id>
+      <properties>
+        <features.repositoryName>artifactory-dal10-node2.swg-devops.com-snapshot</features.repositoryName>
+        <features.branchProperty>git.branch</features.branchProperty> 
+      </properties>
+
+      <repositories>
+        <repository>
+          <id>artifactory-release</id>
+          <snapshots>
+            <enabled>false</enabled>
+          </snapshots>
+          <name>artifactory-dal10-node2.swg-devops.com-release</name>
+          <url>https://na.artifactory.swg-devops.com:443/artifactory/wasliberty-intops-release-maven-local</url>
+        </repository>
+
+        <repository>
+          <id>artifactory-snapshot</id>
+          <snapshots>
+            <enabled>true</enabled>
+            <updatePolicy>never</updatePolicy>
+            <checksumPolicy>warn</checksumPolicy>
+          </snapshots>
+          <name>artifactory-dal10-node2.swg-devops.com-snapshot</name>
+          <url>https://na.artifactory.swg-devops.com:443/artifactory/wasliberty-intops-feature-branch-maven-local/${git.branch}</url>
+        </repository>
+      </repositories>
+    </profile>
+
+    <profile>
+      <id>artifactory-plugins</id>
+      
+      <pluginRepositories>
+        <pluginRepository>
+          <id>artifactory-plugins</id>
+          <name>artifactory-dal10-node2.swg-devops.com-plugins</name>
+          <url>https://na.artifactory.swg-devops.com:443/artifactory/wiotp-maven-plugins</url>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
+  </profiles>
+</settings>
+

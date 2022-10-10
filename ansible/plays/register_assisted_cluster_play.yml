@@ -3,6 +3,7 @@
 - name: Register our cluster with the assisted-install service
   hosts: assisted_install
   gather_facts: false
+  tags: assisted_install
   roles:
   - role: register_cluster
     base_dns_domain: "{{ hostvars['cluster-facts']['base_dns_domain'] }}"

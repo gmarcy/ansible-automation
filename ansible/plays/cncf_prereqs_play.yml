@@ -1,0 +1,15 @@
+---
+
+- name: Setup pre-reqs on master nodes
+  hosts: master_nodes
+  gather_facts: false
+  tags: setup_prereqs
+  roles:
+  - role: cncf_setup_prereqs
+
+- name: Setup pre-reqs on worker nodes
+  hosts: worker_nodes
+  gather_facts: false
+  tags: setup_prereqs
+  roles:
+  - role: cncf_setup_prereqs

@@ -1,0 +1,19 @@
+---
+
+- name: Create localhost groups for this playbook
+  hosts: localhost_facts
+  gather_facts: false
+  tags: localhost_facts
+  roles:
+  - role: create_localhost_groups
+    localhost_groups:
+    - host_name: provision-cluster
+      group_name: provision_cluster
+
+- name: Provision Fyre nodes for a kubernetes cluster
+  hosts: provision_cluster
+  gather_facts: false
+  tags: provision_cluster
+  roles:
+  - role: cncf_provision_fyre_cluster_nodes
+    fyre_user_email: "{{ hostvars['playbook-secrets']['na_artifactory']['user'] }}"

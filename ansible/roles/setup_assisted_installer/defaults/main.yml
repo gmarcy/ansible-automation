@@ -1,124 +1,19 @@
 ---
 
-#
-# configmap.yml.j2 template parameters
-#
+download_base_url: "https://raw.githubusercontent.com/openshift/assisted-service/release-4.13"
 
-default_os_images:
-  ocp:
-    - openshift_version: "4.6"
-      cpu_architecture: "x86_64"
-      url: "https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.6/4.6.8/rhcos-4.6.8-x86_64-live.x86_64.iso"
-      version: "46.82.202012051820-0"
-    - openshift_version: "4.7"
-      cpu_architecture: "x86_64"
-      url: "https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.7/4.7.33/rhcos-4.7.33-x86_64-live.x86_64.iso"
-      version: "47.84.202109241831-0"
-    - openshift_version: "4.8"
-      cpu_architecture: "x86_64"
-      url: "https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.8/4.8.14/rhcos-4.8.14-x86_64-live.x86_64.iso"
-      version: "48.84.202109241901-0"
-    - openshift_version: "4.9"
-      cpu_architecture: "x86_64"
-      url: "https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.9/4.9.40/rhcos-4.9.40-x86_64-live.x86_64.iso"
-      version: "49.84.202206171736-0"
-    - openshift_version: "4.10"
-      cpu_architecture: "x86_64"
-      url: "https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/4.10/4.10.16/rhcos-4.10.16-x86_64-live.x86_64.iso"
-      version: "410.84.202205191234-0"
-    - openshift_version: "4.10"
-      cpu_architecture: "arm64"
-      url: "https://mirror.openshift.com/pub/openshift-v4/aarch64/dependencies/rhcos/4.10/4.10.16/rhcos-4.10.16-aarch64-live.aarch64.iso"
-      version: "410.84.202205191023-0"
-    - openshift_version: "4.11"
-      cpu_architecture: "x86_64"
-      url: "https://mirror.openshift.com/pub/openshift-v4/x86_64/dependencies/rhcos/pre-release/4.11-fc.0/rhcos-4.11-fc.0-x86_64-live.x86_64.iso"
-      version: "411.85.202205101201-0"
-    - openshift_version: "4.11"
-      cpu_architecture: "arm64"
-      url: "https://mirror.openshift.com/pub/openshift-v4/aarch64/dependencies/rhcos/pre-release/4.11.0-fc.2/rhcos-4.11.0-fc.2-aarch64-live.aarch64.iso"
-      version: "411.86.202206150801-0"
-  okd:
-    - openshift_version:  "4.10"
-      cpu_architecture: "x86_64"
-      url: "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/35.20220327.3.0/x86_64/fedora-coreos-35.20220327.3.0-live.x86_64.iso"
-      version: "35.20220327.3.0"
+download_paths:
+  os_images: "os_images.json"
+  release_images: "release_images.json"
+  configmap_yml: "configmap-original.yml"
+  pod_yml: "pod-original.yml"
 
-default_release_images:
-  ocp:
-    - openshift_version: "4.6"
-      cpu_architecture: "x86_64"
-      url: "quay.io/openshift-release-dev/ocp-release:4.6.16-x86_64"
-      version: "4.6.16"
-    - openshift_version: "4.7"
-      cpu_architecture: "x86_64"
-      url: "quay.io/openshift-release-dev/ocp-release:4.7.51-x86_64"
-      version: "4.7.51"
-    - openshift_version: "4.8"
-      cpu_architecture: "x86_64"
-      url: "quay.io/openshift-release-dev/ocp-release:4.8.44-x86_64"
-      version: "4.8.44"
-    - openshift_version: "4.9"
-      cpu_architecture: "x86_64"
-      url: "quay.io/openshift-release-dev/ocp-release:4.9.38-x86_64"
-      version: "4.9.38"
-    - openshift_version: "4.10"
-      cpu_architecture: "x86_64"
-      url: "quay.io/openshift-release-dev/ocp-release:4.10.20-x86_64"
-      version: "4.10.20"
-      default: true
-    - openshift_version: "4.10"
-      cpu_architecture: "arm64"
-      url: "quay.io/openshift-release-dev/ocp-release:4.10.20-aarch64"
-      version: "4.10.20"
-    - openshift_version: "4.11"
-      cpu_architecture: "x86_64"
-      url: "quay.io/openshift-release-dev/ocp-release:4.11.0-rc.0-x86_64"
-      version: "4.11.0-rc.0"
-      support_level: "beta"
-    - openshift_version: "4.11"
-      cpu_architecture: "arm64"
-      url: "quay.io/openshift-release-dev/ocp-release:4.11.0-rc.0-aarch64"
-      version: "4.11.0-rc.0"
-      support_level: "beta"
-  okd:
-    - openshift_version: "4.10"
-      cpu_architecture: "x86_64"
-      default: true
-      url: "quay.io/openshift/okd:4.10.0-0.okd-2022-05-07-021833"
-      version: "4.10.0-0.okd-2022-05-07-021833"
-
-agent_installer_tag: latest
-
-agent_docker_image: quay.io/edge-infrastructure/assisted-installer-agent:{{ agent_installer_tag }}
-
-#
-# pod.yml.j2 template parameters
-#
-
-assisted_installer_pod_db_image: quay.io/centos7/postgresql-12-centos7:latest
-assisted_installer_pod_ui_image: quay.io/edge-infrastructure/assisted-installer-ui:{{ agent_installer_tag }}
-assisted_installer_pod_image_service_image: quay.io/edge-infrastructure/assisted-image-service:{{ agent_installer_tag }}
-assisted_installer_pod_service_image: quay.io/edge-infrastructure/assisted-service:{{ agent_installer_tag }}
-
-assisted_installer_pod_extra_containers:
-  containers:
-  - image: docker.io/library/nginx:latest
-    name: ipxe
-    ports:
-    - hostPort: 9080
-      containerPort: 80
-    envFrom:
-    - configMapRef:
-        name: config
-    volumeMounts:
-    - name: ipxe_volume
-      mountPath: /usr/share/nginx/html
-      readOnly: true
-  
-assisted_installer_pod_extra_volumes:
-  volumes:
-  - name: ipxe_volume
-    hostPath:
-      path: "{{ ipxe_folder }}"
-      type: Directory
+download_urls:
+  os_images:
+    ocp: "{{ download_base_url }}/data/default_os_images.json"
+    okd: "{{ download_base_url }}/data/default_okd_os_images.json"
+  release_images:
+    ocp: "{{ download_base_url }}/data/default_release_images.json"
+    okd: "{{ download_base_url }}/data/default_okd_release_images.json"
+  configmap_yml: "{{ download_base_url }}/deploy/podman/configmap.yml"
+  pod_yml: "{{ download_base_url }}/deploy/podman/pod.yml"

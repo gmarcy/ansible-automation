@@ -1,0 +1,29 @@
+---
+
+- name: Add account entry for non-root user
+  ansible.builtin.user:
+    name: "{{ account_username }}"
+    shell: "{{ account_shell | default(omit) }}"
+    generate_ssh_key: true
+    ssh_key_comment: "{{ account_username + ' on ' + inventory_hostname }}"
+    create_home: true
+  register: createdAccount
+  become: yes
+
+- name: Add public key to authorized_keys
+  ansible.posix.authorized_key:
+    user: "{{ account_username }}"
+    key: "{{ account_ssh_authorized_key }}"
+    state: present
+  become: yes
+  when: account_ssh_authorized_key is defined
+
+- name: Add user to sudoers
+  lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: '^{{ account_username }}'
+    line: '{{ account_username }} ALL=(ALL) NOPASSWD: ALL'
+    validate: 'visudo -cf %s'
+    backup: yes
+  become: yes

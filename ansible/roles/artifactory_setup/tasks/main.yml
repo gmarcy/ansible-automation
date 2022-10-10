@@ -1,0 +1,7 @@
+---
+
+- name: Login to artifactory docker-local registry
+  community.docker.docker_login:
+    registry: "{{ artifactoryDockerRegistry }}"
+    username: "{{ artifactoryUser }}"
+    password: "{{ artifactoryApiKey }}"

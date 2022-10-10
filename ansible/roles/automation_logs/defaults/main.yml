@@ -1,0 +1,5 @@
+controller_output_root: "build_output"
+controller_files_output_dir: "{{ controller_output_root }}/files"
+execution_dir: "{{ ansible_user_dir }}/workspace/{{ repo_name }}"
+build_files_output_dir: "{{ execution_dir }}/published_outputs/files"
+http_proxy: false

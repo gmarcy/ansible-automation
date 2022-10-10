@@ -1,0 +1,33 @@
+---
+
+- name: Create top-level wsadev folder
+  file:
+    path: ~/wsadev
+    state: directory
+
+- name: Create parent pom.xml file from template
+  ansible.builtin.template:
+    src: top-level-pom.xml.j2
+    dest: ~/wsadev/pom.xml
+    mode: '0644'
+
+- name: Determine which project repos have been cloned already
+  stat:
+    path: "{{ '~/wsadev/' + project_repo }}"
+  loop: "{{ wsaRepoList }}"
+  loop_control:
+    loop_var: project_repo
+  register: stat_info
+
+- name: Clone the wsa git repos
+  ansible.builtin.git:
+    accept_newhostkey: true
+    clone: true
+    dest: "{{ cloneDest }}"
+    repo: "{{ 'git@github.ibm.com:websphere/' + project + '.git' }}"
+    version: "{{ wsaGitBranch | default('main') }}"
+  loop: "{{ stat_info.results }}"
+  vars:
+    project: "{{ item.project_repo }}"
+    cloneDest: "{{ '~/wsadev/' + item.project_repo }}"
+  when: not item.stat.exists

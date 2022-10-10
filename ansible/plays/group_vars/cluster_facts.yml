@@ -2,7 +2,7 @@
 
 cluster_name: "{{ inventory_cluster_name }}"
 base_dns_domain: "{{ inventory_cluster_domain }}"
-network_cidr: "{{ inventory_cluster_cidr }}"
+network_cidr: "{{ inventory_cluster_cidr | default('') }}"
 http_proxy: "{{ inventory_cluster_proxy }}"
 cluster_host_names: "{{ inventory_cluster_hosts }}"
 single_node: "{{ inventory_cluster_single_node }}"
@@ -11,3 +11,5 @@ ingress_vip: "{{ inventory_cluster_ingress_vip if not inventory_cluster_single_n
 
 openshift_version: "{{ inventory_distro_version }}"
 openshift_distro: "{{ inventory_distro_name }}"
+
+cluster_dir: "{{ lookup('env','HOME') + '/.kube/clusters/' + cluster_name }}"

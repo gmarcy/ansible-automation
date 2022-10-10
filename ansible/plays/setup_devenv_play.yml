@@ -1,0 +1,17 @@
+---
+
+- hosts: localhost
+
+- hosts: devenv
+  gather_facts: false
+  vars:
+  - ansible_user: "{{ devenvUser }}"
+  roles:
+  - role: create_devenv_user
+  - role: artifactory_setup
+  - role: maven_install
+  - role: node_install
+  - role: java_install
+  - role: clone_wsa_repos
+  - role: gui_vnc_install
+  - role: download_vscode

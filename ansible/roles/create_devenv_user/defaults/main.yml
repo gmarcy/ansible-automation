@@ -1,0 +1,6 @@
+---
+
+devenvUser: "{{ hostvars['localhost'].ansible_facts.user_id }}"
+devenvHome: "{{ hostvars['localhost'].ansible_facts.user_dir }}"
+devenvAuthorizedKey: "{{ lookup('file', devenvHome + '/.ssh/' + devenvHost + '_id_' + sshKeyType + '.pub') }}"
+devenvShell: '/bin/bash'

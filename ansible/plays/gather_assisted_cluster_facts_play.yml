@@ -3,6 +3,7 @@
 - name: Gather assisted cluster facts
   hosts: assisted_install
   gather_facts: false
+  tags: assisted_cluster
   roles:
   - role: gather_assisted_cluster_facts
     cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"

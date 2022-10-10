@@ -1,0 +1,51 @@
+---
+
+# Prep for collecting logs
+- name: "make output directories on build machine"
+  file:
+    state: directory
+    path: "{{ build_files_output_dir }}/pods"
+
+- name: "make output directories on controller machine"
+  file:
+    state: directory
+    path: "{{ controller_files_output_dir }}/pods"  
+  delegate_to: localhost
+
+# Get pod logs
+- name: get operand pods
+  shell: "oc get pod -l app.kubernetes.io/managed-by=websphere-automation-operator -o name -n {{ target_namespace }}"
+  register: operand_pods
+  ignore_errors: true
+
+- name: get operand logs
+  shell: "oc logs {{ item | regex_replace('pod/','') }} -n {{ target_namespace }} > {{ build_files_output_dir }}/pods/{{ item | regex_replace('pod/','') }}.log"
+  loop: "{{ operand_pods.stdout_lines }}"
+  ignore_errors: true
+
+- when: http_proxy | bool == true
+  block:
+  - name: get operand pods
+    shell: "oc get pod -l app=squid -o name -n {{ target_namespace }}"
+    register: squid_pods    
+    ignore_errors: true
+
+  - name: get HTTP proxy log
+    shell: "oc logs {{ item | regex_replace('pod/','')  }} -n {{ target_namespace }} > {{ build_files_output_dir }}/pods/{{ item | regex_replace('pod/','') }}.log"
+    loop: "{{ squid_pods.stdout_lines }}"
+    ignore_errors: true
+
+# Collect outputs
+- name: "extract files from build to controller machine"
+  synchronize:
+    src: "{{ build_files_output_dir }}/pods/"
+    dest: "{{ controller_files_output_dir }}/pods"
+    mode: pull
+  ignore_errors: true
+
+- name: push logs files to fileserver
+  shell: "rsync -azR -e 'ssh -o StrictHostKeyChecking=no -i ~/.ssh/{{ fs_user }}_id_rsa' {{ controller_files_output_dir+'/pods'}} {{ fs_user }}@{{ fs_server }}:{{ fs_output_dir }}"
+  delegate_to: "localhost"
+  delay: 30
+  retries: 10
+  notify: "file_sent"

@@ -3,5 +3,5 @@
 assisted_install_host_url: http://localhost:8080
 assisted_install_rest_url: http://localhost:8080/api/assisted-install/v2
 
-clusters_dir: "{{ lookup('env','HOME') }}/.assisted/clusters/{{ cluster_name }}"
+cluster_dir: "{{ lookup('env','HOME') }}/.kube/clusters/{{ cluster_name }}"
 services_dir: "{{ lookup('env','HOME') }}/.assisted/services"

@@ -1,0 +1,14 @@
+---
+
+# variables from makeMeACluster
+
+fyreuser: "{{ hostvars['playbook-secrets']['fyre_username'] }}"
+fyreapikey: "{{ hostvars['playbook-secrets']['fyre_username'] }}"
+ocpVersion: "{{ hostvars['cluster-facts']['openshift_version'] }}"
+operator_singlenamespace: "{{ hostvars['was-automation']['operator_singlenamespace'] }}"
+install_healing: "{{ hostvars['was-automation']['install_healing'] }}"
+replicas_1: "{{ hostvars['was-automation']['replicas_1'] }}" true
+websphere_automation_version: "{{ hostvars['was-automation']['websphere_automation_version'] }}" 1.4.0
+operator_channel: "{{ hostvars['was-automation']['operator_channel'] }}"
+clusterName: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+fyreSite: "{{ hostvars['fyre-facts']['fyre_site'] | default('rtp') }}"

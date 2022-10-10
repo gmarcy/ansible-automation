@@ -1,0 +1,123 @@
+---
+
+- name: Run the equivalent of "apt-get update" as a separate step
+  become: yes
+  apt:
+    update_cache: yes
+  changed_when: false
+
+- name: install pre-req packages
+  become: yes
+  apt:
+   name: apt-transport-https
+   state: present
+
+- name: apt update
+  become: yes
+  apt:
+   name: '*'
+   state: latest
+   update_cache: yes
+
+- name: Install lightdm, xfce4, firefox and tightvncserver
+  become: true
+  package:
+    name:
+    - lightdm
+    - xfce4
+    - xfce4-terminal
+    - firefox
+    - tightvncserver
+    state: present
+  register: package_info
+
+- name: Select lightdm as default display manager
+  become: true
+  copy:
+    content: /usr/sbin/lightdm
+    dest: /etc/X11/default-display-manager
+    mode: '0644'
+  register: copy_info
+
+- name: Reconfigure dpkg to lightdm
+  become: true
+  command: env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true dpkg-reconfigure lightdm
+  when: copy_info.changed
+
+- name: Get info on current alternative links
+  stat:
+    path: "{{ '/etc/alternatives/' + item }}"
+  loop:
+  - x-session-manager
+  - x-terminal-emulator
+  register: stat_info
+
+- debug: var=stat_info.results[0].stat.lnk_target
+
+- debug: var=stat_info.results[1].stat.lnk_target
+
+- name: Select xfce4-session as x-session-manager
+  become: true
+  command: update-alternatives --set x-session-manager /usr/bin/xfce4-session
+  when: stat_info.results[0].stat.lnk_target != '/usr/bin/xfce4-session'
+
+- name: Select xfce4-terminal.wrapper as x-terminal-emulator
+  become: true
+  command: update-alternatives --set x-terminal-emulator /usr/bin/xfce4-terminal.wrapper
+  when: stat_info.results[1].stat.lnk_target != '/usr/bin/xfce4-terminal.wrapper'
+
+- name: Get info on vncpasswd
+  stat:
+    path: ~/.vnc/passwd
+  register: stat_info
+
+- name: Set vncpasswd
+  shell: |
+    set -eo pipefail
+    umask 0077
+    mkdir -p ~/.vnc
+    echo -n vnc4wsa | vncpasswd -f > ~/.vnc/passwd
+  args:
+    executable: /bin/bash
+  when: not stat_info.stat.exists
+
+- name: Reboot host and wait for it to restart
+  become: true
+  ansible.builtin.reboot:
+    msg: "Reboot initiated by GUI and VNC server install"
+    connect_timeout: 5
+    reboot_timeout: 600
+    pre_reboot_delay: 0
+    post_reboot_delay: 30
+    test_command: whoami
+  when: package_info.changed
+
+- name: Start vncserver
+  command: vncserver -geometry 1920x1200 :1
+  register: result
+  changed_when: result.rc == 0
+  failed_when: result is not defined
+
+- name: Kill vncserver
+  command: vncserver -kill :1
+  register: result
+  changed_when: result.rc == 0
+  failed_when: result is not defined
+
+- name: Update ~/.vnc/xstart
+  lineinfile:
+    regex: '^#x-terminal.*'
+    line: 'x-terminal-emulator -geometry 120x40+10+10 -ls -title "$VNCDESKTOP Desktop" &'
+    path: ~/.vnc/xstartup
+
+- name: Update ~/.vnc/xstart
+  lineinfile:
+    regex: '^#x-window-manager.*'
+    line: 'x-window-manager &'
+    path: ~/.vnc/xstartup
+
+- name: Start vncserver
+  command: vncserver -geometry 1920x1200 :1
+  register: result
+  changed_when: result.rc == 0
+  failed_when: result is not defined

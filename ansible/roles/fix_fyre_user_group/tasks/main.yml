@@ -1,0 +1,32 @@
+---
+
+# Currently when the fyre "account" is created on the VM
+# there is a /home/fyre directory like this:
+#
+# ls -la /home/fyre
+# drwxr-xr-x 3 1000 1000  125 Apr 24  2020 .
+# drwxr-xr-x 3 root root   18 Apr 24  2020 ..
+#
+# There is no entry in /etc/group or /etc/password for those ids.
+# Unless you are careful, if you then run a command to allocate
+# "the next free group/user" it will be assigned those same ids.
+#
+# In this role we are explicitly assigning the gid/uid of 1000 to
+# fyre so that the next free group/user will be given 1001 and will
+# not overlap with the existing use of 1000 by fyre.
+
+- name: Add /etc/group entry for fyre group
+  ansible.builtin.group:
+    name: fyre
+    state: present
+    gid: 1000
+  become: yes
+
+- name: Add /etc/passwd entry for fyre user 
+  ansible.builtin.user:
+    name: fyre
+    group: fyre
+    home: /home/fyre
+    uid: 1000
+    create_home: no
+  become: yes

@@ -1,0 +1,11 @@
+data:
+  ASSISTED_SERVICE_HOST: {{ assisted_installer_address }}:8090
+  DISK_ENCRYPTION_SUPPORT: {{ disk_encryption_support | default('true') }}
+  ENABLE_SINGLE_NODE_DNSMASQ: {{ enable_single_node_dnsmasq | default('true') }}
+  IMAGE_SERVICE_BASE_URL: http://{{ assisted_installer_address }}:8888
+  OS_IMAGES: '{{ os_images | string | regex_replace("'",'"') | regex_replace('True','true') }}'
+  RELEASE_IMAGES: '{{ release_images | string | regex_replace("'",'"') | regex_replace('True','true') }}'
+  SERVICE_BASE_URL: http://{{ assisted_installer_address }}:8090
+{% if okd_rpms_image | default('') | length > 0 %}
+  OKD_RPMS_IMAGE: {{ okd_rpms_image }}
+{% endif %}

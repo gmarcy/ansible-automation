@@ -1,0 +1,10 @@
+---
+
+operator_singlenamespace: false
+install_healing: true
+replicas_1: true
+websphere_automation_version: 1.4.3
+operator_channel: v1.4
+make_me_a_cluster: true
+wsa_namespace: wasautomation
+operator_airgap: false

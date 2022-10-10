@@ -1,19 +1,8 @@
 ---
 
-- name: Create localhost_facts localhost group
-  hosts: localhost
-  gather_facts: false
-  tasks:
-  - name: Create localhost_facts group
-    add_host:
-      name: localhost-facts
-      group: localhost_facts
-      ansible_host: localhost
-      ansible_connection: local
-    changed_when: false
-
 - name: Gather localhost facts
   hosts: localhost_facts
   gather_facts: false
+  tags: localhost_facts
   roles:
   - role: gather_localhost_facts

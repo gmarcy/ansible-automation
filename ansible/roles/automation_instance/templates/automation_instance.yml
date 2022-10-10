@@ -1,0 +1,87 @@
+{% if replicas_1 | bool == true %}
+apiVersion: base.automation.ibm.com/v1beta1
+kind: AutomationBase
+metadata:
+  name: small
+spec:
+  license:
+    accept: true
+  tls: {}
+  version: v1.2
+  kafka:
+    kafka:
+      config:
+        offsets.topic.replication.factor: 1
+        transaction.state.log.min.isr: 1
+        transaction.state.log.replication.factor: 1
+      replicas: 1
+      resources:
+        limits:
+          cpu: '1'
+          memory: 1Gi
+        requests:
+          cpu: '1'
+          memory: 1Gi
+      storage:
+        type: persistent-claim
+        size: 10Gi
+    zookeeper:
+      replicas: 1
+      resources:
+        limits:
+          cpu: '1'
+          memory: 1Gi
+        requests:
+          cpu: '1'
+          memory: 1Gi
+      storage:
+        type: persistent-claim
+        size: 2Gi
+---
+{% endif %}
+apiVersion: automation.websphere.ibm.com/v1
+kind: WebSphereAutomation
+metadata:
+   name: wsa
+spec:
+   license:
+      accept: true
+{% if replicas_1 | bool == true %}
+   replicas: 1
+{% endif %}
+---
+apiVersion: automation.websphere.ibm.com/v1
+kind: WebSphereSecure
+metadata:
+   name: wsa-secure
+spec:
+   license:
+      accept: true
+{% if replicas_1 | bool == true %}
+   replicas: 1
+{% endif %}
+   cveMonitor:
+{% if operator_airgap | bool == true %}    
+      suspend: true
+{% endif %}
+{% if http_proxy | bool == true %}   
+      env:
+       - name: JVM_ARGS
+         valueFrom:
+            secretKeyRef:
+               key: JVM_ARGS
+               name: wsa-custom-ca-cert
+{% endif %}
+{% if install_healing | bool == true %}
+---
+apiVersion: automation.websphere.ibm.com/v1
+kind: WebSphereHealth
+metadata:
+   name: wsa-health
+spec:
+   license:
+      accept: true 
+{% if replicas_1 | bool == true %}
+   replicas: 1
+{% endif %}
+{% endif %}

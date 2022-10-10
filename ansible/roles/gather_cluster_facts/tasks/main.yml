@@ -1,0 +1,11 @@
+---
+
+- name: Set our cluster facts
+  set_fact:
+    cluster_name: "{{ cluster_name }}"
+    cluster_openshift_version: "{{ cluster_openshift_version }}"
+    cluster_api_url: "{{ cluster_api_url }}"
+    cluster_domain: "{{ cluster_api_url | regex_replace('.*api\\.' + cluster_name + '\\.([^:]*):.*', '\\1') }}"
+    kubeconfig_path: "{{ cluster_dir + '/kubeconfig' }}"
+  delegate_to: 'cluster-facts'
+  delegate_facts: true

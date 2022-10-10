@@ -1,0 +1,22 @@
+---
+
+- name: Install maven
+  package:
+    name: maven
+
+- name: Create ~/.m2 folder
+  file:
+    path: ~/.m2
+    state: directory
+
+- name: Create ~/.m2/settings-security.xml file from template
+  ansible.builtin.template:
+    src: m2-settings-security.xml.j2
+    dest: ~/.m2/settings-security.xml
+    mode: '0600'
+
+- name: Create ~/.m2/settings.xml file from template
+  ansible.builtin.template:
+    src: m2-settings.xml.j2
+    dest: ~/.m2/settings.xml
+    mode: '0644'

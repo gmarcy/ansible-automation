@@ -1,0 +1,23 @@
+---
+
+- name: Install prereqs
+  become: true
+  package:
+    name:
+    - software-properties-common
+    - apt-transport-https
+
+- name: Install Microsoft GPG key
+  become: true
+  apt_key:
+    url: 'https://packages.microsoft.com/keys/microsoft.asc'
+
+- name: Install vscode repo
+  become: true
+  apt_repository:
+    repo: 'deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main'
+
+- name: Install vscode
+  become: true
+  apt:
+    name: code
