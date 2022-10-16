@@ -1,15 +1,26 @@
 ---
-- hosts: ocp_controller
-  vars:
-    load_secrets_dir: "{{ lookup('env', 'load_secrets_dir') | default(playbook_dir + '/secrets') }}"
-  roles:
-  - role: load_secrets
 
-- hosts: fyreApi
+- name: Create fyre_provisioner localhost group for this play
+  hosts: localhost
+  gather_facts: false
+  tags: request_devenv_fyre
+  roles:
+  - role: create_localhost_groups
+    localhost_groups:
+    - host_name: fyre-provisioner
+      group_name: fyre_provisioner
+
+- name: Create devenv machine
+  hosts: fyre_provisioner
+  gather_facts: false
+  tags: request_devenv_fyre
   roles:
   - role: devenv_fyrevm
 
-- hosts: devenv
+- name: Fix incorrect state on devenv host
+  hosts: devenv
+  gather_facts: false
+  tags: request_devenv_fyre
   vars:
   - ansible_user: root
   roles:

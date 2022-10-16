@@ -39,6 +39,6 @@
         disk_name: "{{ item[1][0] }}"
         install_disk_id: "{{ item[1][1] }}"
       register: _result
-      when: disk_name == hostvars[item[0]].inventory_host_install_disk
+      when: disk_name == hostvars[item[0]].inv_host_install_disk
 
   when: (['known'] is subset(all_host_states))

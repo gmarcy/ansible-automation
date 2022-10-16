@@ -34,6 +34,11 @@
     msg: "ansible setup requires being able to run sudo for {{ _ssh_target }}"
   when: _result_sudo.stdout != 'sudoer'
 
+- name: Set ansible_python_interpreter
+  set_fact:
+    ansible_python_interpreter: "{{ ansible_python.executable }}"
+  when: not ansible_python_interpreter is defined
+
 - name: Confirm that we can run ssh to inventory_hostname, sudo without a password, and the python interpreter is present
   ansible.builtin.command: |
     {{ _ssh_command }} sudo ls {{ ansible_python_interpreter }}

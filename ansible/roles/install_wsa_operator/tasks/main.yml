@@ -1,11 +1,5 @@
 ---
 
-- name: Set facts for these tasks
-  set_fact:
-    operator_docker_registry: wasliberty-intops-docker-local.artifactory.swg-devops.com
-    operator_catalog_image: cp/websphere-automation-operator-catalog
-    operator_singlenamespace: "false"
-
 - name: Install Operator
   block:
 

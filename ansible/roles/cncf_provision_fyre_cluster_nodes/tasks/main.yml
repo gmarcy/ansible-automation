@@ -1,20 +1,5 @@
 ---
 
-- name: Set facts for new cluster
-  set_fact:
-    cluster_size: "{{ hostvars['cluster-config']['cluster']['clustersize'] | default('l') }}"
-    os: "{{ hostvars['cluster-config']['cluster']['os'] | default('Ubuntu 18.04') }}"
-    cluster_name: "{{ hostvars['localhost-facts']['cluster_name'] | default(hostvars['cluster-config']['cluster']['clustername']) }}"
-    site: "{{ hostvars['cluster-config']['cluster']['site'] }}"
-    master_node_count: "{{ hostvars['cluster-config']['cluster']['master_node_count'] | default('1') }}"
-    worker_node_count: "{{ hostvars['cluster-config']['cluster']['worker_node_count'] | default('3') }}"
-    kubernetes_version: "{{ hostvars['cluster-config']['kubernetes']['version'] }}"
-    local_storage_required: "{{ hostvars['cluster-config']['local_storage']['is_local_storage_required'] | default(true) }}"
-    nfs_required: "{{ hostvars['cluster-config']['nfs']['is_nfs_required'] | default(false) }}"
-    nfs_master_local_storage: "{{ hostvars['cluster-config']['nfs']['master_local_storage'] | default(0) }}"
-    nfs_storage_class_name: "{{ hostvars['cluster-config']['nfs']['storage_class_name'] | default('nfs-storage') }}"
-    nfs_namespace: "{{ hostvars['cluster-config']['nfs']['namespace'] | default('default') }}"
-
 - name: Assert that we have required Fyre variables set
   assert:
     that:
@@ -52,26 +37,27 @@
     validate_certs: false
     password: "{{ fyre_apikey }}"
     force_basic_auth: true
-    return_content: yes
+    return_content: true
   changed_when: false
   register: cluster_status_response
   until: cluster_status_response.status != -1
 
 - name: Set fact for check that cluster already exists
   set_fact:
-    cluster_exists: "{{ cluster_name in cluster_status_response.json.clusters | map(attribute='name') }}"
+    cluster_exists: "{{ cluster_name in (cluster_status_response.content | from_json)['clusters'] | map(attribute='name') }}"
 
 - name: Set cluster_status_json fact
   set_fact:
     cluster_status_json: "{{ item }}"
-  loop: "{{ cluster_status_response.json.clusters }}"
+  loop: "{{ (cluster_status_response.content | from_yaml)['clusters'] }}"
   when: item.name == cluster_name
 
 - name: Print a message about the state of the cluster
   debug:
     msg: "{{ 'Cluster ' + cluster_name + (' exists.' if cluster_exists else ' does not exist.') }}" 
 
-- block:
+- when: not cluster_exists
+  block:
 
     - name: Check to see if we have enough quota for the request
       uri:
@@ -81,14 +67,14 @@
         validate_certs: false
         password: "{{ fyre_apikey }}"
         force_basic_auth: true
-        return_content: yes
+        return_content: true
       changed_when: false
       register: user_quota
       vars:
         product_group_id: '52'
       delay: 20
       retries: 30
-      until: (user_quota.json.memory_quota_gb|int) - (user_quota.json.memory_allocated_gb|int) >= ((master_node_count|int) + (worker_node_count|int)) * (memory|int)
+      until: ((user_quota.content | from_json)['memory_quota_gb'] |int) - ((user_quota.content | from_json)['memory_allocated_gb'] | int) >= ((master_node_count|int) + (worker_node_count|int)) * (memory|int)
 
     - name: Create Fyre stack
       uri:
@@ -99,6 +85,7 @@
         validate_certs: false
         body_format: "json"
         force_basic_auth: true
+        return_content: true
         body: "{{ lookup('template', 'create-' + (cluster_type | lower ) + '-cluster.yml.j2') | from_yaml }}"
       register: fyre_status
       vars:
@@ -106,7 +93,30 @@
 
     - name: Set fact for request_id
       set_fact:
-        request_id: "{{ fyre_status.json.request_id }}"
+        request_id: "{{ (fyre_status.content | from_json)['request_id'] }}"
+
+- when: cluster_exists
+  block:
+
+    - name: Look up our request id
+      uri:
+        url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showrequests"
+        method: GET
+        user:  "{{ fyre_user }}"
+        validate_certs: false
+        password: "{{ fyre_apikey }}"
+        force_basic_auth: true
+        return_content: true
+      changed_when: false
+      register: request_status_response
+
+    - name: Set request_id fact
+      set_fact:
+        request_id: "{{ item.id }}"
+      loop: "{{ (request_status_response.content | from_json)['request'] }}"
+      when: item.cluster_name == cluster_name
+
+- block:
 
     - name: Wait until cluster is finished building
       uri:
@@ -116,12 +126,12 @@
         validate_certs: false
         password: "{{ fyre_apikey }}"
         force_basic_auth: true
-        return_content: yes
+        return_content: true
       changed_when: false
       register: request_status_response
-      until: (request_status_response.status == 200) and request_status_response.json is defined and not request_status_response.json.request[0].status is match('.*building.*')
-      retries: 600
       delay: 20
+      retries: 600
+      until: (request_status_response.status == 200) and request_status_response.content is defined and not (request_status_response.content | from_json)['request'][0].status is match('.*building.*')
 
     - name: Check to see if we already have a cluster with the name we want
       uri:
@@ -131,17 +141,15 @@
         validate_certs: false
         password: "{{ fyre_apikey }}"
         force_basic_auth: true
-        return_content: yes
+        return_content: true
       changed_when: false
       register: cluster_status_response
 
     - name: Set cluster_status_json fact
       set_fact:
         cluster_status_json: "{{ item }}"
-      loop: "{{ cluster_status_response.json.clusters }}"
+      loop: "{{ (cluster_status_response.content | from_json)['clusters'] }}"
       when: item.name == cluster_name
-
-  when: not cluster_exists
 
 - name: Assert that we got a cluster with the name we requested
   assert:
@@ -155,13 +163,13 @@
     validate_certs: false
     password: "{{ fyre_apikey }}"
     force_basic_auth: true
-    return_content: yes
+    return_content: true
   changed_when: false
   register: cluster_details_response
 
 - name: Set fact for cluster_details_json
   set_fact:
-    cluster_details_json: "{{ cluster_details_response.json[cluster_name] }}"
+    cluster_details_json: "{{ (cluster_details_response.content | from_json)[cluster_name] }}"
 
 - name: Create groups containing all cluster, master, and worker nodes
   add_host:
@@ -176,6 +184,9 @@
     privateip: "{{ item.privateip }}"
     publicip: "{{ item.publicip }}"
   loop: "{{ cluster_details_json }}"
+
+- debug: var=hostvars[item]
+  loop: "{{ groups['cluster_nodes'] }}"
 
 - name: Set the ansible_host for all master nodes
   set_fact:

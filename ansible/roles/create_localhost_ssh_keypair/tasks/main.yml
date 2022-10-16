@@ -1,0 +1,15 @@
+---
+
+- name: Create an ssh keypair if one does not exist
+  community.crypto.openssh_keypair:
+    path: "{{ ssh_keypair_path }}"
+    type: "{{ ssh_keypair_type }}"
+    size: "{{ ssh_keypair_size }}"
+    regenerate: 'never'
+  register: _result_keypair
+
+- name: Create facts from keypair
+  ansible.builtin.set_fact:
+    ssh_pubkey_path: "{{ ssh_keypair_path + '.pub' }}"
+    ssh_public_key: "{{ lookup('file', ssh_pubkey_path) }}"
+    authorized_key: "{{ _result_keypair.public_key + ' ' + _result_keypair.comment }}"

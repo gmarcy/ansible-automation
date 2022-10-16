@@ -1,0 +1,12 @@
+---
+
+- name: Install IBM Events Operator into cluster
+  hosts: was_automation
+  gather_facts: false
+  tags: was_automation
+  roles:
+  - role: install_events_operator
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: wasautomation
+    registry_namespace: ibm-common-services

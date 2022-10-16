@@ -1,0 +1,10 @@
+---
+
+- name: Ensure target_namespace exists
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    kind: Namespace
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ target_namespace }}"
+    state: present
+  register: _result

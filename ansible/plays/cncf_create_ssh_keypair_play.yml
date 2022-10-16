@@ -1,0 +1,31 @@
+---
+
+- name: Create ssh keypair on localhost
+  hosts: fyre_provisioner
+  gather_facts: false
+  tags: ssh_keypair
+  roles:
+  - role: create_localhost_ssh_keypair
+    ssh_keypair_type: 'rsa'
+    ssh_keypair_size: 4096
+    ssh_keypair_path: "{{ lookup('env','HOME') + '/.ssh/id_' + ssh_keypair_type }}"
+
+### Original from k-setup/scripts
+# #!/bin/bash -ex
+# ###############################################################################
+# # Title: provision_new_cluster_helper.sh
+# # Description : This shell script is to help the provision_new_cluster.sh script.
+# # Date: 6th Sep 2021
+# ###############################################################################
+# # Global declarations
+# 
+# set +x
+# export SSH_KEYPAIR_PATH=~/.ssh/id_rsa
+# export SSH_PUBLIC_KEY="$(cat ${SSH_KEYPAIR_PATH}.pub 2>/dev/null)"
+# if [ -z "$SSH_PUBLIC_KEY" ]
+# then
+#     ssh-keygen -q -t rsa -b 4096 -N '' -f ${SSH_KEYPAIR_PATH}
+#     export SSH_PUBLIC_KEY="$(cat ${SSH_KEYPAIR_PATH}.pub)"
+# fi
+# 
+# [ ! -z "$SSH_PUBLIC_KEY" ] || (echo "ERROR: Please create SSH keypair file at ~/.ssh/id_rsa" && exit 1)

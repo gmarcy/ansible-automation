@@ -3,8 +3,6 @@
 - name: Set facts for these tasks
   set_fact:
     install_common_services_operator: "{{ deploy_common_services_operator | default(true) }}"
-    operator_catalog_source: ibm-operator-catalog
-    target_namespace: ibm-common-services
 
 - when: install_common_services_operator
   name: Install Common Services using the IBM Common Services Operator
@@ -16,8 +14,8 @@
         api_version: operators.coreos.com/v1alpha1
         kind: Subscription
         kubeconfig: "{{ kubeconfig_path }}"
-        name: ibm-common-service-operator-v3.21-ibm-operator-catalog-openshift-marketplace
-        namespace: openshift-operators
+        name: "{{ ics_operator_name }}-v3.21-{{ ics_operator_catalog_source }}-{{ ics_operator_catalog_source_namespace }}"
+        namespace: "{{ ics_operator_namespace }}"
         definition:
           metadata:
             labels:
@@ -25,9 +23,9 @@
           spec:
             channel: v3.21
             installPlanApproval: Automatic
-            name: ibm-common-service-operator
-            source: ibm-operator-catalog
-            sourceNamespace: openshift-marketplace
+            name: "{{ ics_operator_name }}"
+            source: "{{ ics_operator_catalog_source }}"
+            sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
             startingCSV: ibm-common-service-operator.v3.21.0
       register: _result
 
@@ -36,8 +34,8 @@
         api_key: "{{ api_key }}"
         kind: Deployment
         kubeconfig: "{{ kubeconfig_path }}"
-        name: ibm-common-service-operator
-        namespace: openshift-operators
+        name: "{{ ics_operator_name }}"
+        namespace: "{{ ics_operator_namespace }}"
         wait: true
         wait_condition:
           type: Available
@@ -52,7 +50,7 @@
         kind: CommonService
         kubeconfig: "{{ kubeconfig_path }}"
         name: common-service
-        namespace: ibm-common-services
+        namespace: "{{ ics_namespace }}"
         definition:
           spec:
             size: starterset
@@ -65,7 +63,7 @@
         kind: CommonService
         kubeconfig: "{{ kubeconfig_path }}"
         name: common-service
-        namespace: ibm-common-services
+        namespace: "{{ ics_namespace }}"
       register: _result
       delay: 30
       retries: 120
@@ -114,7 +112,7 @@
             installPlanApproval: Automatic
             name: ibm-namespace-scope-operator
             source: "{{ operator_catalog_source }}"
-            sourceNamespace: openshift-marketplace
+            sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
         wait: true
         wait_condition:
           type: CatalogSourcesUnhealthy
@@ -151,7 +149,7 @@
             csvInjector:
               enable: true
             namespaceMembers:
-            - ibm-common-services
+            - "{{ ics_namespace }}"
             - openshift-redhat-marketplace
       register: _result
 
@@ -168,8 +166,8 @@
             csvInjector:
               enable: true
             namespaceMembers:
-            - openshift-operators
-            - ibm-common-services
+            - "{{ ics_operator_namespace }}"
+            - "{{ ics_namespace }}"
       register: _result
 
     - name: Create NamespaceScope operands
@@ -187,7 +185,7 @@
               enable: false
             namespaceMembers:
             - openshift-redhat-marketplace
-            - ibm-common-services
+            - "{{ ics_namespace }}"
             restartLabels:
               intent: projected-odlm
       register: _result
@@ -206,8 +204,8 @@
             csvInjector:
               enable: false
             namespaceMembers:
-            - ibm-common-services
-            - openshift-operators
+            - "{{ ics_namespace }}"
+            - "{{ ics_operator_namespace }}"
             restartLabels:
               intent: projected-odlm
       register: _result
@@ -228,7 +226,7 @@
             installPlanApproval: Automatic
             name: ibm-odlm
             source: "{{ operator_catalog_source }}"
-            sourceNamespace: openshift-marketplace
+            sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
         wait: true
         wait_condition:
           type: CatalogSourcesUnhealthy
@@ -258,7 +256,7 @@
         api_version: operator.ibm.com/v1alpha1
         kind: OperandRegistry
         kubeconfig: "{{ kubeconfig_path }}"
-        name: common-service
+        name: "{{ ics_operand_registry_name }}"
         namespace: "{{ target_namespace }}"
         definition:
           spec:
@@ -266,74 +264,74 @@
             - channel: v3.21
               installPlanApproval: Automatic
               name: ibm-licensing-operator
-              namespace: ibm-common-services
+              namespace: "{{ ics_namespace }}"
               packageName: ibm-licensing-operator-app
               scope: public
-              sourceName: ibm-operator-catalog
-              sourceNamespace: openshift-marketplace
+              sourceName: "{{ ics_operator_catalog_source }}"
+              sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
             - channel: v3.21
               installPlanApproval: Automatic
               name: ibm-mongodb-operator
-              namespace: ibm-common-services
+              namespace: "{{ ics_namespace }}"
               packageName: ibm-mongodb-operator-app
-              sourceName: ibm-operator-catalog
-              sourceNamespace: openshift-marketplace
+              sourceName: "{{ ics_operator_catalog_source }}"
+              sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
             - channel: v3.21
               installPlanApproval: Automatic
               name: ibm-cert-manager-operator
-              namespace: ibm-common-services
+              namespace: "{{ ics_namespace }}"
               packageName: ibm-cert-manager-operator
               scope: public
-              sourceName: ibm-operator-catalog
-              sourceNamespace: openshift-marketplace
+              sourceName: "{{ ics_operator_catalog_source }}"
+              sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
             - channel: v3.21
               installPlanApproval: Automatic
               name: ibm-iam-operator
-              namespace: ibm-common-services
+              namespace: "{{ ics_namespace }}"
               packageName: ibm-iam-operator
               scope: public
-              sourceName: ibm-operator-catalog
-              sourceNamespace: openshift-marketplace
+              sourceName: "{{ ics_operator_catalog_source }}"
+              sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
             - channel: v3.21
               installPlanApproval: Automatic
               name: ibm-management-ingress-operator
-              namespace: ibm-common-services
+              namespace: "{{ ics_namespace }}"
               packageName: ibm-management-ingress-operator-app
               scope: public
-              sourceName: ibm-operator-catalog
-              sourceNamespace: openshift-marketplace
+              sourceName: "{{ ics_operator_catalog_source }}"
+              sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
             - channel: v3.21
               installPlanApproval: Automatic
               name: ibm-ingress-nginx-operator
-              namespace: ibm-common-services
+              namespace: "{{ ics_namespace }}"
               packageName: ibm-ingress-nginx-operator-app
               scope: public
-              sourceName: ibm-operator-catalog
-              sourceNamespace: openshift-marketplace
+              sourceName: "{{ ics_operator_catalog_source }}"
+              sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
             - channel: v3.21
               installPlanApproval: Automatic
               name: ibm-platform-api-operator
-              namespace: ibm-common-services
+              namespace: "{{ ics_namespace }}"
               packageName: ibm-platform-api-operator-app
               scope: public
-              sourceName: ibm-operator-catalog
-              sourceNamespace: openshift-marketplace
+              sourceName: "{{ ics_operator_catalog_source }}"
+              sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
             - channel: v3
               installPlanApproval: Automatic
               name: ibm-events-operator
-              namespace: ibm-common-services
+              namespace: "{{ ics_namespace }}"
               packageName: ibm-events-operator
               scope: public
-              sourceName: ibm-operator-catalog
-              sourceNamespace: openshift-marketplace
+              sourceName: "{{ ics_operator_catalog_source }}"
+              sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
             - channel: v3.21
               installPlanApproval: Automatic
               name: ibm-zen-operator
-              namespace: ibm-common-services
+              namespace: "{{ ics_namespace }}"
               packageName: ibm-zen-operator
               scope: public
-              sourceName: ibm-operator-catalog
-              sourceNamespace: openshift-marketplace
+              sourceName: "{{ ics_operator_catalog_source }}"
+              sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
       register: _result
 
     - name: Create the OperandConfig
@@ -684,7 +682,7 @@
             requests:
             - operands:
               - name: ibm-cert-manager-operator
-              registry: common-service
+              registry: "{{ ics_operand_registry_name }}"
         wait: true
         wait_condition:
           type: Ready
@@ -710,7 +708,7 @@
             requests:
             - operands:
               - name: ibm-management-ingress-operator
-              registry: common-service
+              registry: "{{ ics_operand_registry_name }}"
         wait: true
         wait_condition:
           type: Ready
@@ -736,7 +734,7 @@
             requests:
             - operands:
               - name: ibm-mongodb-operator
-              registry: common-service
+              registry: "{{ ics_operand_registry_name }}"
         wait: true
         wait_condition:
           type: Ready
@@ -762,7 +760,7 @@
             requests:
             - operands:
               - name: ibm-ingress-nginx-operator
-              registry: common-service
+              registry: "{{ ics_operand_registry_name }}"
         wait: true
         wait_condition:
           type: Ready
@@ -788,7 +786,7 @@
             requests:
             - operands:
               - name: ibm-iam-operator
-              registry: common-service
+              registry: "{{ ics_operand_registry_name }}"
         wait: true
         wait_condition:
           type: Ready
@@ -814,7 +812,7 @@
             requests:
             - operands:
               - name: ibm-platform-api-operator
-              registry: common-service
+              registry: "{{ ics_operand_registry_name }}"
         wait: true
         wait_condition:
           type: Ready
@@ -840,7 +838,7 @@
             requests:
             - operands:
               - name: ibm-commonui-operator
-              registry: common-service
+              registry: "{{ ics_operand_registry_name }}"
         wait: true
         wait_condition:
           type: Ready
@@ -880,455 +878,8 @@
         api_version: operators.coreos.com/v1alpha1
         kind: ClusterServiceVersion
         kubeconfig: "{{ kubeconfig_path }}"
-        namespace: ibm-common-services
+        namespace: "{{ ics_namespace }}"
       register: _result
       delay: 30
       retries: 120
       until: _result.resources | map(attribute='status.phase') | unique == ['Succeeded']
-
-- when: true
-  name: Setup wasautomation namespace
-  block:
-
-    - name: Set facts for these tasks
-      set_fact:
-        target_namespace: wasautomation
-
-    - name: Ensure target_namespace exists
-      kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
-        kind: Namespace
-        kubeconfig: "{{ kubeconfig_path }}"
-        name: "{{ target_namespace }}"
-        state: present
-      register: _result
-
-- when: true
-  name: Install Kafka
-  block:
-
-    - name: Create the events OperandRequest
-      kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
-        api_version: operator.ibm.com/v1alpha1
-        kind: OperandRequest
-        kubeconfig: "{{ kubeconfig_path }}"
-        name: operand-request-events
-        namespace: "{{ target_namespace }}"
-        definition:
-          metadata:
-            labels:
-              ibm-common-services.common-service/config: 'true'
-              ibm-common-services.common-service/registry: 'true'
-              operator.ibm.com/opreq-control: 'true'
-          spec:
-            requests:
-            - operands:
-              - name: ibm-events-operator
-              registry: common-service
-              registryNamespace: ibm-common-services
-        wait: true
-        wait_condition:
-          type: Ready
-        wait_sleep: 20
-        wait_timeout: 300
-      register: _result
-
-    - name: Create Kafka instance
-      kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
-        api_version: ibmevents.ibm.com/v1beta2
-        kind: Kafka
-        kubeconfig: "{{ kubeconfig_path }}"
-        name: iaf-system
-        namespace: "{{ target_namespace }}"
-        definition:
-          metadata:
-            labels:
-              app.kubernetes.io/name: ibm-events-operator
-              app.kubernetes.io/managed-by: ibm-events-operator
-              app.kubernetes.io/instance: ibm-events-operator
-          spec:
-            # clusterCa:
-            #   generateCertificateAuthority: false
-            kafka:
-              replicas: 1
-              listeners:
-                - name: tls
-                  port: 9093
-                  type: internal
-                  tls: true
-                  authentication:
-                    type: scram-sha-512
-                - name: external
-                  port: 9094
-                  type: route
-                  tls: true
-                  authentication:
-                    type: scram-sha-512
-              config:
-                offsets.topic.replication.factor: 1
-                transaction.state.log.replication.factor: 1
-                transaction.state.log.min.isr: 1
-              template:
-                pod:
-                  metadata:
-                    annotations:
-                      productName: IBM Cloud Platform Common Services
-                      productID: 068a62892a1e4db39641342e592daa25
-                      productMetric: FREE
-                  securityContext:
-                    runAsNonRoot: true
-                  # tmpDirSizeLimit: 20Mi
-                  affinity:
-                    nodeAffinity:
-                      requiredDuringSchedulingIgnoredDuringExecution:
-                        nodeSelectorTerms:
-                          - matchExpressions:
-                              - key: kubernetes.io/arch
-                                operator: In
-                                values:
-                                  - amd64
-                                  - s390x
-                                  - ppc64le
-                    # podAntiAffinity:
-                    #   preferredDuringSchedulingIgnoredDuringExecution:
-                    #     - podAffinityTerm:
-                    #         labelSelector:
-                    #           matchExpressions:
-                    #             - key: ibmevents.ibm.com/name
-                    #               operator: In
-                    #               values:
-                    #                 - iaf-system-kafka
-                    #         topologyKey: kubernetes.io/hostname
-                    #       weight: 100
-                kafkaContainer:
-                  securityContext:
-                    allowPrivilegeEscalation: false
-                    capabilities:
-                      drop:
-                        - ALL
-                    privileged: false
-                    readOnlyRootFilesystem: false
-                    runAsNonRoot: true
-              storage:
-                type: persistent-claim
-                size: 10Gi
-                class: rook-ceph-block
-              authorization:
-                type: simple
-              resources:
-                requests:
-                  cpu: 1
-                  memory: 1Gi
-                limits:
-                  cpu: 1
-                  memory: 1Gi
-            zookeeper:
-              replicas: 1
-              template:
-                pod:
-                  metadata:
-                    annotations:
-                      productName: IBM Cloud Platform Common Services
-                      productID: 068a62892a1e4db39641342e592daa25
-                      productMetric: FREE
-                  securityContext:
-                    runAsNonRoot: true
-                  # tmpDirSizeLimit: 20Mi
-                  affinity:
-                    nodeAffinity:
-                      requiredDuringSchedulingIgnoredDuringExecution:
-                        nodeSelectorTerms:
-                          - matchExpressions:
-                              - key: kubernetes.io/arch
-                                operator: In
-                                values:
-                                  - amd64
-                                  - s390x
-                                  - ppc64le
-                    # podAntiAffinity:
-                    #   preferredDuringSchedulingIgnoredDuringExecution:
-                    #     - podAffinityTerm:
-                    #         labelSelector:
-                    #           matchExpressions:
-                    #             - key: ibmevents.ibm.com/name
-                    #               operator: In
-                    #               values:
-                    #                 - iaf-system-kafka
-                    #         topologyKey: kubernetes.io/hostname
-                    #       weight: 100
-                zookeeperContainer:
-                  securityContext:
-                    allowPrivilegeEscalation: false
-                    capabilities:
-                      drop:
-                        - ALL
-                    privileged: false
-                    readOnlyRootFilesystem: false
-                    runAsNonRoot: true
-              storage:
-                type: persistent-claim
-                size: 2Gi
-                class: rook-ceph-block
-              resources:
-                requests:
-                  cpu: 1
-                  memory: 1Gi
-                limits:
-                  cpu: 1
-                  memory: 1Gi
-            entityOperator:
-              template:
-                pod:
-                  metadata:
-                    annotations:
-                      productName: IBM Cloud Platform Common Services
-                      productID: 068a62892a1e4db39641342e592daa25
-                      productMetric: FREE
-                  securityContext:
-                    runAsNonRoot: true
-                  # tmpDirSizeLimit: 20Mi
-                  affinity:
-                    nodeAffinity:
-                      requiredDuringSchedulingIgnoredDuringExecution:
-                        nodeSelectorTerms:
-                          - matchExpressions:
-                              - key: kubernetes.io/arch
-                                operator: In
-                                values:
-                                  - amd64
-                                  - s390x
-                                  - ppc64le
-                    # podAntiAffinity:
-                    #   preferredDuringSchedulingIgnoredDuringExecution:
-                    #   - podAffinityTerm:
-                    #       labelSelector:
-                    #         matchExpressions:
-                    #         - key: ibmevents.ibm.com/name
-                    #           operator: In
-                    #           values:
-                    #           - iaf-system-kafka
-                    #       topologyKey: kubernetes.io/hostname
-                    #     weight: 100
-                topicOperatorContainer:
-                  securityContext:
-                    allowPrivilegeEscalation: false
-                    capabilities:
-                      drop:
-                        - ALL
-                    privileged: false
-                    readOnlyRootFilesystem: false
-                    runAsNonRoot: true
-                userOperatorContainer:
-                  securityContext:
-                    allowPrivilegeEscalation: false
-                    capabilities:
-                      drop:
-                        - ALL
-                    privileged: false
-                    readOnlyRootFilesystem: false
-                    runAsNonRoot: true
-                tlsSidecarContainer:
-                  securityContext:
-                    allowPrivilegeEscalation: false
-                    capabilities:
-                      drop:
-                        - ALL
-                    privileged: false
-                    readOnlyRootFilesystem: false
-                    runAsNonRoot: true
-              tlsSidecar:
-                resources:
-                  requests:
-                    cpu: 500m
-                    memory: 128Mi
-                  limits:
-                    cpu: 500m
-                    memory: 128Mi
-              userOperator:
-                resources:
-                  requests:
-                    cpu: 1
-                    memory: 1Gi
-                  limits:
-                    cpu: 1
-                    memory: 1Gi
-              topicOperator:
-                resources:
-                  requests:
-                    cpu: 1
-                    memory: 1Gi
-                  limits:
-                    cpu: 1
-                    memory: 1Gi
-        wait: true
-        wait_condition:
-          type: Ready
-        wait_sleep: 60
-        wait_timeout: 1500
-      register: _result
-
-    - name: Create KafkaUser instance
-      kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
-        api_version: ibmevents.ibm.com/v1beta2
-        kind: KafkaUser
-        kubeconfig: "{{ kubeconfig_path }}"
-        name: websphereauto-kafka-auth
-        namespace: "{{ target_namespace }}"
-        definition:
-          metadata:
-            labels:
-              ibmevents.ibm.com/cluster: iaf-system
-          spec:
-            authentication:
-              type: scram-sha-512
-            authorization:
-              type: simple
-              acls:
-              - resource:
-                  type: topic
-                  name: websphereauto
-                  patternType: prefix
-                operation: All
-                host: '*'
-              - resource:
-                  type: group
-                  name: websphereauto
-                  patternType: prefix
-                operation: All
-                host: '*'
-              - resource:
-                  type: topic
-                  name: __schema_websphereauto
-                  patternType: prefix
-                operation: Read
-                host: '*'
-              - resource:
-                  type: topic
-                  name: __schema_websphereauto
-                  patternType: prefix
-                operation: Alter
-                host: '*'
-              - resource:
-                  type: cluster
-                operation: Describe
-                host: '*'
-              - resource:
-                  type: topic
-                  name: __schema_
-                  patternType: prefix
-                operation: Read
-                host: '*'
-        wait: true
-        wait_condition:
-          type: Ready
-        wait_sleep: 20
-        wait_timeout: 300
-      register: _result
-
-- when: true
-  name: Install Zen
-  block:
-
-    - name: Create the zen OperandRequest
-      kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
-        api_version: operator.ibm.com/v1alpha1
-        kind: OperandRequest
-        kubeconfig: "{{ kubeconfig_path }}"
-        name: operand-request-zen
-        namespace: "{{ target_namespace }}"
-        definition:
-          metadata:
-            labels:
-              ibm-common-services.common-service/config: 'true'
-              ibm-common-services.common-service/registry: 'true'
-              operator.ibm.com/opreq-control: 'true'
-          spec:
-            requests:
-            - operands:
-              - name: ibm-zen-operator
-              registry: common-service
-              registryNamespace: ibm-common-services
-        wait: true
-        wait_condition:
-          type: Ready
-        wait_sleep: 20
-        wait_timeout: 300
-      register: _result
-
-    - name: Create ZenService instance
-      kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
-        api_version: zen.cpd.ibm.com/v1
-        kind: ZenService
-        kubeconfig: "{{ kubeconfig_path }}"
-        name: websphereauto
-        namespace: "{{ target_namespace }}"
-        definition:
-          spec:
-            csNamespace: ibm-common-services
-            iamIntegration: true
-            scaleConfig: small
-            storageClass: csi-cephfs
-        wait: true
-        wait_condition:
-          type: Successful
-        wait_sleep: 60
-        wait_timeout: 1800
-      register: _result
-
-    - name: Wait for ZenService to reach zenStatus of Completed
-      kubernetes.core.k8s_info:
-        api_key: "{{ api_key }}"
-        api_version: zen.cpd.ibm.com/v1
-        kind: ZenService
-        kubeconfig: "{{ kubeconfig_path }}"
-        name: websphereauto
-        namespace: "{{ target_namespace }}"
-      register: _result
-      delay: 30
-      retries: 120
-      until: _result.resources | map(attribute='status.zenStatus') | unique == ['Completed']
-
-- when: true
-  name: Create external-tls-secret if it is absent
-  block:
-
-    - name: Check for existing external-tls-secret
-      kubernetes.core.k8s_info:
-        api_key: "{{ api_key }}"
-        kind: Secret
-        kubeconfig: "{{ kubeconfig_path }}"
-        name: external-tls-secret
-        namespace: "{{ target_namespace }}"
-      register: _result
-
-    - name: Set fact if external-tls-secret exists
-      set_fact:
-        external_tls_secret_present: "{{ _result.resources[0].data['cert.crt'] is defined }}"
-
-    - name: Fetch ibm-nginx-internal-tls-ca secret
-      kubernetes.core.k8s_info:
-        api_key: "{{ api_key }}"
-        kind: Secret
-        kubeconfig: "{{ kubeconfig_path }}"
-        name: ibm-nginx-internal-tls-ca
-        namespace: "{{ target_namespace }}"
-      register: _result_tls_ca
-      when: not external_tls_secret_present
-
-    - name: Create external-tls-secret
-      kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
-        kind: Secret
-        kubeconfig: "{{ kubeconfig_path }}"
-        name: external-tls-secret
-        namespace: "{{ target_namespace }}"
-        definition:
-          data: "{{ _result_tls_ca.resources[0].data }}"
-          type: "{{ _result_tls_ca.resources[0].type }}"
-      register: _result
-      when: not external_tls_secret_present

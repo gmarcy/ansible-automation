@@ -1,9 +1,9 @@
 ---
 
-- name: Create localhost groups for this playbook
+- name: Create provision_cluster localhost group for this play
   hosts: localhost_facts
   gather_facts: false
-  tags: localhost_facts
+  tags: provision_cluster
   roles:
   - role: create_localhost_groups
     localhost_groups:

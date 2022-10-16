@@ -1,0 +1,6 @@
+---
+
+all:
+  vars:
+    inv_distro_name: cncf
+    inv_distro_version: '1.19.16'

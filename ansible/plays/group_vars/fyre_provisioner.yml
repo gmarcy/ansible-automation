@@ -1,12 +1,12 @@
 ---
 
-fyre_ocptype: ocpplus
-fyre_site: rtp
-fyre_platform: x
-fyre_master_quantity: 3
-fyre_master_cpu: 8
-fyre_master_memory: 16
-fyre_worker_quantity: 3
-fyre_worker_cpu: 8
-fyre_worker_memory: 16
-fyre_worker_additional_disk: ['200']
+fyre_ocptype: "{{ inv_fyre_ocptype | default('ocpplus') }}"
+fyre_site: "{{ inv_fyre_site | default('rtp') }}"
+fyre_platform: "{{ inv_fyre_platform | default('x') }}"
+fyre_master_quantity: "{{ inv_fyre_master_quantity | default(3) }}"
+fyre_master_cpu: "{{ inv_fyre_master_cpu | default(8) }}"
+fyre_master_memory: "{{ inv_fyre_master_memory | default(16) }}"
+fyre_worker_quantity: "{{ inv_fyre_worker_quantity | default(3) }}"
+fyre_worker_cpu: "{{ inv_fyre_worker_cpu | default(8) }}"
+fyre_worker_memory: "{{ inv_fyre_worker_memory | default(16) }}"
+fyre_worker_additional_disk: "{{ inv_fyre_worker_additional_disk | default(['200']) }}"

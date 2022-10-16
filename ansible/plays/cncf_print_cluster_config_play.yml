@@ -1,0 +1,95 @@
+---
+
+- name: Create cluster_config localhost group for this play
+  hosts: localhost
+  gather_facts: false
+  tags: cluster_config
+  roles:
+  - role: create_localhost_groups
+    localhost_groups:
+    - host_name: cluster-config
+      group_name: cluster_config
+
+- name: Print out the cluster configuration
+  hosts: cluster_config
+  gather_facts: false
+  tags: cluster_config
+  tasks:
+  - name: Print out the cluster configuration
+    debug:
+      msg:
+      - "cluster_size: {{ cluster_vars['clustersize'] | default('l') }}"
+      - "os: {{ cluster_vars['os'] | default('Ubuntu 18.04') }}"
+      - "cluster_name: {{ cluster_vars['clustername'] }}"
+      - "cluster_type: {{ cluster_vars['clustertype'] | default('CNCF') }}"
+      - "site: {{ cluster_vars['site'] | default('svl') }}"
+      - "master_node_count: {{ cluster_vars['master_node_count'] | default(1) }}"
+      - "worker_node_count: {{ cluster_vars['worker_node_count'] | default(3) }}"
+      - "kubernetes_version: {{ kubernetes_vars['version'] | default('1.19.3') }}"
+      - "local_storage_required: {{ local_storage_vars['is_local_storage_required'] | bool }}"
+      - "nfs_required: {{ nfs_vars['is_nfs_required'] | default(false) }}"
+      - "nfs_storage_class_name: {{ nfs_vars['storage_class_name'] | default('nfs-storage') }}"
+      - "nfs_namespace: {{ nfs_vars['namespace'] | default('default') }}"
+      - "nfs_master_local_storage: nfs_vars['master_local_storage'] | default(0) }}"
+    vars:
+      cluster_vars: "{{ hostvars[inventory_hostname]['cluster'] }}"
+      kubernetes_vars: "{{ hostvars[inventory_hostname]['kubernetes'] }}"
+      local_storage_vars: "{{ hostvars[inventory_hostname]['local_storage'] }}"
+      nfs_vars: "{{ hostvars[inventory_hostname]['nfs'] }}"
+
+- name: Create provision_cluster localhost group for this play
+  hosts: localhost
+  gather_facts: false
+  tags: provision_cluster
+  roles:
+  - role: create_localhost_groups
+    localhost_groups:
+    - host_name: provision-cluster
+      group_name: provision_cluster
+
+- name: Set facts for new cluster
+  hosts: provision_cluster
+  gather_facts: false
+  tags: provision_cluster
+  set_fact:
+    cluster_size: "{{ cluster_vars['clustersize'] | default('l') }}"
+    os: "{{ cluster_vars['os'] | default('Ubuntu 18.04') }}"
+    cluster_name: "{{ cluster_vars['clustername'] }}"
+    cluster_type: "{{ cluster_vars['clustertype'] | default('CNCF') }}"
+    site: "{{ cluster_vars['site'] | default('svl') }}"
+    master_node_count: "{{ cluster_vars['master_node_count'] | default('1') }}"
+    worker_node_count: "{{ cluster_vars['worker_node_count'] | default('3') }}"
+    kubernetes_version: "{{ kubernetes_vars['version'] | default('1.19.3') }}"
+    local_storage_required: "{{ local_storage_vars['is_local_storage_required'] | default(false) }}"
+    nfs_required: "{{ nfs_vars['is_nfs_required'] | default(true) }}"
+    nfs_storage_class_name: "{{ nfs_vars['storage_class_name'] | default('nfs-storage') }}"
+    nfs_namespace: "{{ nfs_vars['namespace'] | default('default') }}"
+    nfs_master_local_storage: "{{ nfs_vars['master_local_storage'] | default(0) }}"
+    vars:
+      cluster_vars: "{{ hostvars['cluster-config']['cluster'] }}"
+      kubernetes_vars: "{{ hostvars['cluster-config']['kubernetes'] }}"
+      local_storage_vars: "{{ hostvars['cluster-config']['local_storage'] }}"
+      nfs_vars: "{{ hostvars['cluster-config']['nfs'] }}"
+
+### Original from k-setup/scripts
+# #!/bin/bash -ex
+# ###############################################################################
+# # Title: provision_new_cluster.sh
+# # Description : This shell script is to set all the configure a new cluster on a cncf cluster from the local work station.
+# ###############################################################################
+# # Global declarations
+# 
+# export cluster_size=$(yq eval '.cluster.clustersize // "l"' config.yaml)
+# export os1=$(yq eval '.cluster.os // "Ubuntu 18.04"' config.yaml)
+# export cluster_name=$(yq eval '.cluster.clustername' config.yaml)
+# export cluster_type=$(yq eval '.cluster.clustertype' config.yaml)
+# export site=$(yq eval '.cluster.site // "svl"' config.yaml)
+# #export count1=$(yq eval '.cluster.node_count // "4"' config.yaml)
+# export master_node_count=$(yq eval '.cluster.master_node_count // "1"' config.yaml)
+# export worker_node_count=$(yq eval '.cluster.worker_node_count // "3"' config.yaml)
+# export nfs_required=$(yq eval '.nfs.is_nfs_required // "no"' config.yaml)
+# export kubernetes_version=$(yq eval '.kubernetes.version // "1.19.3"' config.yaml)
+# export nfs_storage_class_name=$(yq eval '.nfs.storage_class_name // "nfs-storage"' config.yaml)
+# export nfs_namespace=$(yq eval '.nfs.namespace // "default"' config.yaml)
+# export local_storage_required=$(yq eval '.local_storage.is_local_storage_required // "yes"' config.yaml)
+# ./provision_new_cluster_helper.sh

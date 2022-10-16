@@ -1,0 +1,7 @@
+---
+
+all:
+  vars:
+    inv_fyre_ocptype: quickburn
+    inv_fyre_site: svl
+    inv_quickburn_ttl: 24

@@ -7,12 +7,6 @@ cluster_type: "{{ lookup('env', 'cluster_type') | default('CNCF') }}"
 
 fetched_files_path: "{{ lookup('env','HOME') }}/.cncf/ansible-fetched-files/{{ cluster_name }}/"
 
-ssh_keypair_type: 'rsa'
-ssh_keypair_size: 4096
-ssh_keypair_path: "{{ lookup('env','HOME') + '/.ssh/id_' + ssh_keypair_type }}"
-ssh_pubkey_path: "{{ ssh_keypair_path + '.pub' }}"
-ssh_public_key: "{{ lookup('file', ssh_pubkey_path) }}"
-
 # set nodes cpu and memory size based on cluster size
 tshirt_sizes:
   s:
