@@ -5,6 +5,7 @@
     url: "{{ cluster_url }}/downloads/credentials?file_name=kubeconfig"
     dest: "{{ cluster_dir }}/kubeconfig"
   register: _result
+  changed_when: false
   delay: 10
   retries: 30
   until: _result.status is defined and _result.status == 200

@@ -15,7 +15,7 @@
   gather_facts: false
   tags: was_automation
   roles:
-  - role: create_was_automation_namespace
+  - role: create_target_namespace
     api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
     kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
-    target_namespace: wasautomation
+    target_namespace: "{{ wsa_namespace }}"

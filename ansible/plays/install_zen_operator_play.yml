@@ -1,6 +1,6 @@
 ---
 
-- name: Install IBM Zen Operator into cluster
+- name: Install IBM Zen Operator and Operands into cluster
   hosts: was_automation
   gather_facts: false
   tags: was_automation
@@ -10,3 +10,9 @@
     kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
     target_namespace: wasautomation
     registry_namespace: ibm-common-services
+  - role: install_zen_instance
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: wasautomation
+    registry_namespace: ibm-common-services
+    zen_storage_class: "{{ hostvars['cluster-facts']['default_storage_class'] }}"

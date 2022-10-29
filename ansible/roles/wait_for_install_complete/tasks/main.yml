@@ -14,7 +14,8 @@
 
     - name: Copy the script to report install progress
       copy:
-        content: "{{ lookup('file', 'show_install_progress.sh') }}"
+        content: |
+          {{ lookup('file', 'show_install_progress.sh') }}
         dest: "{{ cluster_dir }}/show_install_progress.sh"
         mode: 0755
 

@@ -1,10 +1,21 @@
 ---
 
+- name: Create ipmi_control localhost group for this play
+  hosts: localhost
+  gather_facts: false
+  tags: ipmi
+  roles:
+  - role: create_localhost_groups
+    localhost_groups:
+    - host_name: ipmi-control
+      group_name: ipmi_control
+
 - name: Power down the cluster hosts
   hosts: ipmi_control
   gather_facts: false
   tags: ipmi
   roles:
   - role: power_off_cluster_hosts
+    cluster_host_names: "{{ hostvars['cluster-facts']['cluster_host_names'] }}"
     ipmitool_password_file: "{{ hostvars['playbook-secrets']['ipmitool_password_file'] }}"
     ipmitool_username: "{{ hostvars['playbook-secrets']['ipmitool_username'] }}"

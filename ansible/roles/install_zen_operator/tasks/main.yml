@@ -1,6 +1,6 @@
 ---
 
-- name: Create the zen OperandRequest
+- name: Create the Zen OperandRequest
   kubernetes.core.k8s:
     api_key: "{{ api_key }}"
     api_version: operator.ibm.com/v1alpha1
@@ -26,37 +26,3 @@
     wait_sleep: 20
     wait_timeout: 300
   register: _result
-
-- name: Create ZenService instance
-  kubernetes.core.k8s:
-    api_key: "{{ api_key }}"
-    api_version: zen.cpd.ibm.com/v1
-    kind: ZenService
-    kubeconfig: "{{ kubeconfig_path }}"
-    name: websphereauto
-    namespace: "{{ target_namespace }}"
-    definition:
-      spec:
-        csNamespace: "{{ registry_namespace }}"
-        iamIntegration: true
-        scaleConfig: small
-        storageClass: csi-cephfs
-    wait: true
-    wait_condition:
-      type: Successful
-    wait_sleep: 60
-    wait_timeout: 1800
-  register: _result
-
-- name: Wait for ZenService to reach zenStatus of Completed
-  kubernetes.core.k8s_info:
-    api_key: "{{ api_key }}"
-    api_version: zen.cpd.ibm.com/v1
-    kind: ZenService
-    kubeconfig: "{{ kubeconfig_path }}"
-    name: websphereauto
-    namespace: "{{ target_namespace }}"
-  register: _result
-  delay: 30
-  retries: 120
-  until: _result.resources | map(attribute='status.zenStatus') | unique == ['Completed']

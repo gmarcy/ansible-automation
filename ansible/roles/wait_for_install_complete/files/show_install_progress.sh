@@ -23,6 +23,7 @@ done
 
 diff --new-line-format="%L" --old-line-format="" --unchanged-line-format="" cluster_events.txt current_cluster_events.txt > additional_events.txt
 
+cp /dev/null latest_events.txt
 input="additional_events.txt"
 while read line || [ -n "$line" ];
 do

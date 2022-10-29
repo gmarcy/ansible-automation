@@ -27,11 +27,11 @@
     url: "{{ assisted_install_rest_url }}/clusters/{{ cluster_id }}"
     method: DELETE
     status_code: 204
-  when: cluster_id | default("") | length > 0
+  when: cluster_id | default('') | length > 0
 
 - name: Delete old infra-env object
   uri:
     url: "{{ assisted_install_rest_url }}/infra-envs/{{ infra_env_id }}"
     method: DELETE
     status_code: 204
-  when: infra_env_id | default("") | length > 0
+  when: infra_env_id | default('') | length > 0

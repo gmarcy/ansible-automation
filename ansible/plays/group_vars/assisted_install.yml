@@ -1,7 +1,8 @@
 ---
 
-assisted_install_host_url: http://localhost:8080
-assisted_install_rest_url: http://localhost:8080/api/assisted-install/v2
+assisted_install_host: "{{ inv_assisted_install_host | default('localhost') }}"
+assisted_install_host_url: "http://{{ assisted_install_host }}:8080"
+assisted_install_rest_url: "http://{{ assisted_install_host }}:8080/api/assisted-install/v2"
 
 cluster_dir: "{{ lookup('env','HOME') }}/.kube/clusters/{{ cluster_name }}"
 services_dir: "{{ lookup('env','HOME') }}/.assisted/services"

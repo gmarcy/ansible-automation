@@ -2,6 +2,7 @@
 
 - import_playbook: ../plays/gather_localhost_facts_play.yml
 - import_playbook: ../plays/load_playbook_secrets_play.yml
+- import_playbook: ../plays/create_cluster_facts_group_play.yml
 - import_playbook: ../plays/cncf_print_cluster_config_play.yml
 - import_playbook: ../plays/cncf_create_ssh_keypair_play.yml
 - import_playbook: ../plays/cncf_provision_fyre_cluster_nodes_play.yml

@@ -4,19 +4,14 @@
   uri:
     url: "{{ cluster_url }}/credentials"
   register: _result
-  no_log: false
+  no_log: "{{ noLog }}"
 
 - name: Set facts for cluster
   set_fact:
     console_username: "{{ _result.json.username }}"
     console_password: "{{ _result.json.password }}"
     console_url: "{{ _result.json.console_url }}"
-    base_url_path: "{{ _result.json.console_url | urlsplit('hostname') | regex_replace('^console-openshift-console.apps.') }}"
-  no_log: false
-
-- name: Set fact for cluster API url
-  set_fact:
-    cluster_api_url: "{{ 'https://api.' + base_url_path + ':6443' }}"
+  no_log: "{{ noLog }}"
 
 - name: Authenticate to the cluster
   community.okd.openshift_auth:
@@ -26,15 +21,16 @@
     state: present
     validate_certs: false
   register: _result
-  no_log: false
+  no_log: "{{ noLog }}"
 
 - name: Set facts for cluster
   set_fact:
     api_key: "{{ _result.openshift_auth.api_key }}"
-  no_log: false
+  no_log: "{{ noLog }}"
 
 - name: Set cluster_facts
   set_fact:
     api_key: "{{ hostvars[inventory_hostname]['api_key'] }}"
+  no_log: "{{ noLog }}"
   delegate_to: 'cluster-facts'
   delegate_facts: true

@@ -1,6 +1,6 @@
 ---
 - name: Check OCP Existance
-  no_log: True
+  no_log: "{{ noLog }}"
   uri:
     url: "{{fyre_clusterstatusurl}}"
     method: "GET"
@@ -20,7 +20,7 @@
       msg: "Cluster was not found so creating new cluster called '{{ clusterName }}'"
 
   - name: Create Fyre stack
-    no_log: True
+    no_log: "{{ noLog }}"
     uri: 
       url: "{{fyre_ocpdeployurl}}"
       method: "POST"
@@ -56,7 +56,7 @@
   # END BLOCK
 
 - name: check fyrestatus for error
-  no_log: True
+  no_log: "{{ noLog }}"
   uri:
     url: "{{fyre_clusterstatusurl}}"
     method: GET
@@ -77,7 +77,7 @@
   - (error_status.json.status) == 'error'
 
 - name: check that all fyre nodes have a deployed status
-  no_log: True
+  no_log: "{{ noLog }}"
   uri:
     url: "{{fyre_clusterstatusurl}}"
     method: GET
@@ -103,7 +103,7 @@
   - (cluster_status_response.json.status) == 'error'
 
 - name: check that bootstrap node is removed.  indicatator of installation progress for ocp
-  no_log: True
+  no_log: "{{ noLog }}"
   uri:
     url: "{{fyre_clusterstatusurl}}"
     method: GET
@@ -120,7 +120,7 @@
   delay: 30
 
 - name: check cluster status
-  no_log: True
+  no_log: "{{ noLog }}"
   uri:
     url: "{{fyre_opshowclusterurl}}"
     method: POST
@@ -137,7 +137,7 @@
   delay: 20
 
 - name: Derive Info from Fyre Api
-  no_log: True
+  no_log: "{{ noLog }}"
   set_fact:
     fyre_inf_public_ip: "{{ cluster_details_response.json[clusterName] | selectattr('node', 'equalto', fyre_inf_node_name) | map(attribute='publicip') | list | first }}"
     fyre_inf_root_password: "{{ cluster_details_response.json[clusterName] | selectattr('node', 'equalto', fyre_inf_node_name) | map(attribute='root_password') | list | first }}"
@@ -162,7 +162,7 @@
   delegate_to: localhost
 
 - name: Add inf host to group
-  no_log: True
+  no_log: "{{ noLog }}"
   add_host:
     name: "{{ fyre_inf_public_ip }}"
     groups: "{{ fyre_ocp_inf_group }}"

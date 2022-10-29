@@ -144,6 +144,6 @@
     stackName: "{{ clusterName }}"
     ansible_user: "{{ target_user|default(omit) }}"
   args: "{{ extra_props| default(omit) }}"
-  no_log: True
+  no_log: "{{ noLog }}"
   changed_when: false
   when: "fyre_addAnsibleHost|bool == false"

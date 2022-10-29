@@ -1,5 +1,15 @@
 ---
 
+- name: Create ipxe_setup localhost group for this play
+  hosts: localhost
+  gather_facts: false
+  tags: cleanup
+  roles:
+  - role: create_localhost_groups
+    localhost_groups:
+    - host_name: ipxe-setup
+      group_name: ipxe_setup
+
 - name: Cleanup iPXE folders
   hosts: ipxe_setup
   gather_facts: false
@@ -7,4 +17,5 @@
   roles:
   - role: cleanup_ipxe_folders
     cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+    cluster_host_names: "{{ hostvars['cluster-facts']['cluster_host_names'] }}"
     ipxe_folder: "{{ hostvars['assisted-install']['services_dir'] }}/ipxe"

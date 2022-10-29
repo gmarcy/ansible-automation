@@ -1,0 +1,9 @@
+---
+
+- name: Wait while cluster status is preparing-for-installation
+  uri:
+    url: "{{ cluster_url }}"
+  register: _result_cluster_status
+  delay: 15
+  retries: 10
+  until: _result_cluster_status.json.status != 'preparing-for-installation'

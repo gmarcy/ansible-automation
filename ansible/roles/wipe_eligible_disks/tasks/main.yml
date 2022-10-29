@@ -32,6 +32,7 @@
         path: "{{ item[1][0] }}"
         eligible: "{{ item[1][1] }}"
       register: _result
+      changed_when: _result is not defined
       when: eligible
 
   when: (['known'] is subset(all_host_states))

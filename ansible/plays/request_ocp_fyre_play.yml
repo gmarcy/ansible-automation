@@ -31,6 +31,7 @@
     fyre_worker_cpu: "{{ hostvars[inventory_hostname]['fyre_worker_cpu'] }}"
     fyre_worker_memory: "{{ hostvars[inventory_hostname]['fyre_worker_memory'] }}"
     fyre_worker_additional_disk: "{{ hostvars[inventory_hostname]['fyre_worker_additional_disk'] }}"
+    quickburn_ttl: "{{ hostvars[inventory_hostname]['fyre_quickburn_ttl'] }}"
   - role: gather_ocp_fyre_facts
     cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"
     fyre_ocp_inf_group: ocp_clusters

@@ -5,6 +5,7 @@
     rookRelease: "{{ rook_cephfs_release }}"
     device_filter: "{{ device_name }}"
     new_default_sc: "{{ default_sc }}"
+    default_storage_class: "{{ default_sc }}"
 
 - name: Check if the new storage class exists
   kubernetes.core.k8s_info:

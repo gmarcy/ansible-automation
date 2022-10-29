@@ -21,6 +21,9 @@
     name: ibm-nginx-internal-tls-ca
     namespace: "{{ target_namespace }}"
   register: _result_tls_ca
+  delay: 20
+  retries: 90
+  until: _result_tls_ca.resources[0].data | default('') | length > 0
   when: not external_tls_secret_present
 
 - name: Create external-tls-secret

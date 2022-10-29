@@ -1,8 +1,9 @@
 ---
 
-- name: Print WSA cluster information
-  hosts: was_automation
+- name: Print OCP cluster information
+  hosts: cluster_facts
   gather_facts: false
-  tags: wsa_cluster
+  tags: cluster_info
   roles:
   - role: print_ocp_cluster_info
+    description: "OCP"

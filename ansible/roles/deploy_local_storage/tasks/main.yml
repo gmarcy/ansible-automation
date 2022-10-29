@@ -89,7 +89,7 @@
       register: _result
       delay: 10
       retries: 24
-      until: (_result.resources | length > 0) and (_result.resources[0].status.phase == 'Succeeded')
+      until: _result.resources | map(attribute='status.phase') | unique == ['Succeeded']
     
     - name: Apply the auto-discover-devices.yaml
       kubernetes.core.k8s:

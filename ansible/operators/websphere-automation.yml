@@ -8,4 +8,4 @@ all:
     inv_wsa_operator_catalog_source: websphere-automation-catalog
     inv_wsa_operator_docker_registry: wasliberty-intops-docker-local.artifactory.swg-devops.com
     inv_wsa_operator_catalog_image: cp/websphere-automation-operator-catalog
-    inv_wsa_operator_singlenamespace: "false"
+    inv_wsa_operator_singlenamespace: false

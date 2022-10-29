@@ -5,7 +5,6 @@
   gather_facts: false
   tags: assisted_install
   roles:
-  - role: download_cluster_config
   - role: download_cluster_credentials
   - role: download_cluster_cli
     client_arch: "{{ hostvars['localhost-facts']['cpu_arch'] }}"

@@ -1,0 +1,16 @@
+---
+
+- name: Check if the assisted-installer pod is already running
+  containers.podman.podman_pod_info:
+    name: assisted-installer
+  register: _result
+
+- name: Save the pod state
+  set_fact:
+    pod_state: "{{ _result.pods[0].State | default('Unknown') }}"
+
+- name: Remove assisted-service pod
+  containers.podman.podman_play:
+    kube_file: "{{ services_dir }}/pod.yml"
+    state: absent
+  when: pod_state == 'Running'

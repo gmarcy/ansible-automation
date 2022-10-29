@@ -1,0 +1,15 @@
+---
+
+- name: Install WebSphere Automation operands into OCP cluster
+  hosts: was_automation
+  gather_facts: false
+  tags: was_automation
+  roles:
+  - role: install_wsa_operands
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ wsa_namespace }}"
+    install_healing: "{{ wsa_install_healing }}"
+    operator_airgap: "{{ wsa_operator_airgap }}"
+    install_websphere_automation_operand: false
+    wait_for_wsa_operands: false

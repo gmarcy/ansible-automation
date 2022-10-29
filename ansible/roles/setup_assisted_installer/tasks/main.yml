@@ -101,10 +101,18 @@
         content: "{{ pod_original | combine(pod_additions, recursive=true) | combine(pod_containers, recursive=true) | to_nice_yaml(sort_keys=false,indent=2) }}"
         dest: "{{ services_dir }}/pod.yml"
 
+    - name: Concatenate configmap.yml and pod.yml into kube.yml
+      copy:
+        content: |
+          ---
+          {{ lookup('file', services_dir + '/configmap.yml') }}
+          ---
+          {{ lookup('file', services_dir + '/pod.yml') }}
+        dest: "{{ services_dir }}/kube.yml"
+
     - name: Run assisted-service pod
       containers.podman.podman_play:
-        configmap: "{{ services_dir }}/configmap.yml"
-        kube_file: "{{ services_dir }}/pod.yml"
+        kube_file: "{{ services_dir }}/kube.yml"
         state: started
 
     - name: Check REST API
@@ -126,6 +134,7 @@
       - "http://{{ assisted_installer_address }}:8080/ready"
       - "http://{{ assisted_installer_address }}:8080/readyz"
       - "http://{{ assisted_installer_address }}:8080/live"
+      - "http://{{ assisted_installer_address }}:8888/live"
 
   when: pod_state != 'Running'
 

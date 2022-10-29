@@ -1,6 +1,6 @@
 ---
 
-- name: Install Operator
+- name: Install WebSphere Automation Operator
   block:
 
     - when: operator_catalog_source != "ibm-operator-catalog"
@@ -25,7 +25,7 @@
           name: install automation catalog
           block:
 
-            - when: websphere_automation_version == "auto"
+            - when: wsa_version == "auto"
               name: obtain dynamic version based on image tags
               block:
 
@@ -45,15 +45,15 @@
                   when: >
                     (operator_branch == 'main' and item is not match('.*pre.*') and item is match('^[0-9]+\.[0-9]+\.[0-9]+.*')) or
                     (operator_branch != 'main' and item is match('.*(pre\.)?' + operator_branch + '.*'))
-    
+
                 - name: set catalog version fact (auto)
                   set_fact:
                     operator_catalog_version: "{{ dynamic_operator_version }}"
 
-            - when: websphere_automation_version != "auto"
+            - when: wsa_version != "auto"
               name: set catalog version fact (manual)
               set_fact:
-                operator_catalog_version: "{{ websphere_automation_version }}"
+                operator_catalog_version: "{{ wsa_version }}"
 
             - name: Create the catalog source
               kubernetes.core.k8s:
@@ -172,44 +172,14 @@
         wait_timeout: 300
       register: _result
 
-    - name: Wait until all the openshift-operators csv succeed
+    - name: Wait until all the WSA CSV succeed
       kubernetes.core.k8s_info:
         api_key: "{{ api_key }}"
         api_version: operators.coreos.com/v1alpha1
         kind: ClusterServiceVersion
         kubeconfig: "{{ kubeconfig_path }}"
-        namespace: openshift-operators
+        namespace: "{{ target_namespace if operator_singlenamespace else 'openshift-operators' }}"
       register: _result
       delay: 30
       retries: 120
       until: _result.resources | map(attribute='status.phase') | unique == ['Succeeded']
-
-    - name: Wait until all the ibm-common-services csv succeed
-      kubernetes.core.k8s_info:
-        api_key: "{{ api_key }}"
-        api_version: operators.coreos.com/v1alpha1
-        kind: ClusterServiceVersion
-        kubeconfig: "{{ kubeconfig_path }}"
-        namespace: ibm-common-services
-      register: _result
-      delay: 30
-      retries: 120
-      until: _result.resources | map(attribute='status.phase') | unique == ['Succeeded']
-
-  rescue:
-    - name: "Get Debug Info"
-      shell: "{{ item }}" 
-      register: "debug_info"
-      failed_when: false
-      changed_when: false
-      with_items:
-        - "oc get pods --all-namespaces"
-        - "oc -n openshift-operators get pod -l app.kubernetes.io/name=websphere-automation-operator"
-        - "oc -n {{ target_namespace }} get pod -l app.kubernetes.io/name=websphere-automation-operator"
-    - name: "Print Debug Info"
-      debug:
-        msg: 
-        - "Operator Install Failed during: {{ ansible_failed_task.name }}" 
-        - "with result: {{ ansible_failed_result }}"
-        - "Debug_info: {{ debug_info }}"
-      failed_when: true

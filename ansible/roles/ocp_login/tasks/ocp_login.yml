@@ -4,7 +4,7 @@
   set_fact:
     console_username: "{{ kubeadmin_username }}"
     console_password: "{{ kubeadmin_password }}"
-  no_log: false
+  no_log: "{{ noLog }}"
 
 - name: Set fact for cluster API url
   set_fact:
@@ -18,16 +18,10 @@
     state: present
     validate_certs: false
   register: _result
-  no_log: false
+  no_log: "{{ noLog }}"
   until: not _result.failed
 
 - name: Set facts for cluster
   set_fact:
     api_key: "{{ _result.openshift_auth.api_key }}"
-  no_log: false
-
-- name: Set cluster_facts
-  set_fact:
-    api_key: "{{ hostvars[inventory_hostname]['api_key'] }}"
-  delegate_to: 'cluster-facts'
-  delegate_facts: true
+  no_log: "{{ noLog }}"

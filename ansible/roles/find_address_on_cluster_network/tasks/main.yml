@@ -1,0 +1,42 @@
+---
+
+- name: Logic for mac platform
+  when: os_family == 'mac'
+  block:
+
+    - name: Find the address on the same network as the cluster_host
+      set_fact:
+        address_on_cluster_network: "{{ ipv4_address }}"
+      loop: "{{ ansible_interfaces }}"
+      vars:
+        underscore_item: "{{ 'ansible_' + (item | regex_replace('-', '_')) }}"
+        item_facts: "{{ hostvars['localhost-facts'][underscore_item] }}"
+        interface_active: "{{ item_facts['status'] | default('') == 'active' and item_facts['ipv4'] | map(attribute='address') | length > 0 and item_facts['ipv4'] | map(attribute='netmask') | length > 0 }}"
+        ipv4_address: "{{ item_facts['ipv4'] | map(attribute='address') | first | default(omit) }}"
+        ipv4_netmask: "{{ item_facts['ipv4'] | map(attribute='netmask') | first | default(omit) }}"
+      when: interface_active|bool and (ipv4_address + '/' + ipv4_netmask) | ansible.utils.ipaddr('network/prefix') | ansible.utils.network_in_network(hostvars['cluster-facts']['network_cidr'])
+
+- name: Logic for linux platform
+  when: os_family == 'linux'
+  block:
+
+    - name: Find the address on the same network as the cluster_host
+      set_fact:
+        address_on_cluster_network: "{{ ipv4_address }}"
+      loop: "{{ ansible_interfaces }}"
+      vars:
+        underscore_item: "{{ 'ansible_' + (item | regex_replace('-', '_')) }}"
+        item_facts: "{{ hostvars['localhost-facts'][underscore_item] }}"
+        interface_active: "{{ item_facts['active'] | default(false) and item_facts['ipv4']['address'] is defined and item_facts['ipv4']['netmask'] is defined }}"
+        ipv4_address: "{{ item_facts['ipv4']['address'] | default(omit) }}"
+        ipv4_netmask: "{{ item_facts['ipv4']['netmask'] | default(omit) }}"
+      when: interface_active|bool and (ipv4_address + '/' + ipv4_netmask) | ansible.utils.ipaddr('network/prefix') | ansible.utils.network_in_network(hostvars['cluster-facts']['network_cidr'])
+
+- name: Assert we found an address
+  assert:
+    that: hostvars['localhost-facts']['address_on_cluster_network'] is defined
+    fail_msg: "The local host does not appear to have an address on the cluster network {{ hostvars['cluster-facts']['network_cidr'] }}"
+
+- name: Clear ansible_facts
+  set_fact:
+    ansible_facts: {}
