@@ -1,0 +1,28 @@
+---
+
+- name: Create the events OperandRequest
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operator.ibm.com/v1alpha1
+    kind: OperandRequest
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: operand-request-events
+    namespace: "{{ target_namespace }}"
+    definition:
+      metadata:
+        labels:
+          ibm-common-services.common-service/config: 'true'
+          ibm-common-services.common-service/registry: 'true'
+          operator.ibm.com/opreq-control: 'true'
+      spec:
+        requests:
+        - operands:
+          - name: ibm-events-operator
+          registry: common-service
+          registryNamespace: "{{ registry_namespace }}"
+    wait: true
+    wait_condition:
+      type: Ready
+    wait_sleep: 20
+    wait_timeout: 300
+  register: _result

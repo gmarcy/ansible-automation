@@ -1,0 +1,10 @@
+---
+
+- name: Create localhost groups
+  add_host:
+    host: "{{ item['host_name'] }}"
+    group: "{{ item['group_name'] }}"
+    ansible_host: localhost
+    ansible_connection: local
+  changed_when: false
+  loop: "{{ localhost_groups }}"

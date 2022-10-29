@@ -1,11 +1,22 @@
 ---
 
+- name: Create cluster_storage localhost group for this play
+  hosts: localhost
+  gather_facts: false
+  tags: local_storage
+  roles:
+  - role: create_localhost_groups
+    localhost_groups:
+    - host_name: cluster-storage
+      group_name: cluster_storage
+
 - name: Deploy local storage
   hosts: cluster_storage
   gather_facts: false
+  tags: local_storage
   roles:
   - role: deploy_local_storage
-    api_key: "{{ hostvars['assisted-install']['api_key'] }}"
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
     cluster_hostnames: "{{ groups['cluster_hosts'] }}"
-    kubeconfig_path: "{{ hostvars['assisted-install']['kubeconfig_path'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
     infra_env_openshift_version: "{{ hostvars['assisted-install']['infra_env_openshift_version'] }}"

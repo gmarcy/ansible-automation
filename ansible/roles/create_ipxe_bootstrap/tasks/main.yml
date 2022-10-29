@@ -1,0 +1,31 @@
+---
+
+- name: Collect ipxe macaddrs from all cluster hosts
+  set_fact:
+    cluster_ipxe_macaddrs: "{{ cluster_ipxe_macaddrs | default([]) | union(item) }}"
+  loop: "{{ cluster_host_names | map('extract', hostvars, 'inv_host_ipxe_macaddrs') }}"
+
+- name: Create ipxe folders for cluster host mac addresses
+  file:
+    path: "{{ ipxe_folder }}/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop: "{{ cluster_ipxe_macaddrs }}"
+  register: _result
+
+- name: Create the boot.ipxe file
+  get_url:
+    url: "{{ infra_env_url }}/downloads/files?file_name=ipxe-script&mac={{ item }}"
+    dest: "{{ ipxe_folder }}/{{ item }}/boot.ipxe"
+    mode: '0644'
+  register: _result
+  changed_when: false
+  loop: "{{ cluster_ipxe_macaddrs }}"
+
+- name: Wait until the image download service is ready
+  uri:
+    url: "http://{{ assisted_installer_address }}:8888/health"
+  register: _result
+  delay: 30
+  retries: 10
+  until: _result is defined and _result.status == 200

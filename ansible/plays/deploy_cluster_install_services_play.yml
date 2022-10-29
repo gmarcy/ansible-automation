@@ -1,15 +1,27 @@
 ---
 
+- name: Create ipxe_setup localhost group for this play
+  hosts: localhost
+  gather_facts: false
+  tags: ipxe
+  roles:
+  - role: create_localhost_groups
+    localhost_groups:
+    - host_name: ipxe-setup
+      group_name: ipxe_setup
+
 - name: Create services to support booting the cluster host using discovery iso
   hosts: ipxe_setup
   gather_facts: false
-  vars:
+  tags: ipxe
+  roles:
+  - role: create_ipxe_bootstrap
+    assisted_installer_address: "{{ hostvars['localhost-facts']['address_on_cluster_network'] }}"
     cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+    cluster_host_names: "{{ hostvars['cluster-facts']['cluster_host_names'] }}"
     cluster_state: "{{ hostvars['assisted-install']['cluster_state'] }}"
     infra_env_url: "{{ hostvars['assisted-install']['infra_env_url'] }}"
     ipxe_folder: "{{ hostvars['assisted-install']['services_dir'] }}/ipxe"
     ipxe_url: "http://{{ hostvars['localhost-facts']['address_on_cluster_network'] }}:9080"
     openshift_distro: "{{ hostvars['cluster-facts']['openshift_distro'] }}"
     openshift_version: "{{ hostvars['cluster-facts']['openshift_version'] }}"
-  roles:
-  - role: create_ipxe_folders

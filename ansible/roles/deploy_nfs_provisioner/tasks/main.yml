@@ -24,7 +24,7 @@
 
 - block:
 
-    - name: Apply the nfs-local-storage-claim.yaml
+    - name: Create the PVC for NFS storage from local storage
       kubernetes.core.k8s:
         api_key: "{{ api_key }}"
         api_version: v1
@@ -314,7 +314,7 @@
                           - DAC_READ_SEARCH
                           - SYS_RESOURCE
                     args:
-                      - -provisioner={{ nfs_provisioner_vendor }}/nfs-provisioner
+                      - -provisioner={{ nfs_provisioner }}
                     env:
                       - name: POD_IP
                         valueFrom:
@@ -417,7 +417,7 @@
         api_key: "{{ api_key }}"
         api_version: storage.k8s.io/v1
         definition:
-          provisioner: "{{ nfs_provisioner_vendor }}/nfs-provisioner"
+          provisioner: "{{ nfs_provisioner }}"
           mountOptions:
             - vers=4.1
         kind: StorageClass

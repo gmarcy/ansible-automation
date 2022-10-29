@@ -43,7 +43,7 @@
       set_fact:
         cluster_id: "{{ _result.json.id }}"
 
-  when: cluster_id | default("") | length == 0
+  when: cluster_id | default('') | length == 0
 
 - name: Get a list of the infra-env objects
   uri:
@@ -72,4 +72,4 @@
       ssh_authorized_key: "{{ ssh_public_key }}"
     status_code: 201
   register: _result
-  when: infra_env_id | default("") | length == 0
+  when: infra_env_id | default('') | length == 0

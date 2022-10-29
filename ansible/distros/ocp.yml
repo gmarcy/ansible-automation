@@ -2,5 +2,5 @@
 
 all:
   vars:
-    inventory_distro_name: ocp
-    inventory_distro_version: '4.10'
+    inv_distro_name: ocp
+    inv_distro_version: '4.10'

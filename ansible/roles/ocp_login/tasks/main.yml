@@ -1,0 +1,2 @@
+---
+- include_tasks: ocp_login.yml

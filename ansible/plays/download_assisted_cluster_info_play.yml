@@ -3,9 +3,11 @@
 - name: Download information about the installed cluster
   hosts: assisted_install
   gather_facts: false
+  tags: assisted_install
   roles:
-  - role: download_cluster_config
   - role: download_cluster_credentials
   - role: download_cluster_cli
+    client_arch: "{{ hostvars['localhost-facts']['cpu_arch'] }}"
+    client_os: "{{ hostvars['localhost-facts']['os_family'] }}"
     base_dns_domain: "{{ hostvars['cluster-facts']['base_dns_domain'] }}"
-    tags: cli
+    cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"

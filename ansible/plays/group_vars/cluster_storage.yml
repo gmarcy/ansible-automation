@@ -6,4 +6,4 @@ local_storage_class: filesystem-local-storage
 local_storage_namespace: openshift-local-storage
 nfs_storage_class: filesystem-nfs-storage
 nfs_storage_namespace: nfs-storage
-nfs_provisioner_vendor: "{{ inventory_cluster_domain }}"
+nfs_provisioner: "{{ inv_cluster_domain }}/nfs-provisioner"

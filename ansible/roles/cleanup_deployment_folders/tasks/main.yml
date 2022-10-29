@@ -1,6 +1,6 @@
 ---
 
-- name: Remove the clusters directory
+- name: Remove the cluster directory
   file:
-    path: "{{ clusters_dir }}"
+    path: "{{ cluster_dir }}"
     state: absent

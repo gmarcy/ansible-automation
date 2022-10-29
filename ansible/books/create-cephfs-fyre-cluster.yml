@@ -1,0 +1,13 @@
+---
+
+- import_playbook: ../plays/gather_localhost_facts_play.yml
+- import_playbook: ../plays/load_playbook_secrets_play.yml
+- import_playbook: ../plays/create_cluster_facts_group_play.yml
+- import_playbook: ../plays/request_ocp_fyre_play.yml
+- import_playbook: ../plays/gather_fyre_cluster_facts_play.yml
+- import_playbook: ../plays/ocp_login_play.yml
+- import_playbook: ../plays/allow_pods_to_run_on_master_play.yml
+- import_playbook: ../plays/csi_cephfs_fyre_play.yml
+- import_playbook: ../plays/add_pull_secrets_play.yml
+- import_playbook: ../plays/add_repository_mirror_config_play.yml
+- import_playbook: ../plays/print_cephfs_cluster_info_play.yml

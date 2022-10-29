@@ -1,0 +1,86 @@
+---
+
+- name: Create WebSphereAutomation instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: automation.websphere.ibm.com/v1
+    definition:
+      spec:
+        license:
+          accept: true
+        replicas: 1
+    kind: WebSphereAutomation
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: wsa
+    namespace: "{{ target_namespace }}"
+  register: _result
+  when: "{{ install_websphere_automation_operand | default(true) }}"
+
+- name: Create WebSphereSecure instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: automation.websphere.ibm.com/v1
+    definition:
+      spec:
+        license:
+          accept: true
+        replicas: 1
+        cveMonitor:
+      # {% if operator_airgap | bool == true %}    
+      #     suspend: true
+      # {% endif %}
+      # {% if http_proxy | bool == true %}   
+      #     env:
+      #     - name: JVM_ARGS
+      #       valueFrom:
+      #         secretKeyRef:
+      #           key: JVM_ARGS
+      #           name: wsa-custom-ca-cert
+      # {% endif %}
+    kind: WebSphereSecure
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: wsa-secure
+    namespace: "{{ target_namespace }}"
+    wait: "{{ wait_for_wsa_operands | default(true) }}"
+    wait_condition:
+      type: Ready
+    wait_sleep: 20
+    wait_timeout: 1800
+  register: _result
+  when: not install_healing
+
+- name: Create WebSphereHealth instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: automation.websphere.ibm.com/v1
+    definition:
+      spec:
+        license:
+          accept: true
+        replicas: 1
+    kind: WebSphereHealth
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: wsa-health
+    namespace: "{{ target_namespace }}"
+    wait: "{{ wait_for_wsa_operands | default(true) }}"
+    wait_condition:
+      type: Ready
+    wait_sleep: 20
+    wait_timeout: 1800
+  register: _result
+  when: install_healing
+
+- name: Wait for WebSphereAutomation instance OperandRequestReady
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    api_version: automation.websphere.ibm.com/v1
+    kind: WebSphereAutomation
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: wsa
+    namespace: "{{ target_namespace }}"
+    wait: true
+    wait_condition:
+      type: OperandRequestReady
+    wait_sleep: 40
+    wait_timeout: 3600
+  register: _result

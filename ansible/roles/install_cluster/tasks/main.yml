@@ -15,9 +15,9 @@
 
 - block:
 
-    - name: Create the clusters directory
+    - name: Create the cluster directory
       file:
-        path: "{{ clusters_dir }}"
+        path: "{{ cluster_dir }}"
         state: directory
         mode: '0755'
 
@@ -29,7 +29,7 @@
     - name: Copy cluster events to cluster_dir
       copy:
         content: "{{ _result.json | to_nice_json }}"
-        dest: "{{ clusters_dir }}/cluster_events.json"
+        dest: "{{ cluster_dir }}/cluster_events.json"
 
     - name: Get a list of the cluster objects
       uri:
@@ -39,7 +39,7 @@
     - name: Copy cluster status to cluster_dir
       copy:
         content: "{{ _result.json | to_nice_json }}"
-        dest: "{{ clusters_dir }}/cluster_status.json"
+        dest: "{{ cluster_dir }}/cluster_status.json"
 
     - name: Install cluster
       uri:

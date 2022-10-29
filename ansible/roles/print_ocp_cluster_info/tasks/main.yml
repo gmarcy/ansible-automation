@@ -1,0 +1,20 @@
+---
+
+- name: Print Information for OC Login
+  debug:
+    msg: 
+      - "System is ready with {{ description }} Installed, Cluster can be found at: "
+      - "API URL: https://{{ hostvars[groups['ocp_clusters'][0]]['ocp_api_url'] }}:6443"
+      - "Console URL: {{ hostvars[groups['ocp_clusters'][0]]['ocp_access_url'] }}"
+      - "Console Username: {{ hostvars['cluster-facts']['console_username'] }}"
+      - "Console Password: {{ hostvars['cluster-facts']['console_password'] }}"
+  changed_when: true
+
+- name: Print information for accessing WebSphere Automation UI
+  debug:
+    msg: 
+      - "UI url: {{ hostvars['was-automation']['ui_access_uri'] }}"
+      - "UI username: {{ hostvars['was-automation']['ui_access_credentials']['admin_username'] | b64decode }}"
+      - "UI password: {{ hostvars['was-automation']['ui_access_credentials']['admin_password'] | b64decode }}"
+  changed_when: true
+  when: description == 'WebSphere Automation'

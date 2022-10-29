@@ -1,0 +1,20 @@
+---
+
+- import_playbook: ../plays/gather_localhost_facts_play.yml
+- import_playbook: ../plays/load_playbook_secrets_play.yml
+- import_playbook: ../plays/create_cluster_facts_group_play.yml
+- import_playbook: ../plays/gather_assisted_cluster_facts_play.yml
+- import_playbook: ../plays/gather_registered_hosts_facts_play.yml
+- import_playbook: ../plays/download_assisted_cluster_info_play.yml
+- import_playbook: ../plays/deploy_cluster_local_storage_play.yml
+- import_playbook: ../plays/deploy_nfs_storage_provisioner_play.yml
+- import_playbook: ../plays/add_pull_secrets_play.yml
+- import_playbook: ../plays/install_ibm_catalog_play.yml
+- import_playbook: ../plays/install_ics_operators_play.yml
+- import_playbook: ../plays/create_was_automation_namespace_play.yml
+- import_playbook: ../plays/install_events_operator_play.yml
+- import_playbook: ../plays/install_zen_operator_play.yml
+- import_playbook: ../plays/create_external_tls_secret_play.yml
+- import_playbook: ../plays/install_wsa_operator_play.yml
+- import_playbook: ../plays/install_wsa_instance_play.yml
+- import_playbook: ../plays/print_wsa_access_info_play.yml

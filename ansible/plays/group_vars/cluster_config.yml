@@ -1,0 +1,19 @@
+---
+
+cluster:
+  clustername: ''
+  clustertype: CNCF
+  clustersize: l
+  master_node_count: 1
+  worker_node_count: 3
+  os: Ubuntu 18.04
+  site: rtp
+kubernetes:
+  version: 1.19.16
+local_storage:
+  is_local_storage_required: no
+nfs:
+  is_nfs_required: yes
+  storage_class_name: nfs-storage
+  namespace: nfs-storage
+  master_local_storage: 200

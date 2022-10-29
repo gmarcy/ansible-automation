@@ -1,0 +1,19 @@
+---
+
+- name: Install WebSphere Automation Operator into cluster
+  hosts: was_automation
+  gather_facts: false
+  tags: was_automation
+  roles:
+  - role: install_wsa_operator
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    operator_catalog_user: "{{ hostvars['playbook-secrets']['na_artifactory']['user'] }}"
+    operator_catalog_password: "{{ hostvars['playbook-secrets']['na_artifactory']['token'] }}"
+    operator_catalog_source: "{{ wsa_operator_catalog_source }}"
+    operator_catalog_image: "{{ wsa_operator_catalog_image }}"
+    operator_docker_registry: "{{ wsa_operator_docker_registry }}"
+    operator_channel: "{{ wsa_operator_channel }}"
+    operator_branch: "{{ wsa_operator_branch }}"
+    operator_singlenamespace: "{{ wsa_operator_singlenamespace }}"
+    target_namespace: "{{ wsa_namespace }}"

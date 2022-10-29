@@ -1,0 +1,8 @@
+---
+
+- name: Print WSA access information
+  hosts: was_automation
+  gather_facts: false
+  tags: wsa_access
+  roles:
+  - role: print_wsa_access_info

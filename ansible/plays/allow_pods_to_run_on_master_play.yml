@@ -1,0 +1,10 @@
+---
+
+- name: Allow pods to run on master nodes
+  hosts: cluster_facts
+  gather_facts: false
+  tags: pods_on_master
+  roles:
+  - role: allow_pods_to_run_on_master
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"

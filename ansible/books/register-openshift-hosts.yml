@@ -2,6 +2,8 @@
 
 - import_playbook: ../plays/gather_localhost_facts_play.yml
 - import_playbook: ../plays/load_playbook_secrets_play.yml
+- import_playbook: ../plays/create_cluster_facts_group_play.yml
+- import_playbook: ../plays/find_localhost_cluster_network_address_play.yml
 - import_playbook: ../plays/setup_assisted_installer_play.yml
 - import_playbook: ../plays/register_assisted_cluster_play.yml
 - import_playbook: ../plays/gather_assisted_cluster_facts_play.yml

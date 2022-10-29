@@ -1,0 +1,32 @@
+---
+
+fyre:
+  creds:
+    username: {{ fyre_user }}
+    api_key: {{ fyre_apikey }}
+    public_key: {{ ssh_public_key }}
+product_group_id: {{ product_group_id }}
+cluster_prefix: {{ cluster_name }}
+site: {{ site }}
+clusterconfig:
+  instance_type: 'virtual_server'
+  platform: 'x'
+{{ cluster_name }}:
+  - name: 'master'
+    count: {{ master_node_count }}
+    cpu: {{ cpu }}
+    memory: {{ memory }}
+    os: {{ os }}
+    publicvlan: 'y'
+    privatevlan: 'y'
+{% if nfs_master_local_storage | default(0) | int > 0 %}
+    additional_disks:
+    - size: {{ nfs_master_local_storage }}
+{% endif %}
+  - name: 'worker'
+    count: {{ worker_node_count }}
+    cpu: {{ cpu }}
+    memory: {{ memory }}
+    os: {{ os }}
+    publicvlan: 'n'
+    privatevlan: 'y'

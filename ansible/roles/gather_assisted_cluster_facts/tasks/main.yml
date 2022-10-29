@@ -13,6 +13,7 @@
     cluster_state: "{{ item.status }}"
     cluster_url: "{{ assisted_install_host_url }}{{ item.href }}"
     cluster_events_url: "{{ assisted_install_rest_url }}/events?cluster_id={{ item.id }}"
+    cluster_api_url: "{{ 'https://api.' + item.name + '.' + item.base_dns_domain + ':6443' }}"
   loop: "{{ _result.json }}"
   when: item.name == cluster_name
 

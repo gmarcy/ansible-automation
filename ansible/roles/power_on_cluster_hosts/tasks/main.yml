@@ -3,7 +3,7 @@
 - name: Set ipmi facts for all cluster hosts
   set_fact:
     cluster_ipmi_hosts: "{{ cluster_ipmi_hosts | default([]) | union([item[1] | combine({'name': item[0]})]) }}"
-  loop: "{{ hostvars['cluster-facts']['cluster_host_names'] | zip(hostvars['cluster-facts']['cluster_host_names'] | map('extract', hostvars, 'inventory_host_ipmi')) }}"
+  loop: "{{ cluster_host_names | zip(cluster_host_names | map('extract', hostvars, 'inv_host_ipmi')) }}"
   when: item[1].interface != 'none'
 
 - block:

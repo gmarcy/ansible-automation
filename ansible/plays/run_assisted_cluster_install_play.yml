@@ -1,8 +1,9 @@
 ---
 
 - name: Install openshift on the cluster host using assisted-install
-  hosts: cluster_install
+  hosts: assisted_install
   gather_facts: false
+  tags: assisted_install
   roles:
   - role: install_cluster
-    clusters_dir: "{{ hostvars['assisted-install']['clusters_dir'] }}"
+    cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"

@@ -1,0 +1,12 @@
+---
+
+- name: Install rook-cephfs storage for cluster
+  hosts: cluster_facts
+  gather_facts: false
+  tags: cephfs
+  roles:
+  - role: csi_cephfs_fyre
+    cephfs_bastion_setup_dir: "{{ hostvars['localhost-facts']['ansible_user_dir'] }}/workspace/cephfs"
+    cluster_bin_dir: "{{ hostvars['cluster-facts']['cluster_dir'] + '/bin' }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
