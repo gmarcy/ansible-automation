@@ -1,0 +1,24 @@
+---
+
+- name: Remove the primary CSV for IBM Common Service Operator
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: ClusterServiceVersion
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: ibm-common-service-operator.v3.21.0
+    namespace: openshift-operators
+    state: absent
+  register: _result
+
+- name: Remove Subscription for IBM Common Service Operator
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: Subscription
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ ics_operator_name }}-v3.21-{{ ics_operator_catalog_source }}-{{ ics_operator_catalog_source_namespace }}"
+    namespace: "{{ ics_operator_namespace }}"
+    state: absent
+    wait: true
+  register: _result

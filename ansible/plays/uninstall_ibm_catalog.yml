@@ -1,0 +1,10 @@
+---
+
+- name: Uninstall IBM Operator Catalog
+  hosts: cluster_facts
+  gather_facts: false
+  tags: ibm_catalog
+  roles:
+  - role: uninstall_ibm_catalog
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"

@@ -1,0 +1,53 @@
+---
+
+- name: Uninstall Operand Deployment Lifecycle Manager
+  hosts: common_services
+  gather_facts: false
+  tags: common_services
+  roles:
+  - role: uninstall_odlm_operands
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ ics_namespace }}"
+    operator_catalog_source: "{{ ics_operator_catalog_source }}"
+  - role: uninstall_odlm_operator
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ ics_namespace }}"
+    operator_catalog_source: "{{ ics_operator_catalog_source }}"
+  - role: uninstall_namespace_scope_operands
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ ics_namespace }}"
+    operator_catalog_source: "{{ ics_operator_catalog_source }}"
+  - role: uninstall_namespace_scope_operator
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ ics_namespace }}"
+    operator_catalog_source: "{{ ics_operator_catalog_source }}"
+  - role: uninstall_namespace_scope_operator
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ ics_namespace }}"
+    operator_catalog_source: "{{ ics_operator_catalog_source }}"
+  - role: uninstall_common_service_operands
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ ics_namespace }}"
+    operator_catalog_source: "{{ ics_operator_catalog_source }}"
+  - role: uninstall_common_service_operator
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ ics_namespace }}"
+    operator_catalog_source: "{{ ics_operator_catalog_source }}"
+  - role: remove_target_operator_group
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ ics_namespace }}"
+    target_operator_group: "{{ ics_operator_group }}"
+    operator_catalog_source: "{{ ics_operator_catalog_source }}"
+  - role: remove_target_namespace
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ ics_namespace }}"
+    operator_catalog_source: "{{ ics_operator_catalog_source }}"

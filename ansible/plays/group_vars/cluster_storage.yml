@@ -1,9 +1,13 @@
 ---
 
-default_storage_class: "{{ nfs_storage_class }}"
-
 local_storage_class: filesystem-local-storage
 local_storage_namespace: openshift-local-storage
+
 nfs_storage_class: filesystem-nfs-storage
 nfs_storage_namespace: nfs-storage
 nfs_provisioner: "{{ inv_cluster_domain }}/nfs-provisioner"
+
+# Rook-ceph release from https://github.com/rook/rook/releases
+rook_ceph_release: "{{ inv_rook_ceph_release | default('v1.8.6') }}"
+cephfs_device_filter: "{{ inv_cephfs_device_filter | default('vdb') }}"
+cephfs_storage_class: "{{ inv_cephfs_storage_class | default('csi-cephfs') }}"

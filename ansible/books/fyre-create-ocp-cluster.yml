@@ -1,0 +1,9 @@
+---
+
+- import_playbook: ../plays/gather_localhost_facts.yml
+- import_playbook: ../plays/load_playbook_secrets.yml
+- import_playbook: ../plays/create_cluster_facts_group.yml
+- import_playbook: ../plays/fyre_request_ocp_cluster.yml
+- import_playbook: ../plays/fyre_gather_cluster_facts.yml
+- import_playbook: ../plays/ocp_login.yml
+- import_playbook: ../plays/print_ocp_cluster_info.yml

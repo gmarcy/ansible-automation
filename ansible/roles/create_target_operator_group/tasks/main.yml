@@ -1,0 +1,16 @@
+---
+
+- name: Ensure target_operator_group exists
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operators.coreos.com/v1
+    kind: OperatorGroup
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ target_operator_group }}"
+    namespace: "{{ target_namespace }}"
+    definition:
+      spec:
+        targetNamespaces:
+        - "{{ target_namespace }}"
+    state: present
+  register: _result

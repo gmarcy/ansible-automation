@@ -4,10 +4,10 @@
   debug:
     msg: 
       - "System is ready with {{ description }} Installed, Cluster can be found at: "
-      - "API URL: https://{{ hostvars[groups['ocp_clusters'][0]]['ocp_api_url'] }}:6443"
-      - "Console URL: {{ hostvars[groups['ocp_clusters'][0]]['ocp_access_url'] }}"
-      - "Console Username: {{ hostvars['cluster-facts']['console_username'] }}"
-      - "Console Password: {{ hostvars['cluster-facts']['console_password'] }}"
+      - "API URL: {{ cluster_api_url }}"
+      - "Console URL: {{ console_url }}"
+      - "Console Username: {{ console_username }}"
+      - "Console Password: {{ console_password }}"
   changed_when: true
 
 - name: Print information for accessing WebSphere Automation UI

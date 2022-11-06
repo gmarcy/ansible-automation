@@ -1,0 +1,30 @@
+---
+
+- name: Create was_automation localhost group
+  hosts: localhost
+  gather_facts: false
+  tasks:
+  - name: Create was_automation group
+    add_host:
+      name: was-automation
+      group: was_automation
+      ansible_host: localhost
+      ansible_connection: local
+    changed_when: false
+
+- name: Install WebSphere Automation into OCP cluster
+  hosts: was_automation
+  gather_facts: false
+  vars:
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    default_storage_class: "{{ hostvars['cluster-storage']['default_storage_class'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+  roles:
+  - role: register_icr_creds
+    cp_username: "{{ hostvars['playbook-secrets']['cp_username'] }}"
+    cp_password: "{{ hostvars['playbook-secrets']['cp_password'] }}"
+    docker_io_user: "{{ hostvars['playbook-secrets']['docker_io_user'] }}"
+    docker_io_password: "{{ hostvars['playbook-secrets']['docker_io_password'] }}"
+  - role: install_ibm_catalog
+  - role: install_wsa_operator
+  - role: create_wsa_instance

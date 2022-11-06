@@ -1,16 +1,51 @@
 ---
 
-- name: Set the default storage class
-  kubernetes.core.k8s:
-    api_key: "{{ api_key }}"
-    api_version: storage.k8s.io/v1
-    definition:
-      metadata:
-        annotations:
-          storageclass.kubernetes.io/is-default-class: 'true'
-    kind: StorageClass
-    kubeconfig: "{{ kubeconfig_path }}"
-    name: "{{ default_storage_class }}"
-    state: patched
-  register: _result
-  when: default_storage_class is defined
+- when: default_storage_class | default('') | length > 0
+  block:
+
+    - name: Set default_storage_class fact
+      set_fact:
+        default_storage_class: "{{ default_storage_class }}"
+
+    - name: Check for existing default storage class
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key }}"
+        api_version: storage.k8s.io/v1
+        kind: StorageClass
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: _result
+
+    - name: Set fact for existing default storage class
+      set_fact:
+        old_default_sc: "{{ item.metadata.name }}"
+      loop: "{{ _result.resources }}"
+      when: item['metadata']['annotations']['storageclass.kubernetes.io/is-default-class'] | default('false') | bool
+
+    - name: Clear the old default storage class
+      kubernetes.core.k8s:
+        api_key: "{{ api_key }}"
+        api_version: storage.k8s.io/v1
+        definition:
+          metadata:
+            annotations:
+              storageclass.kubernetes.io/is-default-class: 'false'
+        kind: StorageClass
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: "{{ old_default_sc }}"
+        state: patched
+      register: _result
+      when: old_default_sc is defined and old_default_sc != default_storage_class
+
+    - name: Set the default storage class
+      kubernetes.core.k8s:
+        api_key: "{{ api_key }}"
+        api_version: storage.k8s.io/v1
+        definition:
+          metadata:
+            annotations:
+              storageclass.kubernetes.io/is-default-class: 'true'
+        kind: StorageClass
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: "{{ default_storage_class }}"
+        state: patched
+      register: _result

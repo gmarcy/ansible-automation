@@ -1,0 +1,13 @@
+---
+
+- name: Remove existing ibm-operator-catalog CatalogSource
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: CatalogSource
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: ibm-operator-catalog
+    namespace: openshift-marketplace
+    state: absent
+    wait: true
+  register: _result

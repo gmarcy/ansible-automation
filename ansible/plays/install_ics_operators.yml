@@ -1,0 +1,61 @@
+---
+
+- name: Create common_services localhost group for this play
+  hosts: localhost
+  gather_facts: false
+  tags: common_services
+  roles:
+  - role: create_localhost_groups
+    localhost_groups:
+    - host_name: common-services
+      group_name: common_services
+
+- name: Install IBM Common Services Operators into OCP cluster
+  hosts: common_services
+  gather_facts: false
+  tags: common_services
+  pre_tasks: 
+  - set_fact:
+    install_common_services_operator: "{{ deploy_common_services_operator | default(true) }}"
+  roles:
+  - role: install_common_service_operator
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ ics_namespace }}"
+    operator_catalog_source: "{{ ics_operator_catalog_source }}"
+    when: install_common_services_operator
+  - role: install_common_service_operands
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ ics_namespace }}"
+    operator_catalog_source: "{{ ics_operator_catalog_source }}"
+    when: install_common_services_operator
+  - role: install_namespace_scope_operator
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ ics_namespace }}"
+    operator_catalog_source: "{{ ics_operator_catalog_source }}"
+    when: not install_common_services_operator
+  - role: install_namespace_scope_operands
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ ics_namespace }}"
+    operator_catalog_source: "{{ ics_operator_catalog_source }}"
+    when: not install_common_services_operator
+  - role: install_odlm_operator
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ ics_namespace }}"
+    operator_catalog_source: "{{ ics_operator_catalog_source }}"
+    when: not install_common_services_operator
+  - role: install_odlm_operands
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ ics_namespace }}"
+    operator_catalog_source: "{{ ics_operator_catalog_source }}"
+    when: not install_common_services_operator
+  - role: install_ics_operators
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ ics_namespace }}"
+    operator_catalog_source: "{{ ics_operator_catalog_source }}"

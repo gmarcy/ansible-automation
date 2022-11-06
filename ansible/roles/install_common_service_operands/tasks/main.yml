@@ -1,0 +1,44 @@
+---
+
+- name: Create CommonService instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operator.ibm.com/v3
+    kind: CommonService
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: common-service
+    namespace: "{{ ics_namespace }}"
+    definition:
+      spec:
+        size: starterset
+  register: _result
+
+- name: Wait for CommonService to reach Updating or Succeeded phase
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    api_version: operator.ibm.com/v3
+    kind: CommonService
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: common-service
+    namespace: "{{ ics_namespace }}"
+  register: _result
+  delay: 30
+  retries: 120
+  until: >
+    (_result.resources | length > 0) and (_result.resources | map(attribute='status.phase') | unique | difference(['Updating', 'Succeeded']) | length == 0)
+
+- name: Wait for CommonService to reach Succeeded overallStatus
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    api_version: operator.ibm.com/v3
+    kind: CommonService
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: common-service
+    namespace: "{{ ics_namespace }}"
+  register: _result
+  delay: 30
+  retries: 120
+  until: >
+    (_result.resources | length > 0) and
+    (_result.resources | map(attribute='status.phase') | unique | difference(['Updating', 'Succeeded']) | length == 0) and
+    (_result.resources | map(attribute='status.overallStatus', default='MISSING') | unique == ['Succeeded'])

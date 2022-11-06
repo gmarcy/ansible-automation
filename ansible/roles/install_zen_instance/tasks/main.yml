@@ -32,5 +32,5 @@
   register: _result
   delay: 30
   retries: 120
-  until: _result.resources | map(attribute='status.zenStatus') | unique == ['Completed']
+  until: (_result.resources | length > 0) and (_result.resources | map(attribute='status.zenStatus') | unique == ['Completed'])
   when: wait_for_zenstatus_completed | default(true)

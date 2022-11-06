@@ -1,0 +1,24 @@
+---
+
+- name: Create fyre_provisioner localhost group for this play
+  hosts: localhost
+  gather_facts: false
+  tags: request_ocp_fyre
+  roles:
+  - role: create_localhost_groups
+    localhost_groups:
+    - host_name: fyre-provisioner
+      group_name: fyre_provisioner
+
+- name: Request an OpenShift cluster from Fyre
+  hosts: fyre_provisioner
+  gather_facts: false
+  tags: request_ocp_fyre
+  roles:
+  - role: request_ocp_fyre
+    fyreuser: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
+    fyreapikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
+    clusterName: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+    ocpVersion: "{{ hostvars['cluster-facts']['openshift_version'] }}"
+    ocpPlatform: "{{ fyre_platform }}"
+    quickburn_ttl: "{{ fyre_quickburn_ttl }}"

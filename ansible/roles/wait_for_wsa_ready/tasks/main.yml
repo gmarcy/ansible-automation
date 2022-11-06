@@ -50,5 +50,5 @@
 
 - name: Assert that the job was successful
   assert:
-    that:  _result.resources | map(attribute='status.succeeded') | unique == [1]
+    that:  (_result.resources | length > 0) and (_result.resources | map(attribute='status.succeeded') | unique == [1])
   when: not operator_airgap

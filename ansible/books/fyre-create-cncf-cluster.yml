@@ -1,0 +1,14 @@
+---
+
+- import_playbook: ../plays/gather_localhost_facts.yml
+- import_playbook: ../plays/load_playbook_secrets.yml
+- import_playbook: ../plays/create_cluster_facts_group.yml
+- import_playbook: ../plays/cncf_print_cluster_config.yml
+- import_playbook: ../plays/cncf_create_ssh_keypair.yml
+- import_playbook: ../plays/cncf_provision_fyre_cluster_nodes.yml
+- import_playbook: ../plays/cncf_setup_ansible_on_nodes.yml
+- import_playbook: ../plays/cncf_prereqs.yml
+- import_playbook: ../plays/cncf_provision_cluster.yml
+- import_playbook: ../plays/cncf_nfs_storage.yml
+- import_playbook: ../plays/cncf_local_storage.yml
+- import_playbook: ../plays/cncf_nfs_storage.yml

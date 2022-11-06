@@ -1,0 +1,21 @@
+---
+
+- import_playbook: ../plays/gather_localhost_facts.yml
+- import_playbook: ../plays/load_playbook_secrets.yml
+- import_playbook: ../plays/create_cluster_facts_group.yml
+- import_playbook: ../plays/fyre_request_ocp_cluster.yml
+- import_playbook: ../plays/fyre_gather_cluster_facts.yml
+- import_playbook: ../plays/ocp_login.yml
+- import_playbook: ../plays/allow_pods_to_run_on_master.yml
+- import_playbook: ../plays/storage_csi_cephfs.yml
+- import_playbook: ../plays/add_pull_secrets.yml
+- import_playbook: ../plays/add_repository_mirror_config.yml
+- import_playbook: ../plays/install_ibm_catalog.yml
+- import_playbook: ../plays/create_was_automation_namespace.yml
+- import_playbook: ../plays/install_wsa_operator.yml
+- import_playbook: ../plays/install_wsa_operands.yml
+- import_playbook: ../plays/install_events_operands.yml
+- import_playbook: ../plays/install_zen_operands.yml
+- import_playbook: ../plays/create_external_tls_secret.yml
+- import_playbook: ../plays/wait_for_wsa_ready.yml
+- import_playbook: ../plays/print_wsa_cluster_info.yml

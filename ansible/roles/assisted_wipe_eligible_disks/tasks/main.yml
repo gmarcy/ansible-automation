@@ -1,0 +1,59 @@
+---
+
+- name: Wait for hosts to enter ready to install state
+  uri:
+    url: "{{ hostvars[item].host_url }}"
+  loop: "{{ groups['cluster_hosts'] }}"
+  register: _result
+  delay: 30
+  retries: 20
+  until: _result.json.status in ['known', 'installing-in-progress', 'installed']
+
+- name: Collect the host status of all cluster hosts
+  set_fact:
+    all_host_states: "{{ _result.results | map(attribute='json.status') | unique }}"
+
+- block:
+
+    - name: Collect the paths and eligibility of all disks on all cluster hosts
+      set_fact:
+        cluster_disks: "{{ cluster_disks | default([]) + ([hostname] | product(paths)) }}"
+      loop: "{{ groups['cluster_hosts'] | zip(groups['cluster_hosts'] | map('extract', hostvars, 'host_inventory') | map(attribute='disks')) }}"
+      vars:
+        hostname: "{{ item[0] }}"
+        paths: "{{ item[1] | map(attribute='path') | zip(item[1] | map(attribute='installation_eligibility.eligible', default=false)) }}"
+
+    - name: Run ssh to wipe the filesystems of all eligible disks
+      command:
+        ssh {{ ssh_user }}@{{ ssh_host }} sudo wipefs -a {{ path }}
+      loop: "{{ cluster_disks }}"
+      vars:
+        ssh_host: "{{ item[0] }}.{{ hostvars[item[0]].host_domain }}"
+        path: "{{ item[1][0] }}"
+        eligible: "{{ item[1][1] }}"
+      register: _result
+      changed_when: _result is not defined
+      when: eligible
+
+    - name: Run ssh to wipe the filesystems of all eligible disks
+      command:
+        ssh {{ ssh_user }}@{{ ssh_host }} sudo dd if=/dev/zero of={{ path }}  bs=1M count=10 conv=fsync
+      loop: "{{ cluster_disks }}"
+      vars:
+        ssh_host: "{{ item[0] }}.{{ hostvars[item[0]].host_domain }}"
+        path: "{{ item[1][0] }}"
+        eligible: "{{ item[1][1] }}"
+      register: _result
+      changed_when: _result is not defined
+      when: eligible
+
+    - name: Run ssh to show status of all disks
+      command:
+        ssh {{ ssh_user }}@{{ ssh_host }} sudo lsblk
+      loop: "{{ groups['cluster_hosts'] }}"
+      vars:
+        ssh_host: "{{ item }}.{{ hostvars[item].host_domain }}"
+      register: _result
+      changed_when: _result is not defined
+
+  when: (['known'] is subset(all_host_states))

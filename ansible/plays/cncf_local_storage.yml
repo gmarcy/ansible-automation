@@ -1,0 +1,23 @@
+---
+
+- name: Create mongo data folders on all worker nodes
+  hosts: worker_nodes
+  gather_facts: false
+  tags: mongo_setup
+  roles:
+  - role: cncf_create_mongo_data_folders
+    when: hostvars['provision-cluster']['local_storage_required']
+
+- name: Create local storage cluster artifacts
+  hosts: cluster_storage
+  gather_facts: false
+  tags: storage_setup
+  roles:
+  - role: cncf_local_storage
+    cluster_name: "{{ hostvars['provision-cluster']['cluster_name'] }}"
+    when: hostvars['provision-cluster']['local_storage_required']
+  - role: set_default_storage_class
+    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    default_storage_class: common-services-stgclass
+    when: hostvars['provision-cluster']['local_storage_required']

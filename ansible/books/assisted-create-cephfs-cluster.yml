@@ -1,0 +1,21 @@
+---
+
+- import_playbook: ../plays/gather_localhost_facts.yml
+- import_playbook: ../plays/load_playbook_secrets.yml
+- import_playbook: ../plays/create_cluster_facts_group.yml
+- import_playbook: ../plays/find_localhost_cluster_network_address.yml
+- import_playbook: ../plays/assisted_setup_installer.yml
+- import_playbook: ../plays/assisted_register_cluster.yml
+- import_playbook: ../plays/assisted_gather_cluster_facts.yml
+- import_playbook: ../plays/assisted_create_ipxe_folders.yml
+- import_playbook: ../plays/power_on_cluster_hosts.yml
+- import_playbook: ../plays/assisted_wait_for_hosts_registration.yml
+- import_playbook: ../plays/assisted_gather_hosts_facts.yml
+- import_playbook: ../plays/assisted_run_cluster_install.yml
+- import_playbook: ../plays/assisted_wait_for_install_completion.yml
+- import_playbook: ../plays/assisted_download_cluster_info.yml
+- import_playbook: ../plays/allow_pods_to_run_on_master.yml
+- import_playbook: ../plays/storage_csi_cephfs.yml
+- import_playbook: ../plays/add_pull_secrets.yml
+- import_playbook: ../plays/add_repository_mirror_config.yml
+- import_playbook: ../plays/print_cephfs_cluster_info.yml

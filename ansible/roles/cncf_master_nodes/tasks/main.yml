@@ -66,7 +66,7 @@
   delegate_to: 'localhost'
   delay: 10
   retries: 120
-  until: _result.resources | length > 0 and _result.resources[0].status.nodeInfo is defined
+  until: (_result.resources | length > 0) and (_result.resources[0].status.nodeInfo is defined)
 
 - name: Set fact if master node is ready
   set_fact:

@@ -1,0 +1,11 @@
+---
+
+- name: Create common_services localhost group for this play
+  hosts: localhost
+  gather_facts: false
+  tags: common_services
+  roles:
+  - role: create_localhost_groups
+    localhost_groups:
+    - host_name: common-services
+      group_name: common_services

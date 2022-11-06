@@ -1,0 +1,13 @@
+---
+
+- name: Wait for the openshift install to complete
+  hosts: assisted_install
+  gather_facts: false
+  tags: assisted_install
+  roles:
+  - role: assisted_wait_while_preparing_install
+    cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"
+  - role: assisted_download_cluster_config
+    cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"
+  - role: assisted_wait_for_install_complete
+    cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"

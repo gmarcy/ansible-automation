@@ -1,0 +1,41 @@
+---
+
+- name: Create Subscription for IBM Namespace Scope Operator
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: Subscription
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: ibm-namespace-scope-operator
+    namespace: "{{ target_namespace }}"
+    definition:
+      metadata:
+        labels: "{{ labels }}"
+      spec:
+        channel: v3.21
+        installPlanApproval: Automatic
+        name: ibm-namespace-scope-operator
+        source: "{{ operator_catalog_source }}"
+        sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
+    wait: true
+    wait_condition:
+      type: CatalogSourcesUnhealthy
+      status: false
+  vars:
+    key: "{{ 'operators.coreos.com/ibm-namespace-scope-operator.' + target_namespace }}"
+    labels: "{{ [{'key': key, 'value': '' }] | items2dict }}"
+  register: _result
+
+- name: Wait for ibm-namespace-scope-operator
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    kind: Deployment
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: ibm-namespace-scope-operator
+    namespace: "{{ target_namespace }}"
+    wait: true
+    wait_condition:
+      type: Available
+    wait_sleep: 20
+    wait_timeout: 300
+  register: _result

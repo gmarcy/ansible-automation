@@ -1,0 +1,49 @@
+---
+
+- name: Remove NamespaceScope operands
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operator.ibm.com/v1
+    kind: NamespaceScope
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: common-service
+    namespace: "{{ target_namespace }}"
+    state: absent
+    wait: true
+  register: _result
+
+- name: Remove NamespaceScope operands
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operator.ibm.com/v1
+    kind: NamespaceScope
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: nss-managedby-odlm
+    namespace: "{{ target_namespace }}"
+    state: absent
+    wait: true
+  register: _result
+
+- name: Remove NamespaceScope operands
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operator.ibm.com/v1
+    kind: NamespaceScope
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: nss-odlm-scope
+    namespace: "{{ target_namespace }}"
+    state: absent
+    wait: true
+  register: _result
+
+- name: Remove NamespaceScope operands
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operator.ibm.com/v1
+    kind: NamespaceScope
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: odlm-scope-managedby-odlm
+    namespace: "{{ target_namespace }}"
+    state: absent
+    wait: true
+  register: _result

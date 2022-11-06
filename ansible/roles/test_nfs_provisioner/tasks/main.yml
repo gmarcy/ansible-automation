@@ -81,4 +81,5 @@
     kubeconfig: "{{ kubeconfig_path }}"
     name: "{{ test_nfs_provisioner_namespace }}"
     state: absent
+    wait: true
   register: _result

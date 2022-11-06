@@ -1,0 +1,13 @@
+---
+
+- name: Remove CommonService instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operator.ibm.com/v3
+    kind: CommonService
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: common-service
+    namespace: "{{ ics_namespace }}"
+    state: absent
+    wait: true
+  register: _result

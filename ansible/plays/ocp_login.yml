@@ -1,0 +1,14 @@
+---
+
+- name: Login as kubeadmin on the OpenShift cluster
+  hosts: cluster_facts
+  gather_facts: false
+  tags: ocp_login
+  roles:
+  - role: download_cluster_cli
+    client_arch: "{{ hostvars['localhost-facts']['cpu_arch'] }}"
+    client_os: "{{ hostvars['localhost-facts']['os_family'] }}"
+    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+    base_dns_domain: "{{ hostvars['cluster-facts']['cluster_domain'] }}"
+    cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"
+  - role: ocp_login

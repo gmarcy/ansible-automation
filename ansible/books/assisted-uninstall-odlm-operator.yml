@@ -1,0 +1,12 @@
+---
+
+- import_playbook: ../plays/gather_localhost_facts.yml
+- import_playbook: ../plays/load_playbook_secrets.yml
+- import_playbook: ../plays/create_cluster_facts_group.yml
+- import_playbook: ../plays/assisted_gather_cluster_facts.yml
+- import_playbook: ../plays/assisted_gather_hosts_facts.yml
+- import_playbook: ../plays/assisted_download_cluster_info.yml
+- import_playbook: ../plays/add_pull_secrets.yml
+- import_playbook: ../plays/create_common_services_group.yml
+- import_playbook: ../plays/uninstall_odlm_only.yml
+- import_playbook: ../plays/print_cephfs_cluster_info.yml

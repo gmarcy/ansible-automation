@@ -1,0 +1,36 @@
+---
+
+- name: Create Subscription for IBM Common Service Operator
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: Subscription
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ ics_operator_name }}-v3.21-{{ ics_operator_catalog_source }}-{{ ics_operator_catalog_source_namespace }}"
+    namespace: "{{ ics_operator_namespace }}"
+    definition:
+      metadata:
+        labels:
+          operators.coreos.com/ibm-common-service-operator.openshift-operators: ""
+      spec:
+        channel: v3.21
+        installPlanApproval: Automatic
+        name: "{{ ics_operator_name }}"
+        source: "{{ ics_operator_catalog_source }}"
+        sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
+        startingCSV: ibm-common-service-operator.v3.21.0
+  register: _result
+
+- name: Wait for ibm-common-service-operator
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key }}"
+    kind: Deployment
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ ics_operator_name }}"
+    namespace: "{{ ics_operator_namespace }}"
+    wait: true
+    wait_condition:
+      type: Available
+    wait_sleep: 20
+    wait_timeout: 300
+  register: _result

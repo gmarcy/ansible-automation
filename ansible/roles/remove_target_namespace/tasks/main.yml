@@ -1,0 +1,11 @@
+---
+
+- name: Remove target_namespace
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    kind: Namespace
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ target_namespace }}"
+    state: absent
+    wait: true
+  register: _result

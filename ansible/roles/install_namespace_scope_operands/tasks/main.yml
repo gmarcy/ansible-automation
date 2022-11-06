@@ -1,0 +1,75 @@
+---
+
+- name: Create NamespaceScope operands
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operator.ibm.com/v1
+    kind: NamespaceScope
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: common-service
+    namespace: "{{ target_namespace }}"
+    definition:
+      spec:
+        csvInjector:
+          enable: true
+        namespaceMembers:
+        - "{{ ics_namespace }}"
+        - openshift-redhat-marketplace
+  register: _result
+
+- name: Create NamespaceScope operands
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operator.ibm.com/v1
+    kind: NamespaceScope
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: nss-managedby-odlm
+    namespace: "{{ target_namespace }}"
+    definition:
+      spec:
+        csvInjector:
+          enable: true
+        namespaceMembers:
+        - "{{ ics_operator_namespace }}"
+        - "{{ ics_namespace }}"
+  register: _result
+
+- name: Create NamespaceScope operands
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operator.ibm.com/v1
+    kind: NamespaceScope
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: nss-odlm-scope
+    namespace: "{{ target_namespace }}"
+    definition:
+      spec:
+        configmapName: odlm-scope
+        csvInjector:
+          enable: false
+        namespaceMembers:
+        - openshift-redhat-marketplace
+        - "{{ ics_namespace }}"
+        restartLabels:
+          intent: projected-odlm
+  register: _result
+
+- name: Create NamespaceScope operands
+  kubernetes.core.k8s:
+    api_key: "{{ api_key }}"
+    api_version: operator.ibm.com/v1
+    kind: NamespaceScope
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: odlm-scope-managedby-odlm
+    namespace: "{{ target_namespace }}"
+    definition:
+      spec:
+        configmapName: odlm-scope
+        csvInjector:
+          enable: false
+        namespaceMembers:
+        - "{{ ics_namespace }}"
+        - "{{ ics_operator_namespace }}"
+        restartLabels:
+          intent: projected-odlm
+  register: _result
