@@ -1,0 +1,14 @@
+---
+
+ansible_host: localhost
+ansible_connection: local
+
+certificate_country: "{{ lookup('env','CERTIFICATE_COUNTRY') or 'US' }}"
+certificate_state: "{{ lookup('env','CERTIFICATE_STATE') or 'MyState' }}"
+certificate_locality: "{{ lookup('env','CERTIFICATE_LOCALITY') or 'MyCity' }}"
+certificate_organization: "{{ lookup('env','CERTIFICATE_ORGANIZATION') or 'MyCompany' }}"
+certificate_organizational_unit: "{{ lookup('env','CERTIFICATE_ORGANIZATIONAL_UNIT') or 'MyDepartment' }}"
+
+network_cidr: "{{ inv_cluster_cidr | default('') }}"
+
+ssh_keytype: "{{ inv_ssh_keytype | default('rsa') }}"

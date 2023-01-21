@@ -6,14 +6,12 @@
   tags: was_automation
   roles:
   - role: install_wsa_operator
-    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
     kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
     operator_catalog_user: "{{ hostvars['playbook-secrets']['na_artifactory']['user'] }}"
     operator_catalog_password: "{{ hostvars['playbook-secrets']['na_artifactory']['token'] }}"
-    operator_catalog_source: "{{ wsa_operator_catalog_source }}"
-    operator_catalog_image: "{{ wsa_operator_catalog_image }}"
-    operator_docker_registry: "{{ wsa_operator_docker_registry }}"
-    operator_channel: "{{ wsa_operator_channel }}"
-    operator_branch: "{{ wsa_operator_branch }}"
-    operator_singlenamespace: "{{ wsa_operator_singlenamespace }}"
-    target_namespace: "{{ wsa_namespace }}"
+    target_catalog_source_image: "{{ was_automation_catalog_source_image }}"
+    target_catalog_source_image_tag: "{{ was_automation_catalog_source_image_tag }}"
+    operator_channel: "{{ was_automation_operator_channel }}"
+    operator_singlenamespace: "{{ was_automation_operator_singlenamespace }}"
+    target_namespace: "{{ was_automation_namespace }}"

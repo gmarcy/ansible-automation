@@ -1,0 +1,138 @@
+---
+
+- name: Assert that we have been given an olm version to install
+  assert:
+    that: target_olm_version is defined
+
+- name: Set facts for this role
+  set_fact:
+    olm_version: "{{ target_olm_version }}"
+    olm_download_url: "{{ (target_olm_url | default('https://github.com/operator-framework/operator-lifecycle-manager/releases/download')) + '/' + target_olm_version }}"
+    olm_download_dir: "{{ cluster_dir + '/olm' }}"
+
+- name: Check to see if the OLM is already deployed because we are running openshift
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: apps/v1
+    kind: Deployment
+    name: olm-operator
+    namespace: openshift-operator-lifecycle-manager
+  register: _result
+
+- name: If we are already running the openshift-olm just stop
+  assert:
+    that: _result.resources is defined and _result.resources | length == 0
+
+- name: Check to see if the OLM is already deployed because we are running openshift
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: apps/v1
+    kind: Deployment
+    name: olm-operator
+    namespace: "{{ target_namespace }}"
+  register: _result
+
+- debug: var=_result
+
+- name: Set fact if the OLM is already deployed
+  set_fact:
+    olm_is_deployed: "{{ _result.resources is defined and _result.resources | length > 0 }}"
+
+- when: not olm_is_deployed
+  block:
+
+    - name: Create olm folder in cluster_dir
+      file:
+        path: "{{ olm_download_dir }}"
+        state: directory
+        mode: '0755'
+      register: _result
+
+    - name: Download olm_install script
+      get_url:
+        url: "{{ olm_download_url + '/' + item }}"
+        dest: "{{ olm_download_dir + '/' + item }}"
+        mode: '0644'
+      loop:
+      - 'crds.yaml'
+      - 'olm.yaml'
+      register: _result
+
+    - name: Apply crds.yaml to the cluster
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        src: "{{ olm_download_dir + '/crds.yaml' }}"
+        wait: true
+        wait_condition:
+          type: Established
+        wait_sleep: 10
+        wait_timeout: 60
+      register: _result
+
+    - name: Apply olm.yaml to the cluster
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        src: "{{ olm_download_dir + '/olm.yaml' }}"
+      register: _result
+
+    - name: Wait for olm-operator Deployment
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key | default(omiy) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: apps/v1
+        kind: Deployment
+        name: olm-operator
+        namespace: "{{ target_namespace }}"
+        wait: true
+        wait_condition:
+          type: Available
+        wait_sleep: 20
+        wait_timeout: 300
+      register: _result
+
+    - name: Wait for catalog-operator Deployment
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key | default(omiy) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: apps/v1
+        kind: Deployment
+        name: catalog-operator
+        namespace: "{{ target_namespace }}"
+        wait: true
+        wait_condition:
+          type: Available
+        wait_sleep: 20
+        wait_timeout: 300
+      register: _result
+
+    - name: Wait until the packageserver ClusterServiceVersion has succeeded
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: operators.coreos.com/v1alpha1
+        kind: ClusterServiceVersion
+        name: packageserver
+        namespace: "{{ target_namespace }}"
+      register: _result
+      delay: 10
+      retries: 300
+      until: (_result.resources | length > 0) and (_result.resources | map(attribute='status.phase') | unique == ['Succeeded'])
+
+    - name: Wait for packageserver Deployment
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: apps/v1
+        kind: Deployment
+        name: packageserver
+        namespace: "{{ target_namespace }}"
+        wait: true
+        wait_condition:
+          type: Available
+        wait_sleep: 20
+        wait_timeout: 300
+      register: _result

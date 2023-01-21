@@ -1,0 +1,25 @@
+---
+
+- name: Create the LetsEncrypt staging issuer
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: cert-manager.io/v1
+    kind: ClusterIssuer
+    name: le-staging-issuer
+    namespace: "{{ target_namespace }}"
+    definition:
+      metadata:
+        labels:
+          k8s-app: cert-manager
+      spec:
+        acme:
+          email: gmarcy@us.ibm.com
+          server: https://acme-staging-v02.api.letsencrypt.org/directory
+          privateKeySecretRef:
+            name: le-staging-issuer-account-key
+          solvers:
+          - http01:
+              ingress:
+                class: nginx
+  register: _result

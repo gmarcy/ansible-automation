@@ -1,8 +1,10 @@
 ---
 
-- name: Gather network facts
-  ansible.builtin.gather_facts:
-    gather_subset: "!all,network"
+- name: Gather facts
+  ansible.builtin.setup:
+    gather_subset:
+    - '!all'
+    - 'network'
 
 - name: Clear ansible_facts
   set_fact:
@@ -13,3 +15,5 @@
     cpu_arch: "{{ 'amd64' if (ansible_architecture == 'x86_64') else ansible_architecture }}"
     os_family: "{{ 'mac' if (ansible_os_family == 'Darwin') else ('windows' if (ansible_os_family == 'Windows') else 'linux') }}"
     local_path: "{{ ansible_env['PATH'] }}"
+    local_home: "{{ ansible_user_dir }}"
+    local_user: "{{ ansible_user_id }}"

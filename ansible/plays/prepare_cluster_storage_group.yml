@@ -1,0 +1,13 @@
+---
+
+- name: Prepare Cluster Storage
+  hosts: cluster_storage
+  gather_facts: false
+  tags: cluster_storage
+  tasks:
+  - name: Print cluster storage configuration
+    debug:
+      msg:
+      - "{{ 'Cluster storage provided by ' + storage_provisioner + ' storage provisioner.' }}"
+      - "{{ 'Default storage class will be ' + default_storage_class }}"
+      - "{{ 'Block storage class will be ' + default_block_class }}"

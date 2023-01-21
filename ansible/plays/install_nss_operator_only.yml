@@ -1,0 +1,15 @@
+---
+
+- import_playbook: ../plays/enable_olm_debugging.yml
+
+- name: Install Namespace Scope Operator by itself
+  hosts: common_services
+  gather_facts: false
+  tags: common_services
+  roles:
+  - role: install_namespace_scope_operator
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ common_service_namespace }}"
+
+- import_playbook: ../plays/disable_olm_debugging.yml

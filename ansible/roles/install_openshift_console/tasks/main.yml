@@ -1,0 +1,190 @@
+---
+
+- name: Check for existing openshift-console
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: apps/v1
+    kind: Deployment
+    name: openshift-console
+    namespace: "{{ target_namespace }}"
+  register: _result
+
+- name: Set fact if openshift-console is already running
+  set_fact:
+    console_running: "{{ _result.resources | map(attribute='status.conditions') | flatten | selectattr('type','equalto','Available') | selectattr('status','equalto','True') | length > 0 }}"
+
+- when: not console_running
+  block:
+
+    - name: Create the openshift-console ServiceAccount
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: v1
+        kind: ServiceAccount
+        name: console-admin
+        namespace: "{{ target_namespace }}"
+      register: _result
+
+    - name: Create the cluster-viewer ClusterRole
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: rbac.authorization.k8s.io/v1
+        kind: ClusterRole
+        name: cluster-viewer
+        definition:
+          rules:
+          - apiGroups:
+            - '*'
+            resources:
+            - '*'
+            verbs:
+            - 'get'
+            - 'list'
+            - 'watch'
+      register: _result
+
+    - name: Create the openshift-console-reader ClusterRoleBinding
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: rbac.authorization.k8s.io/v1
+        kind: ClusterRoleBinding
+        name: openshift-console-reader
+        definition:
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: cluster-admin
+          subjects:
+          - kind: ServiceAccount
+            name: console-admin
+            namespace: openshift-console
+      register: _result
+
+    - name: Fetch the k3s-serving Secret
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: v1
+        kind: Secret
+        name: k3s-serving
+        namespace: kube-system
+      register: _result
+
+    - name: Set fact for the service-ca.crt
+      set_fact:
+        service_ca_crt: "{{ [{'key': 'service-ca.crt', 'value': ((_result.resources | map(attribute='data'))[0]['tls.crt'] | b64decode)}] | items2dict }}"
+
+    - name: Create the service-ca ConfigMap
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: v1
+        kind: ConfigMap
+        name: service-ca
+        namespace: "{{ target_namespace }}"
+        definition:
+          data: "{{ service_ca_crt }}"
+      register: _result
+
+    - name: Create the openshift-console Deployment
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: apps/v1
+        kind: Deployment
+        name: openshift-console
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            labels:
+              k8s-app: openshift-console
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                k8s-app: openshift-console
+            template:
+              metadata:
+                labels:
+                  k8s-app: openshift-console
+              spec:
+                containers:
+                - args:
+                  - /opt/bridge/bin/bridge
+                  - --public-dir=/opt/bridge/static
+                  - --listen=http://0.0.0.0:9000
+                  - --user-settings-location=localstorage
+                  - --base-address=https://console.9.46.79.76.nip.io/
+                  - --prometheus-public-url=http://metrics.9.46.79.76.nip.io/
+                  - --service-ca-file=/var/service-ca/service-ca.crt
+                  image: quay.io/openshift/origin-console:4.10
+                  name: openshift-console
+                  ports:
+                  - name: http
+                    containerPort: 9000
+                  volumeMounts:
+                  - name: service-ca
+                    readOnly: true
+                    mountPath: /var/service-ca
+                serviceAccount: console-admin
+                volumes:
+                - name: service-ca
+                  configMap:
+                    name: service-ca
+                    defaultMode: 420
+                    optional: true
+      register: _result
+
+    - name: Create the openshift-console Service
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: v1
+        kind: Service
+        name: openshift-console
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            labels:
+              k8s-app: openshift-console
+          spec:
+            ports:
+            - name: http
+              port: 9000
+              protocol: TCP
+              targetPort: 9000
+            selector:
+              k8s-app: openshift-console
+            type: ClusterIP
+      register: _result
+
+    - name: Create the openshift-console Ingress
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: networking.k8s.io/v1
+        kind: Ingress
+        name: openshift-console
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            annotations:
+              kubernetes.io/ingress.class: nginx
+              nginx.ingress.kubernetes.io/backend-protocol: HTTP
+          spec:
+            rules:
+            - host: "{{ 'console.apps.' + hostvars['cluster-facts']['cluster_publicip'] + '.nip.io' }}"
+              http:
+                paths:
+                - backend:
+                    service:
+                      name: openshift-console
+                      port:
+                        name: http
+                  path: /
+                  pathType: ImplementationSpecific
+      register: _result

@@ -1,0 +1,15 @@
+---
+
+- name: Install ODLM by itself
+  hosts: common_services
+  gather_facts: false
+  tags: common_services
+  roles:
+  - role: install_odlm_operator
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ common_service_namespace }}"
+  - role: install_odlm_operands
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ common_service_namespace }}"

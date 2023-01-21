@@ -1,0 +1,315 @@
+---
+
+- name: Set facts used in this role
+  set_fact:
+    k8s_version: "{{ hostvars['k8s-provisioner']['options']['k8s_version'] }}"
+    cluster_name: "{{ hostvars['k8s-provisioner']['cluster_name'] }}"
+    cluster_domain: "{{ hostvars['k8s-provisioner']['cluster_domain'] }}"
+    k8s_infra_hostname: "{{ hostvars['k8s-provisioner']['k8s_infra_hostname'] }}"
+    k8s_infra_publicip: "{{ hostvars['k8s-provisioner']['k8s_infra_publicip'] }}"
+    k8s_infra_privateip: "{{ hostvars['k8s-provisioner']['k8s_infra_privateip'] }}"
+
+- when: inventory_hostname in groups['cluster_nodes']
+  name: Check to see if we have already provisioned all the nodes
+  block:
+
+    - name: Check to see if we have a k8s cli
+      stat:
+        path: /usr/local/bin/k3s
+      register: _result
+
+    - when: inventory_hostname == groups['cluster_nodes'][0]
+      name: Set fact if node provisioning completed
+      set_fact:
+        nodes_provisioned: "{{ groups['cluster_nodes'] | map('extract', hostvars, '_result') | map(attribute='stat.exists') | unique | difference([true]) | length == 0 }}"
+      delegate_to: cluster-facts
+      delegate_facts: true
+
+- when: not hostvars['cluster-facts']['nodes_provisioned']
+  name: Some nodes have not been provisioned
+  block:
+
+    - when: inventory_hostname in groups['cluster_nodes']
+      name: Common setup for all cluster nodes
+      block:
+
+        - name: Copy the ca cert into the cluster node
+          copy:
+            content: |
+              {{ hostvars['cluster-facts']['ca_cert_contents'] }}
+            dest: '/usr/share/ca-certificates/docker_registry_proxy.crt'
+            mode: '0644'
+
+        - name: Add line for certificate to /etc/ca-certificates.conf
+          lineinfile:
+            path: '/etc/ca-certificates.conf'
+            regexp: '^docker_registry_proxy.crt$'
+            line: 'docker_registry_proxy.crt'
+
+        - name: Update the ca certs on the cluster node
+          command: |
+            update-ca-certificates --fresh
+          register: _result
+
+        - name: Create k3s folder
+          file:
+            path: '/etc/rancher/k3s'
+            state: directory
+
+        - name: Fetch k3s.sh
+          get_url:
+            url: https://get.k3s.io
+            dest: ~/k3s.sh
+            mode: 0755
+          register: _result
+
+        - name: Create registries file
+          copy:
+            content: |
+              mirrors:
+                "cp.icr.io":
+                  endpoint:
+                    - cp.stg.icr.io
+                    - wasliberty-intops-docker-local.artifactory.swg-devops.com
+                "icr.io":
+                  endpoint:
+                    - hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com
+                  rewrite:
+                    "^cpopen/([0-9abd-z].*)": "ibmcom/$1"
+                    "^cpopen/(c[0-9a-oq-z].*)": "ibmcom/$1"
+                    "^cpopen/(cp[0-9a-eg-z].*)": "ibmcom/$1"
+                    "^cpopen/cpfs/(.*)": "ibmcom/$1"
+                "quay.io":
+                  endpoint:
+                    - hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com
+                  rewrite:
+                    "^opencloudio/(.*)": "ibmcom/$1"
+                "docker.io":
+                  endpoint:
+                    - cp.stg.icr.io
+                    - wasliberty-intops-docker-local.artifactory.swg-devops.com
+                  rewrite:
+                    "^ibmcom/(.*)": "cp/$1"
+              configs:
+                "quay-io.fyre.ibm.com:5000":
+                  auth:
+                    username: cicdread
+                    password: cicdpriv
+                  tls:
+                    insecure_skip_verify: true
+                "cp.stg.icr.io":
+                  auth:
+                    username: {{ hostvars['playbook-secrets']['cp_stg_username'] }}
+                    password: {{ hostvars['playbook-secrets']['cp_stg_password'] }}
+                  tls:
+                    insecure_skip_verify: true
+                "cp.icr.io":
+                  auth:
+                    username: {{ hostvars['playbook-secrets']['cp_username'] }}
+                    password: {{ hostvars['playbook-secrets']['cp_password'] }}
+                  tls:
+                    insecure_skip_verify: true
+                "docker.io":
+                  auth:
+                    username: {{ hostvars['playbook-secrets']['docker_io_user'] }}
+                    password: {{ hostvars['playbook-secrets']['docker_io_password'] }}
+                  tls:
+                    insecure_skip_verify: true
+                "wasliberty-intops-docker-local.artifactory.swg-devops.com":
+                  auth:
+                    username: {{ hostvars['playbook-secrets']['na_artifactory']['user'] }}
+                    password: {{ hostvars['playbook-secrets']['na_artifactory']['token'] }}
+                  tls:
+                    insecure_skip_verify: true
+                "hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com":
+                  auth:
+                    username: {{ hostvars['playbook-secrets']['na_artifactory']['user'] }}
+                    password: {{ hostvars['playbook-secrets']['na_artifactory']['token'] }}
+                  tls:
+                    insecure_skip_verify: true
+            dest: '/etc/rancher/k3s/registries.yaml'
+            mode: '0600'
+
+        - name: Set k3s node subcommand based on cluster role
+          set_fact:
+            k3s_subcommand: "{{ 'server' if cluster_role == 'master' else 'agent' }}"
+
+    - when: inventory_hostname == groups['cluster_nodes'][0]
+      name: Setup specific to the first server node of the control plane
+      block:
+
+        - name: Create folders on first cluster node
+          file:
+            path: "{{ item }}"
+            state: directory
+          loop:
+          - '~/.ssh'
+          - '~/tmp'
+
+        - name: Install kubectl
+          community.general.packaging.os.snap:
+            name: kubectl
+            classic: true
+        
+        - name: Install helm
+          community.general.packaging.os.snap:
+            name: helm
+            classic: true
+
+        - name: Extract oc binary
+          unarchive:
+            src: 'https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz'
+            dest: '/tmp/'
+            remote_src: true
+            validate_certs: false
+          register: _result
+
+        - name: Copy oc binary to /usr/local/bin
+          copy:
+            src: '/tmp/oc'
+            remote_src: true
+            dest: '/usr/local/bin/'
+            mode: '0755'
+
+        - name: Set fact for --tls-san parameters
+          set_fact:
+            tls_san_args:
+            - "{{ '--tls-san=' + k8s_infra_publicip + '.nip.io' }}"
+            - "{{ '--tls-san=cp-console.' + k8s_infra_publicip + '.nip.io' }}"
+            - "{{ '--tls-san=*.apps.' + k8s_infra_publicip + '.nip.io' }}"
+            - "{{ '--tls-san=' + k8s_infra_privateip + '.nip.io' }}"
+            - "{{ '--tls-san=registry-proxy.' + k8s_infra_privateip + '.nip.io' }}"
+            - "{{ '--tls-san=*.apps.' + k8s_infra_privateip + '.nip.io' }}"
+            - "{{ '--tls-san=cp-console.' + k8s_infra_hostname + '.' + cluster_domain }}"
+            - "{{ '--tls-san=' + k8s_infra_hostname + '.' + cluster_domain }}"
+
+        - name: Run script
+          command: |
+            /bin/bash ~/k3s.sh {{ k3s_subcommand }} --cluster-init
+          environment:
+            INSTALL_K3S_CHANNEL: "{{ 'v' + k8s_version.split('.')[:2] | join('.') }}"
+            INSTALL_K3S_EXEC: "{{ (tls_san_args | list | join(' ')) + ' --disable=traefik --disable=servicelb --disable=local-storage' }}"
+            HTTP_PROXY: "{{ 'http://registry-proxy.' + k8s_infra_privateip + '.nip.io:3128' }}"
+            HTTPS_PROXY: "{{ 'http://registry-proxy.' + k8s_infra_privateip + '.nip.io:3128' }}"
+            NO_PROXY: "localhost,127.0.0.1,0.0.0.0,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.local,.svc"
+
+        - name: Add proxy settings to the containerd environment
+          blockinfile:
+            block: |
+              CONTAINERD_HTTP_PROXY={{ 'http://registry-proxy.' + k8s_infra_privateip + '.nip.io:3128' }}
+              CONTAINERD_HTTPS_PROXY={{ 'http://registry-proxy.' + k8s_infra_privateip + '.nip.io:3128' }}
+              CONTAINERD_NO_PROXY="localhost,127.0.0.1,0.0.0.0,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.local,.svc"
+            path: '/etc/systemd/system/k3s.service.env'
+            marker: '# {mark} PROXY'
+            create: true
+            mode: '0600'
+
+        - name: Check systemctl status of k3s service
+          systemd:
+            unit: k3s
+            state: restarted
+          register: _result
+
+        - name: Load node-token
+          command: |
+            cat /var/lib/rancher/k3s/server/node-token
+          register: _result
+          changed_when: _result is not defined
+
+        - name: Set k3s_node_token fact
+          set_fact:
+            k3s_node_token: "{{ _result.stdout | trim }}"
+          delegate_to: 'k8s-provisioner'
+          delegate_facts: true
+
+    - when: inventory_hostname in groups['cluster_nodes'][1:]
+      name: Setup the remaining cluster nodes
+      block:
+
+        - name: Run script
+          command: |
+            /bin/bash ~/k3s.sh {{ k3s_subcommand }} --server {{ k3s_server }} --token {{ k3s_token }}
+          environment:
+            INSTALL_K3S_CHANNEL: "{{ 'v' + k8s_version.split('.')[:2] | join('.') }}"
+            HTTP_PROXY: "{{ 'http://registry-proxy.' + k8s_infra_privateip + '.nip.io:3128' }}"
+            HTTPS_PROXY: "{{ 'http://registry-proxy.' + k8s_infra_privateip + '.nip.io:3128' }}"
+            NO_PROXY: "localhost,127.0.0.1,0.0.0.0,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.local,.svc"
+          vars:
+            k3s_server: "{{ 'https://' + hostvars[groups['cluster_nodes'][0]]['fqdn'] + ':6443' }}"
+            k3s_token: "{{ hostvars['k8s-provisioner']['k3s_node_token'] }}"
+
+        - name: Add proxy settings to the containerd environment
+          blockinfile:
+            block: |
+              CONTAINERD_HTTP_PROXY={{ 'http://registry-proxy.' + k8s_infra_privateip + '.nip.io:3128' }}
+              CONTAINERD_HTTPS_PROXY={{ 'http://registry-proxy.' + k8s_infra_privateip + '.nip.io:3128' }}
+              CONTAINERD_NO_PROXY="localhost,127.0.0.1,0.0.0.0,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.local,.svc"
+            path: '/etc/systemd/system/k3s-agent.service.env'
+            marker: '# {mark} PROXY'
+            create: true
+            mode: '0600'
+
+        - name: Check systemctl status of k3s-agent service
+          systemd:
+            unit: k3s-agent
+            state: restarted
+          register: _result
+
+- when: inventory_hostname == groups['cluster_nodes'][0]
+  block:
+
+    - name: Retrieve k3s config
+      command:
+        cat /etc/rancher/k3s/k3s.yaml
+      register: _result
+      changed_when: _result is not defined
+
+    - name: Save the kube config
+      set_fact:
+        kube_config: "{{ _result.stdout | trim }}"
+      delegate_to: 'cluster-facts'
+      delegate_facts: true
+
+- when: inventory_hostname == k8s_infra_hostname
+  name: Complete the setup of the infra node
+  block:
+
+    - name: Check for ~/.kube/config file on infra host
+      stat:
+        path: ~/.kube/config
+      register: _result
+
+    - name: Set fact that ~/.kube/config exists
+      set_fact:
+        kube_config_exists: "{{ _result.stat.exists }}"
+
+    - when: not kube_config_exists
+      name: Copy the k8s_config to ~/.kube/config
+      block:
+
+        - name: Create folders on the infra node
+          file:
+            path: "{{ item }}"
+            state: directory
+          loop:
+          - '~/.kube'
+          - '~/.local/bin'
+
+        - name: Copy the k8s_config to ~/.kube/config on the infra node
+          copy:
+            content: |
+              {{ hostvars['cluster-facts']['kube_config'] }}
+            dest: ~/.kube/config
+            mode: '0600'
+
+        - name: Replace references to localhost with infra hostname
+          replace:
+            path: ~/.kube/config
+            regexp: '^    server: https://127.0.0.1:6443$'
+            replace: "{{ '    server: https://' + k8s_infra_publicip + '.nip.io:6443' }}"
+
+        - name: Download the kubectl cli for our version of kubernetes
+          get_url:
+            url: "{{ 'https://dl.k8s.io/release/v' + k8s_version + '/bin/' + os_family + '/' + cpu_arch + '/kubectl' }}"
+            dest: "{{ user_home + '/.local/bin/kubectl' }}"
+            mode: '0755'

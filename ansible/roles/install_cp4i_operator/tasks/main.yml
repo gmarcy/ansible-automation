@@ -1,0 +1,56 @@
+---
+
+- name: Install CloudPak for Integration Operator
+  block:
+
+    - name: Create Subscription for operator
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        api_version: operators.coreos.com/v1alpha1
+        kind: Subscription
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: "{{ cp4i_operator_name }}"
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            labels: "{{ labels }}"
+          spec:
+            channel: "{{ operator_channel }}"
+            installPlanApproval: Automatic
+            name: "{{ cp4i_operator_name }}"
+            source: "{{ cp4i_catalog_source_name }}"
+            sourceNamespace: "{{ cp4i_catalog_source_namespace }}"
+        wait: true
+        wait_condition:
+          type: CatalogSourcesUnhealthy
+          status: false
+      vars:
+        key: "{{ 'operators.coreos.com/' + cp4i_operator_name + '.' + target_namespace }}"
+        labels: "{{ [{'key': key, 'value': '' }] | items2dict }}"
+      register: _result
+
+    - name: Wait for CP4I operator
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key | default(omit) }}"
+        kind: Deployment
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: ibm-integration-platform-navigator-operator
+        namespace: "{{ target_namespace }}"
+        wait: true
+        wait_condition:
+          type: Available
+        wait_sleep: 20
+        wait_timeout: 300
+      register: _result
+
+    - name: Wait until all the CP4I CSV succeed
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key | default(omit) }}"
+        api_version: operators.coreos.com/v1alpha1
+        kind: ClusterServiceVersion
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: "{{ target_namespace }}"
+      register: _result
+      delay: 30
+      retries: 120
+      until: (_result.resources | length > 0) and (_result.resources | map(attribute='status.phase') | unique == ['Succeeded'])

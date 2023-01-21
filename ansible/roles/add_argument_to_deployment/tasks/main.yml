@@ -1,0 +1,25 @@
+---
+
+- name: Get current deployment info
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kind: Deployment
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ target_operator }}"
+    namespace: "{{ target_namespace }}"
+  register: _result_initial_state
+
+- name: Add argument to deployment
+  shell: |
+    {{ cluster_bin_dir }}/oc --kubeconfig {{ cluster_dir }}/kubeconfig patch deployment {{ target_operator }} -n {{ target_namespace }} --type json -p '[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": {{ target_argument }} }]'
+  register: _result
+
+- name: Get current deployment info
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kind: Deployment
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ target_operator }}"
+    namespace: "{{ target_namespace }}"
+  register: _result
+  until: (_result.resources[0].status.replicas == _result_initial_state.resources[0].status.replicas) and (_result.resources[0].status.unavailableReplicas is not defined)

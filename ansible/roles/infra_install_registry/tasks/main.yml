@@ -1,0 +1,99 @@
+---
+
+- name: Set facts used in this next section
+  set_fact:
+    container_name: "{{ hostvars['cluster-facts']['cluster_name'] + '-registry' }}"
+    registry_certs_path_base: "{{ user_home + '/.kube/registry/certs' }}"
+    registry_auth_path_base: "{{ user_home + '/.kube/registry/auth' }}"
+
+- name: Check for systemd user service config
+  stat:
+    path: "{{ user_home + '/.config/systemd/user/container-' + container_name + '.service' }}"
+  register: _result
+
+- name: Set fact that registry service config exists
+  set_fact:
+    registry_service_defined: "{{ _result.stat.exists }}"
+
+- when: not registry_service_defined
+  block:
+
+    - name: Set facts needed in this section
+      set_fact:
+        registry_http_secret: ChangeLaterIfEverNeeded
+
+    - name: Install buildah if required
+      package:
+        name:
+        - buildah
+        - podman
+        - skopeo
+        state: present
+
+    - name: Remove any old buildah container
+      ansible.builtin.shell: |
+        set -eo pipefail
+        if [ "$(buildah ls --filter {{ 'name=buildah-' + container_name }} --format {% raw %}'{{ .ContainerName }}'{% endraw %})" != "" ]
+        then
+          buildah rm {{ 'buildah-' + container_name }}
+        fi
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Create a new container image for the registry
+      command: |
+        buildah from --name {{ 'buildah-' + container_name }} docker.io/library/registry:2
+      register: _result
+
+    - name: Update packages
+      command: |
+        buildah run {{ 'buildah-' + container_name }} -- apk upgrade
+      register: _result
+
+    - name: Commit the container image
+      command: |
+        buildah commit {{ 'buildah-' + container_name }} {{ 'localhost/' + container_name + ':latest' }}
+      register: _result
+
+    - name: Remove the buildah image
+      command: |
+        buildah rm {{ 'buildah-' + container_name }}
+      register: _result
+
+    - name: Run the container with podman
+      containers.podman.podman_container:
+        name: "{{ container_name }}"
+        image: "{{ 'localhost/' + container_name + ':latest' }}"
+        init: true
+        state: stopped
+        ports:
+        - "5000:5000"
+        volumes:
+        - "{{ registry_auth_path_base + ':/auth:z' }}"
+        - "{{ registry_certs_path_base + ':/certs:z' }}"
+        env:
+          REGISTRY_AUTH: htpasswd
+          REGISTRY_AUTH_HTPASSWD_REALM: Registry
+          REGISTRY_AUTH_HTPASSWD_PATH: /auth/htpasswd
+          REGISTRY_HTTP_SECRET: "{{ registry_http_secret }}"
+          REGISTRY_HTTP_TLS_CERTIFICATE: /certs/certificate.pem
+          REGISTRY_HTTP_TLS_KEY: /certs/certificate.key
+      register: _result_container_info
+      retries: 5
+      delay: 10
+      until: not _result_container_info.failed
+
+    - name: Create a systemd unit for the container
+      containers.podman.podman_generate_systemd:
+        name: "{{ container_name }}"
+        dest: "{{ user_home + '/.config/systemd/user/' }}"
+
+    - name: Start the systemd unit
+      systemd:
+        name: "{{ 'container-' + container_name }}"
+        daemon_reload: true
+        state: started
+        enabled: true
+        scope: user

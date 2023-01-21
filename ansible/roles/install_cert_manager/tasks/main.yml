@@ -1,0 +1,62 @@
+---
+
+- name: Check for existing cert-manager
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: apps/v1
+    kind: Deployment
+    name: cert-manager
+    namespace: "{{ target_namespace }}"
+  register: _result
+
+- name: Set fact if cert-manager is already running
+  set_fact:
+    cert_manager_running: "{{ _result.resources | map(attribute='status.conditions') | flatten | selectattr('type','equalto','Available') | selectattr('status','equalto','True') | length > 0 }}"
+
+- when: not cert_manager_running
+  block:
+
+    - name: Create yaml to apply to the cluster
+      copy:
+        content: |
+          {{ lookup('template', 'crds.yaml.j2') }}
+          {{ lookup('template', 'cainjector-serviceaccount.yaml.j2') }}
+          {{ lookup('template', 'serviceaccount.yaml.j2') }}
+          {{ lookup('template', 'webhook-serviceaccount.yaml.j2') }}
+          {{ lookup('template', 'webhook-config.yaml.j2') }}
+          {{ lookup('template', 'cainjector-rbac.yaml.j2') }}
+          {{ lookup('template', 'rbac.yaml.j2') }}
+          {{ lookup('template', 'webhook-rbac.yaml.j2') }}
+          {{ lookup('template', 'service.yaml.j2') }}
+          {{ lookup('template', 'webhook-service.yaml.j2') }}
+          {{ lookup('template', 'cainjector-deployment.yaml.j2') }}
+          {{ lookup('template', 'deployment.yaml.j2') }}
+          {{ lookup('template', 'webhook-deployment.yaml.j2') }}
+          {{ lookup('template', 'webhook-mutating-webhook.yaml.j2') }}
+          {{ lookup('template', 'webhook-validating-webhook.yaml.j2') }}
+        dest: /tmp/cert-manager.yaml
+      vars:
+        cert_manager_namespace: "{{ target_namespace }}"
+
+    - name: Apply yaml to cluster
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        src: /tmp/cert-manager.yaml
+      register: _result
+
+    - name: Wait for cert-manager
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: apps/v1
+        kind: Deployment
+        name: cert-manager
+        namespace: "{{ target_namespace }}"
+        wait: true
+        wait_condition:
+          type: Available
+        wait_sleep: 20
+        wait_timeout: 300
+      register: _result

@@ -1,0 +1,37 @@
+name: Create and publish a Docker image
+
+on:
+  push:
+    branches: ['merge_branch']
+
+env:
+  GHCR_IO_USER: ${{ github.actor }}
+  GHCR_IO_TOKEN: ${{ github.token }}
+  QUAY_IO_USER: ${{ secrets.QUAY_IO_USER }}
+  QUAY_IO_TOKEN: ${{ secrets.QUAY_IO_TOKEN }}
+  REPO_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Docker logins
+        run: |
+          docker login -u="$GHCR_IO_USER" -p="$GHCR_IO_TOKEN" ghcr.io
+          docker login -u="$QUAY_IO_USER" -p="$QUAY_IO_TOKEN" quay.io
+      - name: Get current date
+        id: date
+        run: echo "date=$(date +'%Y-%m-%d-%H-%M-%S')" >> $GITHUB_OUTPUT
+      - name: Build the Docker image
+        run: docker build ansible/ --tag ghcr.io/$REPO_NAME:${{ steps.date.outputs.date }}
+      - name: Docker Push
+        run: |
+          docker push ghcr.io/$REPO_NAME:${{ steps.date.outputs.date }}
+          docker tag ghcr.io/$REPO_NAME:${{ steps.date.outputs.date }} ghcr.io/$REPO_NAME:latest
+          docker push ghcr.io/$REPO_NAME:latest

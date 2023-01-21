@@ -1,0 +1,38 @@
+---
+
+- name: Check for existing CatalogSource
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: CatalogSource
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ target_catalog_source_name }}"
+    namespace: "{{ target_catalog_source_namespace }}"
+  register: _result
+
+- name: Set fact for catalog_source_installed
+  set_fact:
+    catalog_source_installed: "{{ _result.resources | length > 0 }}"
+
+- name: Create CatalogSource if absent
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: CatalogSource
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ target_catalog_source_name }}"
+    namespace: "{{ target_catalog_source_namespace }}"
+    definition:
+      spec:
+        displayName: "{{ target_catalog_source_display_name }}"
+        image: "{{ target_catalog_source_image if (target_catalog_source_image_tag | length == 0) else (target_catalog_source_image + ':' + target_catalog_source_image_tag) }}"
+        publisher: "{{ target_catalog_source_publisher }}"
+        sourceType: grpc
+        updateStrategy:
+          registryPoll:
+            interval: "{{ target_catalog_source_poll_interval }}"
+  register: _result
+  delay: 20
+  retries: 30
+  until: _result.result.status is defined and (_result.result.status.connectionState.lastObservedState == 'READY')
+  when: not catalog_source_installed

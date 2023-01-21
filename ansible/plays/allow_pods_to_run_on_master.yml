@@ -6,5 +6,5 @@
   tags: pods_on_master
   roles:
   - role: allow_pods_to_run_on_master
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
     kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
-    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"

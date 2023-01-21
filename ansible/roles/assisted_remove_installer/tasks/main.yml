@@ -13,4 +13,4 @@
   containers.podman.podman_play:
     kube_file: "{{ services_dir }}/pod.yml"
     state: absent
-  when: pod_state == 'Running'
+  when: pod_state in ['Running','Degraded']

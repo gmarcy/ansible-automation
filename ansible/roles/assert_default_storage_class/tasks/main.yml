@@ -1,0 +1,19 @@
+---
+
+- name: Check for existing default storage class
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: storage.k8s.io/v1
+    kind: StorageClass
+  register: _result
+
+- name: Set fact for existing default storage class
+  set_fact:
+    current_default_sc: "{{ item.metadata.name }}"
+  loop: "{{ _result.resources }}"
+  when: item['metadata']['annotations']['storageclass.kubernetes.io/is-default-class'] | default('false') | bool
+
+- name: Assert that there is a default storage class
+  assert:
+    that: current_default_sc is defined

@@ -1,0 +1,20 @@
+---
+
+ansible_host: localhost
+ansible_connection: local
+
+cp4i_catalog_source_name: "{{ inv_cp4i_catalog_source_name | default('ibm-operator-catalog') }}"
+cp4i_catalog_source_namespace: "{{ inv_cp4i_catalog_source_namespace | default('openshift-marketplace') }}"
+cp4i_catalog_source_display_name: "{{ inv_cp4i_catalog_source_display_name | default('IBM Operator Catalog') }}"
+cp4i_catalog_source_image: "{{ inv_cp4i_catalog_source_image | default('icr.io/cpopen/ibm-operator-catalog') }}"
+cp4i_catalog_source_image_tag: "{{ inv_cp4i_catalog_source_image_tag | default('') }}"
+cp4i_catalog_source_publisher: "{{ inv_cp4i_catalog_source_publisher | default('IBM') }}"
+cp4i_catalog_source_poll_interval: "{{ inv_cp4i_catalog_source_poll_interval | default('45m') }}"
+
+cp4i_operator_channel: "{{ inv_cp4i_operator_channel | default('v6.0') }}"
+cp4i_namespace: "{{ inv_cp4i_namespace | default('cp4i') }}"
+
+cp4i_operator_version: "{{ inv_cp4i_operator_version | default(cp4i_operator_channel + '.0') }}"
+cp4i_operator_name: "{{ inv_cp4i_operator_name | default('ibm-integration-platform-navigator') }}"
+cp4i_operator_namespace: "{{ inv_cp4i_operator_namespace | default(cp4i_namespace) }}"
+cp4i_operator_group: "{{ inv_cp4i_operator_group | default('cp4i-operators') }}"

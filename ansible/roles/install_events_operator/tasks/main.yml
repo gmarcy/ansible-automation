@@ -1,28 +1,73 @@
 ---
 
-- name: Create the events OperandRequest
-  kubernetes.core.k8s:
-    api_key: "{{ api_key }}"
-    api_version: operator.ibm.com/v1alpha1
-    kind: OperandRequest
+- name: Fetch the Subscription
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
     kubeconfig: "{{ kubeconfig_path }}"
-    name: operand-request-events
+    api_version: operators.coreos.com/v1alpha1
+    kind: Subscription
+    name: ibm-events-operator
     namespace: "{{ target_namespace }}"
-    definition:
-      metadata:
-        labels:
-          ibm-common-services.common-service/config: 'true'
-          ibm-common-services.common-service/registry: 'true'
-          operator.ibm.com/opreq-control: 'true'
-      spec:
-        requests:
-        - operands:
-          - name: ibm-events-operator
-          registry: common-service
-          registryNamespace: "{{ registry_namespace }}"
+  register: _result
+
+- name: Set fact for events operator version
+  set_fact:
+    events_operator_version: "{{ _result.resources[0]['status']['currentCSV'] | regex_replace('ibm-events-operator.', '') }}"
+
+- when: hostvars['cluster-facts']['kubernetes_distro'] != 'openshift'
+  name: Need to mimic some openshift behavior to keep the events operator happy
+  block:
+
+    - name: Fetch the kube-root-ca.crt ConfigMap
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        kind: ConfigMap
+        name: kube-root-ca.crt
+        namespace: "{{ target_namespace }}"
+      register: _result
+
+    - name: Set fact for the service_ca.crt we will add
+      set_fact:
+        service_ca_crt: "{{ _result.resources[0]['data']['ca.crt'] }}"
+
+    - name: Set configmap data
+      set_fact:
+        service_ca_crt_data: "{{ [{'key': 'service-ca.crt', 'value': service_ca_crt}] | items2dict }}"
+
+    - name: Wait for the events operator configmap to be created
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        kind: ConfigMap
+        name: "{{ 'ibm-events-operator-' + events_operator_version }}"
+        namespace: "{{ target_namespace }}"
+      register: _result
+      until: _result.resources | default([]) | length > 0
+
+    - name: Patch the events operator configmap
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        kind: ConfigMap
+        name: "{{ 'ibm-events-operator-' + events_operator_version }}"
+        namespace: "{{ target_namespace }}"
+        definition:
+          data: "{{ service_ca_crt_data }}"
+        state: patched
+      register: _result
+      changed_when: false
+
+- name: Wait for ibm-events-operator
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    kind: Deployment
+    name: "{{ 'ibm-events-operator-' + events_operator_version }}"
+    namespace: "{{ target_namespace }}"
     wait: true
     wait_condition:
-      type: Ready
+      type: Available
     wait_sleep: 20
     wait_timeout: 300
   register: _result

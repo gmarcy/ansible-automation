@@ -9,7 +9,7 @@
 
     - name: Check for existing default storage class
       kubernetes.core.k8s_info:
-        api_key: "{{ api_key }}"
+        api_key: "{{ api_key | default(omit) }}"
         api_version: storage.k8s.io/v1
         kind: StorageClass
         kubeconfig: "{{ kubeconfig_path }}"
@@ -23,7 +23,7 @@
 
     - name: Clear the old default storage class
       kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
+        api_key: "{{ api_key | default(omit) }}"
         api_version: storage.k8s.io/v1
         definition:
           metadata:
@@ -38,7 +38,7 @@
 
     - name: Set the default storage class
       kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
+        api_key: "{{ api_key | default(omit) }}"
         api_version: storage.k8s.io/v1
         definition:
           metadata:

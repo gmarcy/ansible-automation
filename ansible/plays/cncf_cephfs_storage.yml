@@ -1,0 +1,20 @@
+---
+
+- name: Create cephfs storage cluster artifacts
+  hosts: cluster_storage
+  gather_facts: false
+  tags: cncf_cephfs_storage
+  roles:
+  - role: storage_rook_cephfs
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    cephfs_setup_dir: "{{ hostvars['cluster-facts']['cluster_dir'] + '/cephfs' }}"
+    device_filter: "{{ cephfs_device_filter }}"
+    default_storage_class: "{{ cephfs_storage_class }}"
+    kubernetes_distro: "{{ hostvars['cluster-facts']['kubernetes_distro'] }}"
+    when: hostvars['cncf-provisioner']['cephfs_required']
+  - role: set_default_storage_class
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    default_storage_class: "{{ cephfs_storage_class }}"
+    when: hostvars['cncf-provisioner']['cephfs_required']

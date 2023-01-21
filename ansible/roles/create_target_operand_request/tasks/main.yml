@@ -1,0 +1,25 @@
+---
+
+- name: Create the {{ target_operand_name }} OperandRequest
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    api_version: operator.ibm.com/v1alpha1
+    kind: OperandRequest
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ target_operand_request_name }}"
+    namespace: "{{ target_operand_request_namespace }}"
+    definition:
+      metadata:
+        labels: "{{ common_service_opreq_labels }}"
+      spec:
+        requests:
+        - operands:
+          - name: "{{ target_operand_name }}"
+          registry: "{{ common_service_operand_name }}"
+          registryNamespace: "{{ common_service_operand_namespace }}"
+    wait: true
+    wait_condition:
+      type: Ready
+    wait_sleep: 20
+    wait_timeout: 300
+  register: _result

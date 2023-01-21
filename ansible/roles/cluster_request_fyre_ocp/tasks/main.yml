@@ -1,0 +1,206 @@
+---
+
+- name: Check OCP Existance
+  uri:
+    url: "{{ fyreocpplus_clusterstatusurl }}"
+    method: "GET"
+    user: "{{ fyreuser }}"
+    password: "{{ fyreapikey }}"
+    validate_certs: False
+    force_basic_auth: "{{ fyre_force_basic_auth }}"
+  register: ocpexistance
+  changed_when: false
+  failed_when: ocpexistance.status | default(-1) not in [-1,200,400]
+  delay: 20
+  retries: 600
+  until: ocpexistance.status != -1
+
+- name: Create Fyre OCP
+  when: ocpexistance.status is not in [200] # Status is only defined if cluster does not exist
+  block:
+
+    - debug:
+        msg: "Cluster was not found so creating new cluster called '{{ cluster_name }}'"
+
+    - name: Only set ocp_version fact when this is not a custom install
+      set_fact:
+        ocp_version: "{{ ocpVersion }}"
+      when: ocpVersion != 'custom'
+
+    - name: Only use quota type, t-shirt size, and ttl for quickburn
+      set_fact:
+        quota_type: "quick_burn"
+        size: "{{ fyre_quickburn_size }}"
+        time_to_live: "{{ fyre_quickburn_ttl }}"
+      when: fyre_ocptype == 'quickburn'
+
+    - name: Only set worker/master when not quickburn
+      set_fact:
+        worker:
+        - count: "{{ fyre_worker_quantity }}"
+          cpu: "{{ fyre_worker_cpu }}"
+          memory: "{{ fyre_worker_memory }}"
+          additional_disk: "{{ fyre_worker_additional_disk | default(omit) }}"
+        master:
+        - count: "{{ fyre_master_quantity }}"
+          cpu: "{{ fyre_master_cpu }}"
+          memory: "{{ fyre_master_memory }}"
+      when: fyre_ocptype != 'quickburn'
+
+    - when: ocpVersion == 'custom'
+      block:
+
+        - name: Fetch sha256sum for rhcos_version_path
+          uri:
+            url: "{{ rhcos_sha_url }}"
+            return_content: true
+          register: rhcos_sha256sum
+
+        - name: Fetch sha256sum for ocp_version_path
+          uri:
+            url: "{{ clients_sha_url }}"
+            return_content: true
+          register: ocp_sha256sum
+
+        - name: Set other custom ocp version facts
+          set_fact:
+            fips: "no"
+            custom_ocp: "yes"
+            kernel_url: "{{ rhcos_url_prefix + (rhcos_sha256sum.content.split() | select('match', '.*kernel-x86_64.*') | list | first) }}"
+            initramfs_url: "{{ rhcos_url_prefix + (rhcos_sha256sum.content.split() | select('match', '.*initramfs.x86_64.*')  | list | first) }}"
+            rootfs_url: "{{ rhcos_url_prefix + (rhcos_sha256sum.content.split() | select('match', '.*rootfs.x86_64.*') | list | first) }}"
+            metal_url: "{{ rhcos_url_prefix + (rhcos_sha256sum.content.split() | select('match', '.*metal.x86_64.*')  | list | first) }}"
+            install_url: "{{ clients_url_prefix + (ocp_sha256sum.content.split() | select('match', '.*openshift-install-linux-.*') | list | first) }}"
+            client_url: "{{ clients_url_prefix + (ocp_sha256sum.content.split() | select('match', '.*openshift-client-linux-.*') | list | first) }}"
+
+    - name: Create Fyre stack
+      uri:
+        url: "{{ fyreocpplus_ocpdeployurl }}"
+        method: "POST"
+        user: "{{ fyreuser }}"
+        password: "{{ fyreapikey }}"
+        validate_certs: False
+        body_format: "json"
+        force_basic_auth: "{{ fyre_force_basic_auth }}"
+        body:
+          name : "{{ cluster_name }}"
+          platform: "{{ ocpPlatform }}"
+          fips: "{{ fips | default(omit) }}"
+          ssh_key: "{{ ssh_public_key }}"
+          ocp_version: "{{ ocp_version | default(omit) }}"
+          custom_ocp: "{{ custom_ocp | default(omit) }}"
+          site: "{{ fyre_site | default(omit) }}"
+          product_group_id: "{{ fyre_group_id }}"
+          kernel_url: "{{ kernel_url | default(omit) }}"
+          initramfs_url: "{{ initramfs_url | default(omit) }}"
+          rootfs_url: "{{ rootfs_url | default(omit) }}"
+          metal_url: "{{ metal_url | default(omit) }}"
+          install_url: "{{ install_url | default(omit) }}"
+          client_url: "{{ client_url | default(omit) }}"
+          quota_type: "{{ quota_type | default(omit) }}"
+          size: "{{ size | default(omit) }}"
+          time_to_live: "{{ time_to_live | default(omit) }}"
+          worker: "{{ worker | default(omit) }}"
+          master: "{{ master | default(omit) }}"
+      register: fyrestatus
+      failed_when: fyrestatus.status | default(-1) not in [-1,200]
+      delay: 20
+      retries: 600
+      until: fyrestatus.status != -1
+
+    - name: check fyre status
+      fail:
+        msg: "{{ fyrestatus }}"
+      when: fyrestatus.json.status != 'success'
+      changed_when: false
+
+    - name: Remove previous cluster dir
+      file:
+        path: "{{ cluster_dir }}"
+        state: absent
+
+- name: check fyrestatus for error
+  uri:
+    url: "{{fyreocpplus_clusterstatusurl}}"
+    method: GET
+    user:  "{{ fyreuser }}"
+    validate_certs: False
+    password: "{{ fyreapikey }}"
+    force_basic_auth: "{{ fyre_force_basic_auth }}"
+  changed_when: false
+  register: error_status
+
+- name: check for error status
+  fail:
+   msg:
+   - "{{error_status.json.status}}"
+   - "{{error_status.json.details}}"
+  when:
+  - error_status.json.status is defined
+  - (error_status.json.status) == 'error'
+
+- name: check that all fyre nodes have a deployed status
+  uri:
+    url: "{{fyreocpplus_clusterstatusurl}}"
+    method: GET
+    user:  "{{ fyreuser }}"
+    validate_certs: False
+    password: "{{ fyreapikey }}"
+    force_basic_auth: "{{ fyre_force_basic_auth }}"
+    return_content: yes
+  changed_when: false
+  register: cluster_status_response
+  until: (cluster_status_response.status == 200) and cluster_status_response.json is defined and (cluster_status_response.json.clusters[0].deployment_status  =="deployed" or cluster_status_response.json.clusters[0].deployment_status == "failed")
+  retries: 600
+  delay: 20
+
+- name: check for error status after loop check
+  fail:
+   msg:
+   - "{{cluster_status_response.json.status}}"
+   - "{{cluster_status_response.json.details}}"
+  when:
+  - cluster_status_response.json.status is defined
+  - (cluster_status_response.json.status) == 'error'
+
+- name: Derive Info from Fyre Api
+  set_fact:
+    fyre_inf_public_ip: "{{ cluster_status_response.json.clusters[0].vms | selectattr('ip_address','defined') | selectattr('ip_address', 'match', '^9..*$' ) | map(attribute='ip_address') | list | first }}"
+    fyre_inf_hostname: "{{ cluster_status_response.json.clusters[0].vms | selectattr('ip_address','defined') | selectattr('ip_address', 'match', '^9..*$' ) | map(attribute='hostname') | list | first }}"
+
+- name: remove new host from localhost known_hosts ip
+  command: "ssh-keygen -R {{ fyre_inf_public_ip }}"
+  changed_when: false
+  # changed_when: false Technically not true but change is not particularly meaningful
+  failed_when: false
+  delegate_to: localhost
+- name: remove new host from localhost known_hosts fqdn
+  command: "ssh-keygen -R {{ fyre_inf_hostname }}"
+  changed_when: false
+  # changed_when: false Technically not true but change is not particularly meaningful
+  failed_when: false
+  delegate_to: localhost
+
+- name: Update existing host with OCP Facts
+  set_fact:
+    inf_public_ip: "{{ fyre_inf_public_ip }}"
+    kubeadmin_username: "{{ cluster_status_response.json.clusters[0].ocp_username }}"
+    kubeadmin_password: "{{ cluster_status_response.json.clusters[0].kubeadmin_password }}"
+    ocp_access_url: "{{ cluster_status_response.json.clusters[0].access_url }}"
+  no_log: "{{ noLog }}"
+  changed_when: false
+
+- name: Create node groups for fyre_inf_hostname
+  add_host:
+    name: "{{ fyre_inf_hostname }}"
+    groups:
+    - all_nodes
+    - infra_node
+    node_provisioning_role: ""
+    ansible_connection: ssh
+    ansible_host: "{{ fyre_inf_public_ip }}"
+    ansible_ssh_user: "{{ hostvars['playbook-facts']['remote_user'] }}"
+    cluster_role: "infra"
+    fqdn: "{{ fyre_inf_hostname }}"
+    publicip: "{{ fyre_inf_public_ip }}"
+  changed_when: false

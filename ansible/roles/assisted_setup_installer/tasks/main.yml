@@ -1,5 +1,10 @@
 ---
 
+- name: Assert that openshift_distro is defined
+  assert:
+    that: hostvars['cluster-facts']['openshift_distro'] | default('') | length > 0
+    fail_msg: "The assisted installer service is only available on openshift distributions."
+
 - name: Check if the assisted-installer pod is already running
   containers.podman.podman_pod_info:
     name: assisted-installer
@@ -9,7 +14,8 @@
   set_fact:
     pod_state: "{{ _result.pods[0].State | default('Unknown') }}"
 
-- block:
+- when: pod_state not in ['Running','Degraded']
+  block:
 
     - name: Create the services directory
       file:
@@ -135,8 +141,6 @@
       - "http://{{ assisted_installer_address }}:8080/readyz"
       - "http://{{ assisted_installer_address }}:8080/live"
       - "http://{{ assisted_installer_address }}:8888/live"
-
-  when: pod_state != 'Running'
 
 - name: Cleanup facts we no longer need
   set_fact:

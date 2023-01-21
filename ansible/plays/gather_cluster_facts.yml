@@ -1,0 +1,23 @@
+---
+
+- name: "Gather cluster facts from {{ hostvars['cluster-facts']['cluster_provisioner'] }}"
+  hosts: "{{ hostvars['cluster-facts']['cluster_provisioner'] }}"
+  gather_facts: false
+  tags: cluster_facts
+  roles:
+  - role: check_playbook_terminated
+  tasks:
+  - name: "include_role: {{ cluster_facts_role }}"
+    include_role:
+      name: "{{ cluster_facts_role }}"
+
+- name: Gather host facts from all nodes
+  hosts: all_nodes
+  gather_facts: false
+  tags: cluster_facts
+  roles:
+  - role: gather_host_facts
+    ansible_ssh_user: "{{ hostvars['playbook-facts']['remote_user'] }}"
+    remote_user: "{{ hostvars['playbook-facts']['remote_user'] }}"
+    gather_packages_info: false
+    gather_services_info: false

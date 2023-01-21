@@ -1,0 +1,34 @@
+---
+
+- import_playbook: ../plays/add_pull_secrets.yml
+- import_playbook: ../plays/add_repository_mirror_config.yml
+
+- name: Install WebSphere Automation Catalog
+  hosts: was_automation
+  gather_facts: false
+  tags: was_automation
+  roles:
+  - role: assert_default_storage_class
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+  - role: create_target_catalog_source
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_catalog_source_name: "{{ was_automation_catalog_source_name }}"
+    target_catalog_source_namespace: "{{ was_automation_catalog_source_namespace }}"
+    target_catalog_source_display_name: "{{ was_automation_catalog_source_display_name }}"
+    target_catalog_source_image: "{{ was_automation_catalog_source_image }}"
+    target_catalog_source_image_tag: "{{ was_automation_catalog_source_image_tag }}"
+    target_catalog_source_publisher: "{{ was_automation_catalog_source_publisher }}"
+    target_catalog_source_poll_interval: "{{ was_automation_catalog_source_poll_interval }}"
+  - role: create_target_namespace
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ was_automation_namespace }}"
+  - role: create_target_operator_group
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ was_automation_namespace }}"
+    target_operator_group: "{{ was_automation_operator_group }}"
+    target_namespaces:
+    - "{{ was_automation_namespace }}"

@@ -1,0 +1,16 @@
+---
+
+- name: Install CloudPak for Integration Operator into cluster
+  hosts: integration_platform
+  gather_facts: false
+  tags: integration_platform
+  roles:
+  - role: install_cp4i_operator
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    operator_catalog_user: "{{ hostvars['playbook-secrets']['cp_username'] }}"
+    operator_catalog_password: "{{ hostvars['playbook-secrets']['cp_password'] }}"
+    target_catalog_source_image: "{{ cp4i_catalog_source_image }}"
+    target_catalog_source_image_tag: "{{ cp4i_catalog_source_image_tag }}"
+    operator_channel: "{{ cp4i_operator_channel }}"
+    target_namespace: "{{ cp4i_namespace }}"

@@ -1,0 +1,15 @@
+---
+
+- name: Install Community Cert Manager
+  hosts: cluster_facts
+  gather_facts: false
+  tags: cert_manager
+  roles:
+  - role: create_target_namespace
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: cert-manager
+  - role: install_cert_manager
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: cert-manager

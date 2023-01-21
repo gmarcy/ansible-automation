@@ -1,0 +1,10 @@
+---
+
+ansible_host: localhost
+ansible_connection: local
+
+assisted_install_host: "{{ inv_assisted_install_host | default('localhost') }}"
+assisted_install_host_url: "http://{{ assisted_install_host }}:8080"
+assisted_install_rest_url: "http://{{ assisted_install_host }}:8080/api/assisted-install/v2"
+
+services_dir: "{{ lookup('env','HOME') }}/.assisted/services"

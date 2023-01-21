@@ -1,0 +1,9 @@
+---
+
+- name: "Remove storage from {{ hostvars['cluster-facts']['storage_provisioner'] }}"
+  hosts: "{{ hostvars['cluster-facts']['storage_provisioner'] }}"
+  gather_facts: false
+  tasks:
+  - name: "include_role: {{ deprovisioning_role }}"
+    include_role:
+      name: "{{ deprovisioning_role }}"

@@ -1,5 +1,4 @@
 ---
 
-- import_playbook: ../plays/gather_localhost_facts.yml
-- import_playbook: ../plays/create_cluster_facts_group.yml
+- import_playbook: ../plays/gather_playbook_facts.yml
 - import_playbook: ../plays/assisted_remove_installer.yml

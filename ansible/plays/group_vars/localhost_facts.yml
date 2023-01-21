@@ -1,3 +1,0 @@
----
-
-network_cidr: "{{ inv_cluster_cidr | default('') }}"

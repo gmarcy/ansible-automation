@@ -6,12 +6,10 @@
   tags: common_services
   roles:
   - role: uninstall_odlm_operands
-    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
     kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
-    target_namespace: "{{ ics_namespace }}"
-    operator_catalog_source: "{{ ics_operator_catalog_source }}"
+    target_namespace: "{{ common_service_namespace }}"
   - role: uninstall_odlm_operator
-    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
     kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
-    target_namespace: "{{ ics_namespace }}"
-    operator_catalog_source: "{{ ics_operator_catalog_source }}"
+    target_namespace: "{{ common_service_namespace }}"

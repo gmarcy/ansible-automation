@@ -1,0 +1,21 @@
+---
+
+- name: Update progress and stop the deployment if required
+  block:
+    - name: Add to tasks_completed {{ task_to_check }}
+      ansible.builtin.add_host:
+        name: "playbook-facts"
+        tasks_completed: "{{ hostvars['playbook-facts'].tasks_completed | default([]) | union([task_to_check]) }}"
+      changed_when: false
+
+    - name: Stop the deployment if required
+      block:
+        - name: When requested, stop after task {{ task_to_check }}
+          ansible.builtin.add_host:
+            name: 'playbook-facts'
+            playbook_terminated: true
+          changed_when: false
+        - name: End play
+          ansible.builtin.meta: end_play
+      when: stop_after_task is defined and stop_after_task in hostvars['playbook-facts'].tasks_completed
+  tags: omit_from_grapher

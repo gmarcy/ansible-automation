@@ -1,9 +1,0 @@
----
-
-inv_host_address: 192.168.1.100
-inv_host_install_disk: sda
-inv_host_ipmi:
-  address: 192.168.2.100
-  interface: lanplus
-inv_host_ipxe_macaddrs:
-  - xx-xx-xx-xx-xx-xx

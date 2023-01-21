@@ -1,0 +1,4 @@
+---
+
+- import_playbook: ../plays/gather_playbook_facts.yml
+- import_playbook: ../plays/cleanup_cluster.yml

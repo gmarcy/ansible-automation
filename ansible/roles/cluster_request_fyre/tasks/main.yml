@@ -1,0 +1,15 @@
+---
+
+- name: Request an OpenShift cluster from Fyre
+  when: hostvars['cluster-facts']['kubernetes_distro'] == 'openshift'
+  import_role:
+    name: cluster_request_fyre_ocp
+  vars:
+    fyreuser: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
+    fyreapikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
+    ssh_public_key: "{{ hostvars['playbook-secrets']['ssh_public_key'] }}"
+    cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"
+    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+    ocpVersion: "{{ hostvars['cluster-facts']['openshift_version'] }}"
+    ocpPlatform: "{{ fyre_platform }}"
+    quickburn_ttl: "{{ fyre_quickburn_ttl }}"

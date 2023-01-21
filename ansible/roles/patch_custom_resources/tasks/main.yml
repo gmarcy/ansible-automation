@@ -1,0 +1,83 @@
+---
+
+- name: Fetch the current set of CustomResourceDefinitions
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+  register: _result
+  no_log: "{{ hide_steps | default(true) | bool }}"
+
+- name: Set kind, version and group facts for all CRDs
+  set_fact:
+    crd_map_tmp: "{{ crd_map_tmp | default([]) + ([item.names.kind] | product(item.versions | map(attribute='name') | product([item.group]))) }}"
+  loop: "{{ _result.resources | map(attribute='spec') }}"
+  loop_control:
+    label: "{{ item.names.kind }}"
+  when: item.scope == 'Namespaced'
+  no_log: "{{ hide_steps | default(true) | bool }}"
+
+- name: Create kind, version, group tuples for all CRDs
+  set_fact:
+    crd_map: "{{ crd_map | default([]) + [[item[0], item[1][0], item[1][1]]] }}"
+  loop: "{{ crd_map_tmp }}"
+  loop_control:
+    label: "{{ item[0] }}"
+  no_log: "{{ hide_steps | default(true) | bool }}"
+
+- name: Load all CRs
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: "{{ cr_api_version }}"
+    kind: "{{ cr_kind }}"
+  loop: "{{ crd_map }}"
+  loop_control:
+    label: "{{ item[0] }}"
+  vars:
+    cr_api_version: "{{ item[2] + '/' + item[1] }}"
+    cr_kind: "{{ item[0] }}"
+  register: _result
+  no_log: "{{ hide_steps | default(true) | bool }}"
+
+- name: Create a map for all of the CRs of interest
+  set_fact:
+    selected_items: "{{ selected_items | default([]) + item }}"
+  loop: "{{ _result.results | map(attribute='resources') }}"
+  loop_control:
+    label: "{{ item[0]['kind'] | default('') }}"
+  when: (item | length > 0) and (item | string) is match(pattern_string)
+  no_log: "{{ hide_steps | default(true) | bool }}"
+
+- name: Create patched items
+  set_fact:
+    patched_items: "{{ patched_items | default([]) + [patched_item] }}"
+  loop: "{{ selected_items | default([]) }}"
+  loop_control:
+    label: "{{ item['kind'] }}"
+  vars:
+    patched_item: "{{ item | to_json | regex_replace(regex_pattern, regex_replace) }}"
+  when: item['metadata']['namespace'] in target_namespaces
+  #no_log: "{{ hide_steps | default(true) | bool }}"
+
+- name: Apply all patched_items to the cluster
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: "{{ patched_item }}"
+    force: true
+    state: present
+  loop: "{{ patched_items | default([]) }}"
+  loop_control:
+    loop_var: patched_item
+  register: _result
+  failed_when: false
+
+- name: Clear intermediate results
+  set_fact:
+    _result: ''
+    crd_map_tmp: []
+    crd_map: []
+    patched_items: []
+    selected_items: []

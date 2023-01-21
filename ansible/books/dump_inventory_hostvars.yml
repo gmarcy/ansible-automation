@@ -1,0 +1,8 @@
+---
+
+- name: Print out the hostvars of the entire inventory
+  hosts: all
+  gather_facts: false
+  tags: dump_inventory
+  tasks:
+  - debug: var=hostvars[inventory_hostname]

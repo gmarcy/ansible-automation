@@ -1,0 +1,100 @@
+---
+
+- name: Check for existing docker-registry
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: apps/v1
+    kind: Deployment
+    name: docker-registry
+    namespace: "{{ target_namespace }}"
+  register: _result
+
+- name: Set fact if docker-registry is already running
+  set_fact:
+    registry_running: "{{ _result.resources | map(attribute='status.conditions') | flatten | selectattr('type','equalto','Available') | selectattr('status','equalto','True') | length > 0 }}"
+
+- when: not registry_running
+  block:
+
+    - name: Create the PVC for the registry image storage
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: v1
+        kind: PersistentVolumeClaim
+        name: registry-image-storage
+        namespace: "{{ target_namespace }}"
+        definition:
+          spec:
+            accessModes:
+              - ReadWriteMany
+            resources:
+              requests:
+                storage: 50Gi
+            volumeName: image-store
+            volumeMode: Filesystem
+      register: _result
+
+    - name: Create the docker-registry Deployment
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: apps/v1
+        kind: Deployment
+        name: docker-registry
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            labels:
+              k8s-app: docker-registry
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                k8s-app: docker-registry
+            template:
+              metadata:
+                labels:
+                  k8s-app: docker-registry
+              spec:
+                containers:
+                  - name: docker-registry
+                    image: registry:2
+                    env:
+                      - name: REGISTRY_HTTP_ADDR
+                        value: ":5000"
+                      - name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY
+                        value: "/var/lib/registry"
+                    ports:
+                    - name: http
+                      containerPort: 5000
+                    volumeMounts:
+                    - name: image-store
+                      mountPath: "/var/lib/registry"
+                volumes:
+                  - name: image-store
+                    persistentVolumeClaim:
+                      claimName: registry-image-storage
+          register: _result
+
+    - name: Create the docker-registry Service
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: v1
+        kind: Service
+        name: docker-registry
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            labels:
+              k8s-app: docker-registry
+          spec:
+            ports:
+              - name: http
+                port: 5000
+                targetPort: 5000
+            selector:
+              k8s-app: docker-registry
+      register: _result

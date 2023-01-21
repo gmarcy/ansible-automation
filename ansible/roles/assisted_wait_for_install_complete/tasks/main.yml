@@ -1,5 +1,41 @@
 ---
 
+- name: Wait while cluster status is preparing-for-installation
+  uri:
+    url: "{{ cluster_url }}"
+  register: _result
+  delay: 15
+  retries: 10
+  until: _result.json.status != 'preparing-for-installation'
+
+- name: Fetch cluster kubeconfig
+  uri:
+    url: "{{ cluster_url }}/downloads/credentials?file_name=kubeconfig"
+    dest: "{{ cluster_dir }}/kubeconfig"
+  register: _result
+  changed_when: false
+  delay: 10
+  retries: 30
+  until: _result.status is defined and _result.status == 200
+
+- name: Set path to kubeconfig file
+  set_fact:
+    kubeconfig_path: "{{ _result.path }}"
+  changed_when: false
+
+- name: Fetch cluster kubeconfig-noingress
+  uri:
+    url: "{{ cluster_url }}/downloads/credentials?file_name=kubeconfig-noingress"
+    dest: "{{ cluster_dir }}/kubeconfig-noingress"
+  register: _result
+  changed_when: false
+
+- name: Set cluster_facts
+  set_fact:
+    kubeconfig_path: "{{ hostvars[inventory_hostname]['kubeconfig_path'] }}"
+  delegate_to: 'cluster-facts'
+  delegate_facts: true
+
 - name: Get cluster status
   uri:
     url: "{{ cluster_url }}"
@@ -8,9 +44,11 @@
 - name: Set current_cluster_status
   set_fact:
     cluster_installed: "{{ _result_cluster_status.json.status == 'installed' }}"
+    _result_cluster_status: {}
   changed_when: false
 
-- block:
+- when: not cluster_installed
+  block:
 
     - name: Copy the script to report install progress
       copy:
@@ -31,4 +69,3 @@
       retries: 100
       until: _result.rc == 0
 
-  when: not cluster_installed

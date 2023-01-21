@@ -1,0 +1,21 @@
+---
+
+- name: Remove cpu resource limits
+  hosts: was_automation
+  gather_facts: false
+  tags: cpu_limits
+  vars:
+    squote: "'"
+    dquote: '"'
+    flipped_pattern: "'resources': {'limits': {'cpu': '[^']*', "
+    flipped_replace: "'resources': {'limits': {"
+  roles:
+  - role: patch_custom_resources
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespaces:
+    - "{{ hostvars['common-services']['common_service_namespace'] }}"
+    - "{{ was_automation_namespace }}"
+    pattern_string: ".*'resources': {'limits': {'cpu': '[^']*', '.*"
+    regex_pattern: "{{ flipped_pattern | regex_replace(squote,dquote) }}"
+    regex_replace: "{{ flipped_replace | regex_replace(squote,dquote) }}"

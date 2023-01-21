@@ -1,0 +1,496 @@
+---
+
+- name: Set facts used in this role
+  set_fact:
+    cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"
+    cluster_domain: "{{ hostvars['cluster-facts']['cluster_domain'] }}"
+    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+    fyre_user: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
+    fyre_apikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
+    #
+    # get these from fyre_provisioner group
+    #
+    #fyre_user_email: "{{ hostvars['playbook-secrets']['na_artifactory']['user'] }}"
+    #fyre_group_id: "{{ options['fyre_group_id'] }}"
+    #fyre_platform: 'x'
+    #fyre_site: "{{ options['fyre_site'] }}"
+
+- name: Set ssh_keypair to empty
+  set_fact:
+    ssh_keypair: {}
+
+- name: Search for a keypair to use
+  set_fact:
+    ssh_keypair:
+      ssh_public_key: "{{ pubkey | b64encode }}"
+      ssh_private_key: "{{ prvkey | b64encode }}"
+  no_log: "{{ noLog }}"
+  loop:
+  - "{{ inventory_dir }}"
+  - "{{ inventory_dir + '/..' }}"
+  - "{{ lookup('env', 'HOME') + '/.ssh' }}"
+  loop_control:
+    label: "{{ item }}"
+  vars:
+    pubkey: "{{ lookup('file', item + '/id_rsa.pub', errors='ignore') | default('') }}"
+    prvkey: "{{ lookup('file', item + '/id_rsa', errors='ignore') | default('') }}"
+  when: ssh_keypair.keys() | length == 0 and pubkey | length > 0 and prvkey | length > 0
+
+- name: Set vars_pre_env to default ssh keypair, defaults from group and overrides from inventory
+  set_fact:
+    vars_pre_env: "{{ ssh_keypair | combine(vars_group) | combine(vars_inventory) }}"
+
+- name: Set vars_env to empty
+  set_fact:
+    vars_env: {}
+
+- name: Add values to vars_env for all vars_pre_env keys
+  set_fact:
+    vars_env: "{{ vars_env | combine({key: value}) }}"
+  no_log: "{{ noLog }}"
+  loop: "{{ vars_pre_env.keys() }}"
+  loop_control:
+    label: "{{ item }}"
+  vars:
+    key: "{{ item }}"
+    value: "{{ lookup('env', item.upper()) | default('') }}"
+  when: value | length > 0
+
+- name: Copy all variables into options map
+  set_fact:
+    options: "{{ vars_pre_env | combine(vars_env) }}"
+  no_log: "{{ noLog }}"
+
+- name: Update cluster facts based upon options
+  set_fact:
+    k8s_version: "{{ options['k8s_version'] }}" 
+    k8s_inf_nodes: "{{ 1 if (options['k8s_inf_create_node'] | bool) else 0 }}"
+    k8s_master_nodes: "{{ options['k8s_master_nodes'] | int }}"
+    k8s_worker_nodes: "{{ options['k8s_worker_nodes'] | int }}"
+    ssh_config: "{{ lookup('env', 'HOME') + '/.ssh/config.' + cluster_name }}"
+    ssh_prvkey: "{{ lookup('env', 'HOME') + '/.ssh/id_rsa.' + cluster_name }}"
+    ssh_pubkey: "{{ lookup('env', 'HOME') + '/.ssh/id_rsa.pub.' + cluster_name }}"
+    ssh_option: '-o StrictHostKeyChecking=no'
+    ssh_username: 'root'
+
+- name: We will need to have either an inf node or only one master node
+  assert:
+    that: k8s_inf_nodes | int == 1 or k8s_master_nodes | int == 1
+
+- name: Set a default for when there is no cluster
+  set_fact:
+    no_cluster:
+      name: "{{ cluster_name }}"
+      status: 'absent'
+
+- name: Check to see if a cluster exists with the name we are requesting
+  uri:
+    url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showclusters&cluster_name={{ cluster_name }}"
+    method: GET
+    user:  "{{ fyre_user }}"
+    validate_certs: false
+    password: "{{ fyre_apikey }}"
+    force_basic_auth: true
+    return_content: true
+  changed_when: false
+  register: cluster_status_response
+  delay: 15
+  retries: 20
+  until: >
+    (cluster_status_response.status != -1) and
+    ((cluster_status_response.content | from_yaml)['clusters'] | default([no_cluster]) | selectattr('name','==',cluster_name) | map(attribute='status') | first) not in ['pending delete', 'deleting', 'pendingValidation']
+
+- name: Set cluster_status_json fact
+  set_fact:
+    cluster_status_json: "{{ item }}"
+  loop: "{{ (cluster_status_response.content | from_yaml)['clusters'] | default([]) }}"
+  when: item.name == cluster_name
+
+- name: Set fact for check that cluster already exists
+  set_fact:
+    cluster_exists: "{{ cluster_status_json is defined }}"
+    cluster_status: "{{ cluster_status_json['status'] | default('unknown') }}"
+
+- name: Check for error
+  assert:
+    that: cluster_status != 'error'
+  when: cluster_exists
+
+- name: Print a message about the state of the cluster
+  debug:
+    msg: "{{ 'Cluster ' + cluster_name + ((' exists (' + cluster_status + ').') if cluster_exists else ' does not exist.') }}"
+
+- name: Assert that cluster is not being deleted
+  assert:
+    that: cluster_status != 'deleting'
+  when: cluster_exists
+
+- when: not cluster_exists
+  block:
+
+    - name: Print out some of the parameters of the deployment
+      debug:
+        msg:
+        - "{{ 'NAME:               ' + cluster_name }}"
+        - "{{ 'VERSION:            ' + k8s_version }}"
+        - "{{ 'ENGINE:             ' + options['k8s_engine'] }}"
+
+    - name: Set local facts for execution of this role
+      set_fact:
+        fyre_user_email: "{{ hostvars['playbook-secrets']['na_artifactory']['user'] }}"
+        fyre_group_id: "{{ options['fyre_group_id'] }}"
+        fyre_platform: "{{ options['fyre_platform'] }}"
+        fyre_site: "{{ options['fyre_site'] }}"
+        ssh_public_key: "{{ options['ssh_public_key'] }}"
+        k8s_inf_os: "{{ options['k8s_inf_os'] }}"
+        k8s_inf_cpu: "{{ options['k8s_inf_cpu'] }}"
+        k8s_inf_mem: "{{ options['k8s_inf_mem'] }}"
+        k8s_inf_extra_storage: "{{ options['k8s_inf_extra_storage'] }}"
+        k8s_node_os: "{{ options['k8s_node_os'] }}"
+        k8s_master_cpu: "{{ options['k8s_master_cpu'] }}"
+        k8s_master_mem: "{{ options['k8s_master_mem'] }}"
+        k8s_master_extra_storage: "{{ options['k8s_master_extra_storage'] }}"
+        k8s_worker_cpu: "{{ options['k8s_worker_cpu'] }}"
+        k8s_worker_mem: "{{ options['k8s_worker_mem'] }}"
+        k8s_worker_extra_storage: "{{ options['k8s_worker_extra_storage'] }}"
+
+    - name: Set fact for total memory needed for this cluster
+      set_fact:
+        req_cluster_mem: "{{ (k8s_inf_nodes|int) * (k8s_inf_mem|int) + (k8s_master_nodes|int) * (k8s_master_mem|int) + (k8s_worker_nodes|int) * (k8s_worker_mem|int) }}"
+
+    - name: Wait until we have enough quota for the request
+      uri:
+        url: "https://api.fyre.ibm.com/rest/v1/?operation=getuserproductgroupquota&product_group_id={{ fyre_group_id }}&user_email={{ fyre_user_email }}"
+        method: GET
+        user:  "{{ fyre_user }}"
+        validate_certs: false
+        password: "{{ fyre_apikey }}"
+        force_basic_auth: true
+        return_content: true
+      changed_when: false
+      register: user_quota
+      delay: 20
+      retries: 30
+      until: ((user_quota.content | from_json)['memory_quota_gb'] |int) - ((user_quota.content | from_json)['memory_allocated_gb'] | int) >= (req_cluster_mem|int)
+
+    - name: Ensure empty cluster dir
+      file:
+        path: "{{ cluster_dir }}"
+        mode: '0755'
+        state: "{{ item }}"
+      loop:
+      - absent
+      - directory
+
+    - name: Write cluster specific fyre request body
+      copy:
+        content: |
+          fyre:
+            creds:
+              username: {{ fyre_user }}
+              api_key: {{ fyre_apikey }}
+              public_key: {{ ssh_public_key | b64decode }}
+          product_group_id: {{ fyre_group_id }}
+          cluster_prefix: {{ cluster_name }}
+          clusterconfig:
+            instance_type: 'virtual_server'
+            platform: {{ fyre_platform | default('x') }}
+            user_comment: "{{ 'kubernetes cluster of ' + fyre_user }}"
+          site: {{ fyre_site }}
+          {{ cluster_name }}:
+          {% if (k8s_inf_nodes | int) == 1 %}
+            - name: "inf"
+              cpu: {{ k8s_inf_cpu | default(4) }}
+              memory: {{ k8s_inf_mem | default(8) }}
+              os: {{ k8s_inf_os | default('Ubuntu 20.04') }}
+              publicvlan: 'y'
+              privatevlan: 'y'
+          {% if (k8s_inf_extra_storage | default(0) | int) > 0 %}
+              additional_disks:
+              - size: {{ k8s_inf_extra_storage }}
+          {% endif %}
+          {% endif %}
+          {% if (k8s_master_nodes | int) == 1 %}
+            - name: 'master'
+              cpu: {{ k8s_master_cpu | default(4) }}
+              memory: {{ k8s_master_mem | default(8) }}
+              os: {{ k8s_node_os | default('Ubuntu 20.04') }}
+              publicvlan: {{ 'n' if (k8s_inf_nodes | int) == 1 else 'y' }}
+              privatevlan: 'y'
+          {% if (k8s_master_extra_storage | default(0) | int) > 0 %}
+              additional_disks:
+              - size: {{ k8s_master_extra_storage }}
+          {% endif %}
+          {% else %}
+          {% for index in range(0, k8s_master_nodes | int) %}
+            - name: "{{ 'master' + index | string }}"
+              cpu: {{ k8s_master_cpu | default(4) }}
+              memory: {{ k8s_master_mem | default(8) }}
+              os: {{ k8s_node_os | default('Ubuntu 20.04') }}
+              publicvlan: 'n'
+              privatevlan: 'y'
+          {% if (k8s_master_extra_storage | default(0) | int) > 0 %}
+              additional_disks:
+              - size: {{ k8s_master_extra_storage }}
+          {% endif %}
+          {% endfor %}
+          {% endif %}
+          {% for index in range(0, k8s_worker_nodes | int) %}
+            - name: "{{ 'worker' + index | string }}"
+              cpu: {{ k8s_worker_cpu | default(4) }}
+              memory: {{ k8s_worker_mem | default(8) }}
+              os: {{ k8s_node_os | default('Ubuntu 20.04') }}
+              publicvlan: 'n'
+              privatevlan: 'y'
+          {% if (k8s_worker_extra_storage | default(0) | int) > 0 %}
+              additional_disks:
+              - size: {{ k8s_worker_extra_storage }}
+          {% endif %}
+          {% endfor %}
+        dest: "{{ cluster_dir + '/fyre_cluster_req.yml' }}"
+        mode: '0600'
+
+    - name: Build Fyre stack
+      uri:
+        url: 'https://api.fyre.ibm.com/rest/v1/?operation=build'
+        method: "POST"
+        user: "{{ fyre_user }}"
+        password: "{{ fyre_apikey }}"
+        validate_certs: false
+        body_format: "json"
+        force_basic_auth: true
+        return_content: true
+        body: "{{ lookup('file', cluster_dir + '/fyre_cluster_req.yml') | from_yaml }}"
+      register: fyre_status
+
+    - name: Set fact for response
+      set_fact:
+        response_json: "{{ fyre_status.content | from_json }}"
+
+    - name: Set fact for request_id
+      set_fact:
+        request_id: "{{ response_json['request_id'] }}"
+
+    - name: Check for errors
+      fail: msg="cluster build request failed"
+      when: response_json['status'] not in ['submitted', 'success']
+
+- when: cluster_exists and cluster_status == 'building'
+  block:
+
+    - name: Look up our request id
+      uri:
+        url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showrequests"
+        method: GET
+        user:  "{{ fyre_user }}"
+        validate_certs: false
+        password: "{{ fyre_apikey }}"
+        force_basic_auth: true
+        return_content: true
+      changed_when: false
+      register: request_status_response
+
+    - name: Set request_id fact
+      set_fact:
+        request_id: "{{ item.id }}"
+      loop: "{{ (request_status_response.content | from_json)['request'] }}"
+      when: item.cluster_name == cluster_name
+
+- when: (request_id | default(-1)) != -1
+  block:
+
+    - name: Wait until cluster is finished building
+      uri:
+        url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showrequests&request_id={{ request_id | string }}"
+        method: GET
+        user:  "{{ fyre_user }}"
+        validate_certs: false
+        password: "{{ fyre_apikey }}"
+        force_basic_auth: true
+        return_content: true
+      changed_when: false
+      register: request_status_response
+      delay: 20
+      retries: 600
+      until: (request_status_response.status == 200) and request_status_response.content is defined and not (request_status_response.content | from_json)['request'][0].status is match('.*building.*')
+
+    - name: Check for errors
+      fail: msg="cluster build request error"
+      when: (request_status_response.content | from_json)['request'] | map(attribute='status') | unique | difference(['completed','deployed']) | length > 0
+
+    - name: Fetch the cluster status
+      uri:
+        url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showclusters"
+        method: GET
+        user:  "{{ fyre_user }}"
+        validate_certs: false
+        password: "{{ fyre_apikey }}"
+        force_basic_auth: true
+        return_content: true
+      changed_when: false
+      register: cluster_status_response
+      until: cluster_status_response.status != -1
+
+    - name: Set cluster_status_json fact
+      set_fact:
+        cluster_status_json: "{{ item }}"
+      loop: "{{ (cluster_status_response.content | from_yaml)['clusters'] }}"
+      when: item.name == cluster_name
+
+    - name: Set cluster_status fact
+      set_fact:
+        cluster_status: "{{ cluster_status_json['status'] | default('error') }}"
+
+    - name: Check for error
+      assert:
+        that: cluster_status != 'error'
+
+- name: Fetch the cluster details
+  uri:
+    url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showclusterdetails&cluster_name={{ cluster_name }}"
+    method: GET
+    user:  "{{ fyre_user }}"
+    validate_certs: false
+    password: "{{ fyre_apikey }}"
+    force_basic_auth: true
+    return_content: true
+  changed_when: false
+  register: cluster_details_response
+  until: cluster_details_response.status != -1
+
+- name: Set fact for cluster_details_json
+  set_fact:
+    cluster_details_json: "{{ (cluster_details_response.content | from_json)[cluster_name] }}"
+
+- name: Set fact for engine specific role
+  set_fact:
+    k8s_node_provisioning_role: "{{ 'node_provision_k8s_' + hostvars['k8s-provisioner']['options']['k8s_engine'] }}"
+
+- name: Assert that we have a defined role
+  assert:
+    that: k8s_node_provisioning_role in defined_roles
+  vars:
+    defined_roles:
+    - 'node_provision_k8s_k3s'
+    - 'node_provision_k8s_kubeadm'
+    - 'node_provision_k8s_microk8s'
+
+- name: Create node groups
+  add_host:
+    name: "{{ item.node }}"
+    groups: "{{ host_node_groups[host_node_role] }}"
+    node_provisioning_role: "{{ k8s_node_provisioning_role }}"
+    ansible_connection: ssh
+    ansible_host: "{{ item.node }}"
+    ansible_ssh_extra_args: "{{ '-F ' + ssh_config }}"
+    ansible_ssh_user: "{{ ssh_username }}"
+    cluster_role: "{{ host_node_role }}"
+    fqdn: "{{ item.node + '.fyre.ibm.com' }}"
+    short_hostname: "{{ item.node }}"
+    privateip: "{{ item.privateip }}"
+    publicip: "{{ item.publicip }}"
+  loop: "{{ cluster_details_json }}"
+  vars:
+    host_node_role: "{{ 'infra' if (item.node is match('.*-inf$')) else (item.node | regex_replace('^.*-([^0-9]*)[0-9]?$', '\\1')) }}"
+    host_node_groups:
+      infra:
+      - all_nodes
+      - infra_node
+      master:
+      - all_nodes
+      - cluster_nodes
+      - master_nodes
+      worker:
+      - all_nodes
+      - cluster_nodes
+      - worker_nodes
+  changed_when: false
+
+- name: Set infra node hostname fact
+  set_fact:
+    k8s_infra_hostname: "{{ groups['infra_node'] | default(groups['master_nodes']) | first }}"
+
+- name: Wait until we can resolve the hostname using DNS
+  set_fact:
+    k8s_infra_publicip: "{{ lookup('community.general.dig', hostvars[k8s_infra_hostname]['fqdn']) }}"
+  until: lookup('community.general.dig', hostvars[k8s_infra_hostname]['fqdn']) == hostvars[k8s_infra_hostname]['publicip']
+
+- name: Set fact for services host
+  set_fact:
+    services_host: "{{ k8s_infra_hostname }}"
+  delegate_to: 'cluster-facts'
+  delegate_facts: true
+
+- name: Set infra node publicip fact
+  set_fact:
+    k8s_infra_publicip: "{{ hostvars[k8s_infra_hostname]['publicip'] }}"
+
+- name: Set infra node privateip fact
+  set_fact:
+    k8s_infra_privateip: "{{ hostvars[k8s_infra_hostname]['privateip'] }}"
+
+- name: Set kubeconfig_path and cluster_api_url facts
+  set_fact:
+    cluster_api_url: "{{ 'https://' + hostvars[k8s_infra_hostname]['fqdn'] + ':6443' }}"
+    kubeconfig_path: "{{ cluster_dir + '/kubeconfig' }}"
+
+- name: Set kubeconfig_path and cluster_api_url facts
+  set_fact:
+    cluster_api_url: "{{ cluster_api_url }}"
+    kubeconfig_path: "{{ kubeconfig_path }}"
+    cluster_fqdn: "{{ hostvars[k8s_infra_hostname]['fqdn'] }}"
+    cluster_publicip: "{{ k8s_infra_publicip }}"
+    cluster_nip_fqdn: "{{ k8s_infra_publicip + '.nip.io' }}"
+  delegate_to: 'cluster-facts'
+  delegate_facts: true
+
+- name: Write cluster specific ssh config
+  copy:
+    content: |
+      Host {{ k8s_infra_hostname + ' ' + k8s_infra_hostname + '.' + cluster_domain }}
+          Hostname {{ k8s_infra_hostname + '.' + cluster_domain }}
+          IdentityFile {{ '~/.ssh/id_rsa.' + cluster_name }}
+          IdentitiesOnly yes
+          UserKnownHostsFile /dev/null
+          StrictHostKeyChecking accept-new
+      {% for hostname in groups['cluster_nodes'] %}
+      {% if hostname != k8s_infra_hostname %}
+      
+      Host {{ hostname + ' ' + hostname + '.' + cluster_domain }}
+          IdentityFile {{ '~/.ssh/id_rsa.' + cluster_name }}
+          IdentitiesOnly yes
+          UserKnownHostsFile /dev/null
+          StrictHostKeyChecking accept-new
+          ProxyCommand ssh -F {{ '~/.ssh/config.' + cluster_name }} {{ ssh_username + '@' + k8s_infra_hostname }} -W %h:%p
+      {% endif %}
+      {% endfor %}
+    dest: "{{ ssh_config }}"
+    mode: '0600'
+
+- name: Write cluster specific ssh private key
+  copy:
+    content: |
+      {{ options['ssh_private_key'] | b64decode | trim }}
+    dest: "{{ ssh_prvkey }}"
+    mode: '0600'
+
+- name: Write cluster specific ssh public key
+  copy:
+    content: |
+      {{ options['ssh_public_key'] | b64decode | trim }}
+    dest: "{{ ssh_pubkey }}"
+    mode: '0644'
+
+- name: Clear register results
+  set_fact:
+    cluster_status_response: {}
+    user_quota: {}
+    fyre_status: {}
+    response_json: {}
+    request_status_response: {}
+    cluster_details_response: {}
+    ssh_keypair: {}
+    vars_group: {}
+    vars_inventory: {}
+    vars_pre_env: {}
+    vars_env: {}

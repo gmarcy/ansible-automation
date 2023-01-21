@@ -1,0 +1,6 @@
+---
+
+- import_playbook: ../plays/gather_playbook_facts.yml
+- import_playbook: ../plays/gather_cluster_facts.yml
+- import_playbook: ../plays/prepare_common_services_group.yml
+- import_playbook: ../plays/uninstall_odlm_only.yml

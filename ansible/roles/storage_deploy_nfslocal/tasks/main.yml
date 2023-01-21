@@ -1,0 +1,28 @@
+---
+
+# Deploy nfs storage provisioner backed by cluster local storage
+
+- name: Deploy cluster local storage
+  import_role:
+    name: storage_cluster_local
+  vars:
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    cluster_hostnames: "{{ groups['cluster_hosts'] }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    kubernetes_distro: "{{ hostvars['cluster-facts']['kubernetes_distro'] }}"
+
+- name: Deploy nfs storage provisioner
+  import_role:
+    name: storage_nfs_provisioner
+  vars:
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    kubernetes_distro: "{{ hostvars['cluster-facts']['kubernetes_distro'] }}"
+
+- when: test_nfs_provisioner | default(false)
+  name: Test nfs storage provisioner
+  import_role:
+    name: test_nfs_provisioner
+  vars:
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"

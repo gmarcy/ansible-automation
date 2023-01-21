@@ -1,0 +1,9 @@
+---
+
+- name: "Cleanup a cluster from {{ hostvars['cluster-facts']['cluster_provisioner'] }}"
+  hosts: "{{ hostvars['cluster-facts']['cluster_provisioner'] }}"
+  gather_facts: false
+  tasks:
+  - name: "include_role: {{ deprovisioning_role }}"
+    include_role:
+      name: "{{ deprovisioning_role }}"

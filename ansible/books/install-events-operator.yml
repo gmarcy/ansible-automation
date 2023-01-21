@@ -1,0 +1,8 @@
+---
+
+- import_playbook: ../plays/gather_playbook_facts.yml
+- import_playbook: ../plays/gather_cluster_facts.yml
+- import_playbook: ../plays/prepare_cluster_storage_group.yml
+- import_playbook: ../plays/prepare_common_services_group.yml
+- import_playbook: ../plays/prepare_was_automation_group.yml
+- import_playbook: ../plays/install_events_operator.yml

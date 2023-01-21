@@ -1,0 +1,164 @@
+---
+
+- when: "'gather_host_facts' not in (roles_completed | default([]))"
+  block:
+
+    - name: Gather facts
+      ansible.builtin.setup:
+        filter:
+        - 'ansible_architecture'
+        - 'ansible_default_ipv4'
+        - 'ansible_distribution'
+        - 'ansible_env'
+        - 'ansible_os_family'
+        - 'ansible_ssh_host_key_ecdsa_public'
+        - 'ansible_ssh_host_key_ecdsa_public_keytype'
+        gather_subset:
+        - '!all'
+        - 'network'
+      register: _result
+
+    - name: Set distribution_family for CentOS
+      ansible.builtin.set_fact:
+        distribution_family: "CentOS"
+        host_os: "centos"
+        libvirt_qemu_user: "qemu"
+        package_manager: auto
+      when: _result.ansible_facts.ansible_distribution == 'CentOS'
+
+    - name: Set distribution_family for RedHat
+      ansible.builtin.set_fact:
+        distribution_family: "CentOS"
+        host_os: "redhat"
+        libvirt_qemu_user: "qemu"
+        package_manager: auto
+      when: _result.ansible_facts.ansible_distribution == 'RedHat'
+
+    - name: Set distribution_family for Fedora
+      ansible.builtin.set_fact:
+        distribution_family: "Fedora"
+        host_os: "fedora"
+        libvirt_qemu_user: "qemu"
+        package_manager: auto
+      when: _result.ansible_facts.ansible_distribution == 'Fedora'
+
+    - name: Set distribution_family for Debian
+      ansible.builtin.set_fact:
+        distribution_family: "Debian"
+        host_os: "debian"
+        libvirt_qemu_user: "libvirt-qemu"
+        package_manager: apt
+      when: _result.ansible_facts.ansible_distribution == 'Debian'
+
+    - name: Set distribution_family for Ubuntu
+      ansible.builtin.set_fact:
+        distribution_family: "Debian"
+        host_os: "ubuntu"
+        libvirt_qemu_user: "libvirt-qemu"
+        package_manager: apt
+      when: _result.ansible_facts.ansible_distribution == 'Ubuntu'
+
+    - name: Fails if OS is not supported
+      ansible.builtin.assert:
+        msg: "The host \"{{ inventory_hostname }}\" needs to be CentOS/RHEL, Fedora, or Debian/Ubuntu"
+        that: hostvars[inventory_hostname]['distribution_family'] is defined
+
+    - name: Set facts from setup to hostvars
+      ansible.builtin.set_fact:
+        ansible_default_ipv4_address: "{{ _result.ansible_facts.ansible_default_ipv4.address | default(omit) }}"
+        cpu_arch: "{{ 'amd64' if (ansible_architecture == 'x86_64') else ansible_architecture }}"
+        os_family: "{{ 'mac' if (ansible_os_family == 'Darwin') else ('windows' if (ansible_os_family == 'Windows') else 'linux') }}"
+        os: "{{ hostvars[inventory_hostname].os if (hostvars[inventory_hostname].os is defined) else hostvars[inventory_hostname]['host_os'] }}"
+        user_home: "{{ _result.ansible_facts.ansible_env['HOME'] }}"
+        user_path: "{{ _result.ansible_facts.ansible_env['PATH'] }}"
+        runtime_path: "{{ _result.ansible_facts.ansible_env['XDG_RUNTIME_DIR'] | default('') | string }}"
+        ssh_connection_address: "{{ omit if (_result.ansible_facts.ansible_env['SSH_CONNECTION'] is not defined) else _result.ansible_facts.ansible_env['SSH_CONNECTION'].split(' ')[2] }}"
+        ssh_host_key_ecdsa: "{{ _result.ansible_facts.ansible_ssh_host_key_ecdsa_public_keytype }} {{ _result.ansible_facts.ansible_ssh_host_key_ecdsa_public }}"
+
+    - when: gather_packages_info
+      block:
+
+        - name: Gather the package facts
+          ansible.builtin.package_facts:
+            manager: "{{ hostvars[inventory_hostname].package_manager }}"
+          register: _result
+
+        - name: Set podman_is_installed
+          ansible.builtin.set_fact:
+            podman_is_installed: "{{ true if ('podman' in _result.ansible_facts.packages) else false }}"
+
+    - when: gather_services_info
+      block:
+
+        - name: Gather the services facts
+          ansible.builtin.service_facts:
+          register: _result
+
+        - name: Set _service_state to unknown
+          ansible.builtin.set_fact:
+            _service_state: 'unknown'
+
+        - name: Set _service_state when firewalld is defined
+          ansible.builtin.set_fact:
+            _service_state: "{{ _result.ansible_facts.services['firewalld'].state }}"
+          when: _result.ansible_facts.services['firewalld'] is defined
+
+        - name: Set _service_state when firewalld.service is defined
+          ansible.builtin.set_fact:
+            _service_state: "{{ _result.ansible_facts.services['firewalld.service'].state }}"
+          when: _result.ansible_facts.services['firewalld.service'] is defined
+
+        - name: Set firewalld_is_active
+          ansible.builtin.set_fact:
+            firewalld_is_active: "{{ true if _service_state == 'running' else false }}"
+
+        - name: Clear _service_state
+          ansible.builtin.set_fact:
+            _service_state: ''
+
+        - name: Set _service_state when podman is defined
+          ansible.builtin.set_fact:
+            _service_state: "{{ _result.ansible_facts.services['podman'].state }}"
+          when: _result.ansible_facts.services['podman'] is defined
+
+        - name: Set _service_state when podman.service is defined
+          ansible.builtin.set_fact:
+            _service_state: "{{ _result.ansible_facts.services['podman.service'].state }}"
+          when: _result.ansible_facts.services['podman.service'] is defined
+
+        - name: Set podman_is_active
+          ansible.builtin.set_fact:
+            podman_is_active: "{{ true if _service_state == 'running' else false }}"
+
+        - name: Set _service_state to unknown
+          ansible.builtin.set_fact:
+            _service_state: 'unknown'
+
+        - name: Set _service_state when ovs-vswitchd is defined
+          ansible.builtin.set_fact:
+            _service_state: "{{ _result.ansible_facts.services['ovs-vswitchd'].state }}"
+          when: _result.ansible_facts.services['ovs-vswitchd'] is defined
+
+        - name: Set _service_state when ovs-vswitchd.service is defined
+          ansible.builtin.set_fact:
+            _service_state: "{{ _result.ansible_facts.services['ovs-vswitchd.service'].state }}"
+          when: _result.ansible_facts.services['ovs-vswitchd.service'] is defined
+
+        - name: Set ovs_is_active
+          ansible.builtin.set_fact:
+            ovs_is_active: "{{ true if _service_state == 'running' else false }}"
+
+    - name: Clear results
+      ansible.builtin.set_fact:
+        ansible_default_ipv4: []
+        ansible_distribution:
+        ansible_env: []
+        ansible_ssh_host_key_ecdsa_public:
+        ansible_ssh_host_key_ecdsa_public_keytype:
+        ansible_facts: {}
+        _result:
+        _service_state:
+
+    - name: Set fact that we have completed this role
+      set_fact:
+        roles_completed: "{{ roles_completed | default([]) | union(['gather_host_facts']) }}"

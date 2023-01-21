@@ -1,5 +1,0 @@
----
-
-all:
-  vars:
-    inv_assisted_install_host: assisted.lab.gmarcy.com

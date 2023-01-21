@@ -1,21 +1,17 @@
 ---
 
-- name: Create assisted_install localhost group for this play
-  hosts: localhost
+- name: Find address of localhost interface on cluster network
+  hosts: assisted_install
   gather_facts: false
-  tags: assisted_install
+  tags: setup_installer
   roles:
-  - role: create_localhost_groups
-    localhost_groups:
-    - host_name: assisted-install
-      group_name: assisted_install
+  - role: find_address_on_cluster_network
 
 - name: Setup assisted-installer pod
   hosts: assisted_install
   gather_facts: false
-  tags: assisted_install
+  tags: setup_installer
   roles:
   - role: assisted_setup_installer
     assisted_installer_address: "{{ hostvars['localhost-facts']['address_on_cluster_network'] }}"
     openshift_version: "{{ hostvars['cluster-facts']['openshift_version'] }}"
-    tags: installer_pod

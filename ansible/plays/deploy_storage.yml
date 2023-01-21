@@ -1,0 +1,16 @@
+---
+
+- name: "Request storage from {{ hostvars['cluster-storage']['storage_provisioner'] }}"
+  hosts: cluster_storage
+  gather_facts: false
+  pre_tasks:
+  - name: "include_role: {{ provisioning_role }}"
+    include_role:
+      name: "{{ provisioning_role }}"
+    vars:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+  roles:
+  - role: set_default_storage_class
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"

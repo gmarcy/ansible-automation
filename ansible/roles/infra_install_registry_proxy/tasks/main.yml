@@ -1,0 +1,138 @@
+---
+
+- name: Set facts used in this next section
+  set_fact:
+    container_name: "{{ hostvars['cluster-facts']['cluster_name'] + '-registry-proxy' }}"
+    registry_proxy_certs: "{{ user_home + '/.kube/registry-proxy/certs' }}"
+
+- name: Check for systemd user service config
+  stat:
+    path: "{{ user_home + '/.config/systemd/user/container-' + container_name + '.service' }}"
+  register: _result
+
+- name: Set fact that registry proxy service config exists
+  set_fact:
+    registry_proxy_service_defined: "{{ _result.stat.exists }}"
+
+- when: not registry_proxy_service_defined
+  name: Create and run the registry-proxy container
+  block:
+
+    - name: Set facts used in this section
+      set_fact:
+        registry_proxy_mirror_cache: "{{ user_home + '/.kube/registry-proxy/mirror_cache' }}"
+
+    - name: Make sure directories exist
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0700'
+      loop:
+      - "{{ registry_proxy_mirror_cache }}"
+      - "{{ registry_proxy_certs }}"
+
+    - name: Install buildah if required
+      package:
+        name:
+        - buildah
+        - podman
+        - skopeo
+        state: present
+
+    - name: Remove any old buildah container
+      ansible.builtin.shell: |
+        set -eo pipefail
+        if [ "$(buildah ls --filter {{ 'name=buildah-' + container_name }} --format {% raw %}'{{ .ContainerName }}'{% endraw %})" != "" ]
+        then
+          buildah rm {{ 'buildah-' + container_name }}
+        fi
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Create a new container image for the registry proxy
+      command: |
+        buildah from --name {{ 'buildah-' + container_name }} ghcr.io/gmarcy/docker-registry-proxy:2023-01-01-00-10-21
+      register: _result
+
+    - name: Update packages
+      command: |
+        buildah run {{ 'buildah-' + container_name }} -- apk upgrade
+      register: _result
+
+    - name: Commit the container image
+      command: |
+        buildah commit {{ 'buildah-' + container_name }} {{ 'localhost/' + container_name + ':latest' }}
+      register: _result
+
+    - name: Remove the buildah image
+      command: |
+        buildah rm {{ 'buildah-' + container_name }}
+      register: _result
+
+    - name: Set facts for credentials
+      set_fact:
+        artifactory_creds: "{{ hostvars['playbook-secrets']['na_artifactory']['user'] + ':' + hostvars['playbook-secrets']['na_artifactory']['token'] }}"
+
+    - name: Set facts for registries
+      set_fact:
+        proxy_registries:
+        - "hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com"
+        proxy_auth_registries:
+        - "{{ 'auth.docker.io:' + hostvars['playbook-secrets']['docker_io_user'] + ':' + hostvars['playbook-secrets']['docker_io_password'] }}"
+        - "{{ 'hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com:' + artifactory_creds }}"
+
+    - name: Run the container with podman
+      containers.podman.podman_container:
+        name: "{{ container_name }}"
+        image: "{{ 'localhost/' + container_name + ':latest' }}"
+        init: true
+        state: stopped
+        ports:
+        - "3128:3128"
+        - "8081:8081"
+        - "8082:8082"
+        volumes:
+        - "{{ registry_proxy_mirror_cache + ':/docker_mirror_cache' }}"
+        - "{{ registry_proxy_certs + ':/ca' }}"
+        env:
+          DEBUG: 'true'
+          DEBUG_HUB: 'true'
+          ENABLE_MANIFEST_CACHE: 'true'
+          REGISTRIES: "{{ proxy_registries | join(' ') }}"
+          AUTH_REGISTRIES: "{{ proxy_auth_registries | join(' ') }}"
+      register: _result_container_info
+      retries: 5
+      delay: 10
+      until: not _result_container_info.failed
+
+    - name: Create a systemd unit for the container
+      containers.podman.podman_generate_systemd:
+        name: "{{ container_name }}"
+        dest: "{{ user_home + '/.config/systemd/user/' }}"
+
+    - name: Start the systemd unit
+      systemd:
+        name: "{{ 'container-' + container_name }}"
+        daemon_reload: true
+        state: started
+        enabled: true
+        scope: user
+
+- name: Wait until ca.crt has been created
+  stat:
+    path: "{{ registry_proxy_certs + '/ca.crt' }}"
+  register: _result
+  until: _result.stat.exists
+
+- name: Fetch the contents of the ca.crt
+  command: |
+    cat {{ registry_proxy_certs + '/ca.crt' }}
+  register: _result
+
+- name: Set a fact for the ca.cert
+  set_fact:
+    ca_cert_contents: "{{ _result.stdout | trim }}"
+  delegate_to: 'cluster-facts'
+  delegate_facts: true

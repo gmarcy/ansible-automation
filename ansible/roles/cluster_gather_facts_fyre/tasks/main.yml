@@ -1,0 +1,137 @@
+---
+
+- name: Set facts used in this role
+  set_fact:
+    fyreuser: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
+    fyreapikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
+    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+    cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"
+
+- name: Check that all fyre nodes have a deployed status
+  uri:
+    url: "{{ fyreocpplus_clusterstatusurl }}"
+    method: GET
+    user:  "{{ fyreuser }}"
+    password: "{{ fyreapikey }}"
+    validate_certs: False
+    force_basic_auth: "{{ fyre_force_basic_auth }}"
+    return_content: true
+  register: _result
+  changed_when: false
+  failed_when: _result.status | default(404) not in [-1,200,400]
+  delay: 20
+  retries: 600
+  until: _result.status != -1
+
+- name: Set facts from response
+  set_fact:
+    status_ok: "{{ _result.status | default(404) is in [200] }}"
+    status_json: "{{ _result.content | from_json }}"
+    _result: {}
+
+- name: Assert status is ok
+  assert:
+    that: status_ok
+    msg:
+    - "{{ status_json['status'] | default('error') }}"
+    - "{{ status_json['details'] | default('Unknown failure with cluster status') }}"
+
+- name: Set fact for our cluster
+  set_fact:
+    cluster_status: "{{ item }}"
+  loop: "{{ status_json.clusters }}"
+  when: item.cluster_name == cluster_name
+
+- name: Assert that cluster has either deployed or failed
+  assert:
+    that:
+    - cluster_status is defined
+    - cluster_status['deployment_status'] is in ['deployed', 'failed']
+    msg: "{{ 'Cluster deployment_status is ' + cluster_status['deployment_status'] }}"
+
+- name: Set fact for fyre inf node public ip
+  set_fact:
+    status_json: {}
+    fyre_inf_public_ip: "{{ cluster_status.vms | map(attribute='ips') | flatten | selectattr('type','equalto','public') | map(attribute='address') | list | first }}"
+
+- name: Set fact for fyre inf node hostname
+  set_fact:
+    fyre_inf_hostname: "{{ cluster_status.vms | selectattr('ip_address','defined') | selectattr('ip_address','equalto',fyre_inf_public_ip) | map(attribute='hostname') | list | first }}"
+
+- name: Add host entries for each vm node
+  add_host:
+    name: "{{ item['hostname'] }}"
+    groups:
+    - all_nodes
+    - infra_node
+    ansible_host: "{{ fyre_inf_public_ip }}"
+    ansible_user: root
+    vm_info: "{{ item }}"
+  loop: "{{ cluster_status.vms }}"
+  changed_when: false
+  when: item['hostname'] == fyre_inf_hostname
+
+- name: Clear facts
+  set_fact:
+    cluster_status: "{{ cluster_status | combine({'vms': ''}) }}"
+
+- name: Update remaining Fyre OCP Facts
+  set_fact:
+    inf_public_ip: "{{ fyre_inf_public_ip }}"
+    kubeadmin_username: "{{ cluster_status.ocp_username }}"
+    kubeadmin_password: "{{ cluster_status.kubeadmin_password }}"
+    ocp_access_url: "{{ cluster_status.access_url }}"
+  no_log: "{{ noLog }}"
+  changed_when: false
+
+- name: Create cluster_dir folder
+  file:
+    path: "{{ cluster_dir }}"
+    state: directory
+  delegate_to: 'cluster-facts'
+
+- name: Fetch a copy of the kubeconfig for localhost
+  fetch:
+    src: auth/kubeconfig
+    dest: "{{ cluster_dir + '/kubeconfig' }}"
+    flat: true
+  changed_when: false
+  delegate_to: "{{ groups['infra_node'] | first }}"
+  delegate_facts: true
+
+- name: Set cluster_facts
+  set_fact:
+    console_url: "{{ ocp_access_url }}"
+    console_username: "{{ kubeadmin_username }}"
+    console_password: "{{ kubeadmin_password }}"
+  no_log: "{{ noLog }}"
+  delegate_to: 'cluster-facts'
+  delegate_facts: true
+
+- name: Set our cluster facts
+  set_fact:
+    cluster_api_url: "{{ 'https://' + fyre_inf_hostname + ':6443' }}"
+    cluster_domain: "{{ fyre_inf_hostname | regex_replace('api\\.' + cluster_name + '\\.([^:]*)', '\\1') }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['cluster_dir'] + '/kubeconfig' }}"
+  delegate_to: 'cluster-facts'
+  delegate_facts: true
+
+- when: not (cluster_facts_only | default(false))
+  block:
+
+    - name: Download the Openshift cluster CLI and authenticate to the cluster
+      import_role:
+        name: download_cluster_cli
+      vars:
+        client_arch: "{{ hostvars['localhost-facts']['cpu_arch'] }}"
+        client_os: "{{ hostvars['localhost-facts']['os_family'] }}"
+        cluster_domain: "{{ hostvars['cluster-facts']['cluster_domain'] }}"
+        cluster_bin_dir: "{{ hostvars['cluster-facts']['cluster_bin_dir'] }}"
+
+    - name: Authenticate to OpenShift
+      import_role:
+        name: openshift_authenticate
+      vars:
+        cluster_api_url: "{{ hostvars['cluster-facts']['cluster_api_url'] }}"
+        console_username: "{{ hostvars['cluster-facts']['console_username'] }}"
+        console_password: "{{ hostvars['cluster-facts']['console_password'] }}"

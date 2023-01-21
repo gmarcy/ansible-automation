@@ -1,0 +1,62 @@
+---
+
+- name: Install IBM Common Services
+  hosts: common_services
+  gather_facts: false
+  tags: common_services
+  roles:
+  - role: install_common_service_operator
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+  - role: install_common_service_operands
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+  - role: create_target_operand_request
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_operand_request_name: 'operand-request-cert-manager'
+    target_operand_request_namespace: "{{ common_service_operand_namespace }}"
+    target_operand_name: 'ibm-cert-manager-operator'
+  - role: create_target_operand_request
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_operand_request_name: 'operand-request-management-ingress'
+    target_operand_request_namespace: "{{ common_service_operand_namespace }}"
+    target_operand_name: 'ibm-management-ingress-operator'
+  - role: create_target_operand_request
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_operand_request_name: 'operand-request-mongodb'
+    target_operand_request_namespace: "{{ common_service_operand_namespace }}"
+    target_operand_name: 'ibm-mongodb-operator'
+  - role: create_target_operand_request
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_operand_request_name: 'operand-request-ingress-nginx'
+    target_operand_request_namespace: "{{ common_service_operand_namespace }}"
+    target_operand_name: 'ibm-ingress-nginx-operator'
+  - role: create_target_operand_request
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_operand_request_name: 'operand-request-iam'
+    target_operand_request_namespace: "{{ common_service_operand_namespace }}"
+    target_operand_name: 'ibm-iam-operator'
+  - role: create_target_operand_request
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_operand_request_name: 'operand-request-platform-api'
+    target_operand_request_namespace: "{{ common_service_operand_namespace }}"
+    target_operand_name: 'ibm-platform-api-operator'
+  - role: create_target_operand_request
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_operand_request_name: 'operand-request-commonui'
+    target_operand_request_namespace: "{{ common_service_operand_namespace }}"
+    target_operand_name: 'ibm-commonui-operator'
+  - role: wait_for_iam_onboarding_jobs
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+  - role: wait_for_csv_succeeded
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ common_service_namespace }}"

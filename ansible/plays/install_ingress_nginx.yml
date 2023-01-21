@@ -1,0 +1,15 @@
+---
+
+- name: Install Ingress-Nginx
+  hosts: cluster_facts
+  gather_facts: false
+  tags: ingress_nginx
+  roles:
+  - role: create_target_namespace
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: ingress-nginx
+  - role: install_ingress_nginx
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: ingress-nginx

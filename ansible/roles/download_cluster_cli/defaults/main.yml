@@ -1,0 +1,11 @@
+---
+
+cluster_download_url: "{{ 'http://downloads-openshift-console.apps.' + cluster_name + '.' + cluster_domain }}"
+
+cluster_client_tools:
+  linux:
+    url: "{{ cluster_download_url + '/' + client_arch + '/linux/oc.tar' }}"
+  mac:
+    url: "{{ cluster_download_url + '/' + client_arch + '/mac/oc.zip' }}"
+  windows:
+    url: "{{ cluster_download_url + '/' + client_arch + '/windows/oc.zip' }}"

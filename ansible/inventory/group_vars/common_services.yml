@@ -1,0 +1,31 @@
+---
+
+ansible_host: localhost
+ansible_connection: local
+
+common_service_catalog_source_name: "{{ inv_common_service_catalog_source_name | default('ibm-operator-catalog') }}"
+common_service_catalog_source_namespace: "{{ inv_common_service_catalog_source_namespace | default('openshift-marketplace') }}"
+common_service_catalog_source_display_name: "{{ inv_common_service_catalog_source_display_name | default('IBM Operator Catalog') }}"
+common_service_catalog_source_image: "{{ inv_common_service_catalog_source_image | default('icr.io/cpopen/ibm-operator-catalog') }}"
+common_service_catalog_source_image_tag: "{{ inv_common_service_catalog_source_image_tag | default('') }}"
+common_service_catalog_source_publisher: "{{ inv_common_service_catalog_source_publisher | default('IBM') }}"
+common_service_catalog_source_poll_interval: "{{ inv_common_service_catalog_source_poll_interval | default('45m') }}"
+
+common_service_operator_channel: "{{ inv_common_service_operator_channel | default('v3.22') }}"
+common_service_namespace: "{{ inv_common_service_namespace | default('ibm-common-services') }}"
+
+common_service_operator_version: "{{ inv_common_service_operator_version | default(common_service_operator_channel + '.0') }}"
+common_service_operator_name: "{{ inv_common_service_operator_name | default('ibm-common-service-operator') }}"
+common_service_operator_namespace: "{{ inv_common_service_operator_namespace | default(common_service_namespace) }}"
+common_service_operator_group: "{{ inv_common_service_operator_group | default('ibm-common-services-operators') }}"
+
+common_service_operand_name: 'common-service'
+common_service_operand_namespace: "{{ inv_common_service_operand_namespace | default(common_service_namespace) }}"
+
+common_service_opreq_labels_keyvaluepairs:
+  - key: "{{ common_service_operand_namespace + '.' + common_service_operand_name + '/config' }}"
+    value: 'true'
+  - key: "{{ common_service_operand_namespace + '.' + common_service_operand_name + '/registry' }}"
+    value: 'true'
+  - key: operator.ibm.com/opreq-control
+    value: 'true'

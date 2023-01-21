@@ -1,207 +1,192 @@
 ---
 
-# #Install and Configure NFS
-# platform=$(awk -F= '/^NAME/{print $2}' /etc/os-release)   #getting the OS platform
-# if [[ $platform == *"Red Hat Enterprise Linux"* ]]
-# then
-#     sudo dnf install nfs-utils -y
-#     sudo systemctl start nfs-server.service
-#     sudo systemctl enable nfs-server.service
-#     sudo systemctl status nfs-server.service -q
-#     rpcinfo -p | grep nfs
-# else
-#     sudo apt update -y
-#     sudo apt install nfs-kernel-server -y
-# fi
-# # Creating and exporting NFS share
-# sudo mkdir -p /mnt/nfs_shares/docs
-# sudo chown -R nobody: /mnt/nfs_shares/docs
-# sudo chmod -R 777 /mnt/nfs_shares/docs
-# sudo systemctl restart nfs-utils.service
-# set +x
-# info=$(curl -X GET -s -k -u ${FYRE_USER}:${FYRE_APIKEY} "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showclusterdetails&cluster_name=${CLUSTER_NAME}")
-# set -x
-# i=0
-# until [ $i -ge $count1 ]
-# do
-#     set +x
-#     IPADDRESS=$(echo $info | jq -r --arg k $CLUSTER_NAME '.[$k]['"$i"'].privateip')
-#     set -x
-#     echo "/mnt/nfs_shares/docs $IPADDRESS(rw,sync,no_all_squash,root_squash)" >> '/etc/exports'
-#     ((i=i+1))
-# done
-# 
-# sudo exportfs -arv
-# sudo exportfs -s
-# # Configuring the firewall rules for NFS Server
-# systemctl start firewalld
-# sudo firewall-cmd --permanent --add-service=nfs
-# sudo firewall-cmd --permanent --add-service=rpc-bind
-# sudo firewall-cmd --permanent --add-service=mountd
-# sudo firewall-cmd --reload
-# systemctl stop firewalld
-# systemctl disable firewalld
-# 
-# 
-# on workers
-# 
-#     platform=$(awk -F= '/^NAME/{print $2}' /etc/os-release)   #getting the OS platform
-#     if [[ $platform == *"Red Hat Enterprise Linux"* ]]
-#     then
-#         sudo dnf install nfs-utils nfs4-acl-tools -y
-#         showmount -e $Server_IP
-#         sudo mkdir -p /mnt/client_share
-#         sudo mount -t nfs $Server_IP:/mnt/nfs_shares/docs /mnt/client_share
-#         sudo mount | grep -i nfs
-#         echo "$Server_IP:/mnt/nfs_shares/docs  /mnt/client_share  nfs  defaults  0  0" >> '/etc/fstab'
-#     else
-#         sudo apt update -y
-#         sudo apt install nfs-common -y
-#         sudo mkdir -p /mnt/nfs_clientshare
-#         ifconfig
-#         sudo mount $Server_IP:/mnt/nfs_shares/docs  /mnt/nfs_clientshare
-#     fi
-# 
-# platform=$(awk -F= '/^NAME/{print $2}' /etc/os-release)
-# if [[ $platform == *"Red Hat Enterprise Linux"* ]]
-# then
-#     yum install jq -y
-# else
-#     apt-get install jq -y
-# fi
-# set +x
-# info=$(curl -X GET -s -k -u ${FYRE_USER}:${FYRE_APIKEY} "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showclusterdetails&cluster_name=${CLUSTER_NAME}")
-# export Server_IP=$(echo $info | jq -r --arg k $CLUSTER_NAME '.[$k][0].privateip')
-# set -x
-# 
-# kubectl create namespace $NAMESPACE
-# cat <<EOF | kubectl apply -f -
-# apiVersion: v1
-# kind: ServiceAccount
-# metadata:
-#   name: nfs-client-provisioner
-#   # replace with namespace where provisioner is deployed
-#   namespace: $NAMESPACE
-# ---
-# kind: ClusterRole
-# apiVersion: rbac.authorization.k8s.io/v1
-# metadata:
-#   name: nfs-client-provisioner-runner
-# rules:
-#   - apiGroups: [""]
-#     resources: ["nodes"]
-#     verbs: ["get", "list", "watch"]
-#   - apiGroups: [""]
-#     resources: ["persistentvolumes"]
-#     verbs: ["get", "list", "watch", "create", "delete"]
-#   - apiGroups: [""]
-#     resources: ["persistentvolumeclaims"]
-#     verbs: ["get", "list", "watch", "update"]
-#   - apiGroups: ["storage.k8s.io"]
-#     resources: ["storageclasses"]
-#     verbs: ["get", "list", "watch"]
-#   - apiGroups: [""]
-#     resources: ["events"]
-#     verbs: ["create", "update", "patch"]
-# ---
-# kind: ClusterRoleBinding
-# apiVersion: rbac.authorization.k8s.io/v1
-# metadata:
-#   name: run-nfs-client-provisioner
-# subjects:
-#   - kind: ServiceAccount
-#     name: nfs-client-provisioner
-#     # replace with namespace where provisioner is deployed
-#     namespace: $NAMESPACE
-# roleRef:
-#   kind: ClusterRole
-#   name: nfs-client-provisioner-runner
-#   apiGroup: rbac.authorization.k8s.io
-# ---
-# kind: Role
-# apiVersion: rbac.authorization.k8s.io/v1
-# metadata:
-#   name: leader-locking-nfs-client-provisioner
-#   # replace with namespace where provisioner is deployed
-#   namespace: $NAMESPACE
-# rules:
-#   - apiGroups: [""]
-#     resources: ["endpoints"]
-#     verbs: ["get", "list", "watch", "create", "update", "patch"]
-# ---
-# kind: RoleBinding
-# apiVersion: rbac.authorization.k8s.io/v1
-# metadata:
-#   name: leader-locking-nfs-client-provisioner
-#   # replace with namespace where provisioner is deployed
-#   namespace: $NAMESPACE
-# subjects:
-#   - kind: ServiceAccount
-#     name: nfs-client-provisioner
-#     # replace with namespace where provisioner is deployed
-#     namespace: $NAMESPACE
-# roleRef:
-#   kind: Role
-#   name: leader-locking-nfs-client-provisioner
-#   apiGroup: rbac.authorization.k8s.io
-# ---
-# apiVersion: storage.k8s.io/v1
-# kind: StorageClass
-# metadata:
-#   name: $STORAGE_NAME
-# provisioner: k8s-sigs.io/nfs-subdir-external-provisioner # or choose another name, must match deployment's env PROVISIONER_NAME'
-# parameters:
-#   archiveOnDelete: "false"
-# ---
-# apiVersion: apps/v1
-# kind: Deployment
-# metadata:
-#   name: nfs-client-provisioner
-#   labels:
-#     app: nfs-client-provisioner
-#   # replace with namespace where provisioner is deployed
-#   namespace: $NAMESPACE
-# spec:
-#   replicas: 1
-#   strategy:
-#     type: Recreate
-#   selector:
-#     matchLabels:
-#       app: nfs-client-provisioner
-#   template:
-#     metadata:
-#       labels:
-#         app: nfs-client-provisioner
-#     spec:
-#       serviceAccountName: nfs-client-provisioner
-#       containers:
-#         - name: nfs-client-provisioner
-#           image: k8s.gcr.io/sig-storage/nfs-subdir-external-provisioner:v4.0.2
-#           volumeMounts:
-#             - name: nfs-client-root
-#               mountPath: /persistentvolumes
-#           env:
-#             - name: PROVISIONER_NAME
-#               value: k8s-sigs.io/nfs-subdir-external-provisioner
-#             - name: NFS_SERVER
-#               value: $Server_IP
-#             - name: NFS_PATH
-#               value: /mnt/nfs_shares/docs
-#       volumes:
-#         - name: nfs-client-root
-#           nfs:
-#             server: $Server_IP
-#             path: /mnt/nfs_shares/docs
-# ---
-# kind: PersistentVolumeClaim
-# apiVersion: v1
-# metadata:
-#   name: test-claim
-# spec:
-#   storageClassName: $STORAGE_NAME
-#   accessModes:
-#     - ReadWriteMany
-#   resources:
-#     requests:
-#       storage: 1Mi
-# EOF
+- name: Set facts for these tasks
+  set_fact:
+    target_namespace: "{{ nfs_storage_namespace }}"
+
+- name: Create ServiceAccount
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: v1
+    kind: ServiceAccount
+    name: local-static-provisioner
+    namespace: "{{ target_namespace }}"
+    definition:
+      metadata:
+        labels:
+          helm.sh/chart: provisioner-2.6.0-alpha.1
+          app.kubernetes.io/name: provisioner
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/instance: local-static-provisioner
+  register: _result
+
+- name: Create ConfigMap
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: v1
+    kind: ConfigMap
+    name: local-static-provisioner-config
+    namespace: "{{ target_namespace }}"
+    definition:
+      metadata:
+        labels:
+          helm.sh/chart: provisioner-2.6.0-alpha.1
+          app.kubernetes.io/name: provisioner
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/instance: local-static-provisioner
+      data:
+        storageClassMap: |
+          "{{ local_storage_class }}":
+            hostDir: /mnt/disks
+            mountDir: /mnt/disks
+            blockCleanerCommand:
+            - "/scripts/shred.sh"
+            - "2"
+            volumeMode: Filesystem
+            fsType: ext4
+            namePattern: "*"
+  register: _result
+
+- name: Create StorageClass
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: storage.k8s.io/v1
+    kind: StorageClass
+    name: "{{ local_storage_class }}"
+    definition:
+      metadata:
+        labels:
+          helm.sh/chart: provisioner-2.6.0-alpha.1
+          app.kubernetes.io/name: provisioner
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/instance: local-static-provisioner
+      provisioner: kubernetes.io/no-provisioner
+      volumeBindingMode: WaitForFirstConsumer
+      reclaimPolicy: Delete
+  register: _result
+
+- name: Create ClusterRole
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    name: local-static-provisioner-node-clusterrole
+    definition:
+      metadata:
+        labels:
+          helm.sh/chart: provisioner-2.6.0-alpha.1
+          app.kubernetes.io/name: provisioner
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/instance: local-static-provisioner
+      rules:
+      - apiGroups: [""]
+        resources: ["persistentvolumes"]
+        verbs: ["get", "list", "watch", "create", "delete"]
+      - apiGroups: ["storage.k8s.io"]
+        resources: ["storageclasses"]
+        verbs: ["get", "list", "watch"]
+      - apiGroups: [""]
+        resources: ["events"]
+        verbs: ["watch"]
+      - apiGroups: ["", "events.k8s.io"]
+        resources: ["events"]
+        verbs: ["create", "update", "patch"]
+      - apiGroups: [""]
+        resources: ["nodes"]
+        verbs: ["get"]
+  register: _result
+
+- name: Create ClusterRoleBinding
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    name: local-static-provisioner-node-binding
+    definition:
+      metadata:
+        labels:
+          helm.sh/chart: provisioner-2.6.0-alpha.1
+          app.kubernetes.io/name: provisioner
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/instance: local-static-provisioner
+      subjects:
+      - kind: ServiceAccount
+        name: local-static-provisioner
+        namespace: "{{ target_namespace }}"
+      roleRef:
+        kind: ClusterRole
+        name: local-static-provisioner-node-clusterrole
+        apiGroup: rbac.authorization.k8s.io
+  register: _result
+
+- name: Create DaemonSet
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: apps/v1
+    kind: DaemonSet
+    name: local-static-provisioner
+    namespace: "{{ target_namespace }}"
+    definition:
+      metadata:
+        labels:
+          helm.sh/chart: provisioner-2.6.0-alpha.1
+          app.kubernetes.io/name: provisioner
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/instance: local-static-provisioner
+      spec:
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: provisioner
+            app.kubernetes.io/instance: local-static-provisioner
+        template:
+          metadata:
+            labels:
+              app.kubernetes.io/name: provisioner
+              app.kubernetes.io/instance: local-static-provisioner
+            annotations:
+              checksum/config: 49fd0db6c0e3bc6c0607d6f94132b4bd3a4b7445efd977e564038e93320045cf
+          spec:
+            serviceAccountName: local-static-provisioner
+            nodeSelector:
+              kubernetes.io/hostname: "{{ target_hostname }}"
+            tolerations:
+              - operator: "Exists"
+            containers:
+              - name: provisioner
+                image: k8s.gcr.io/sig-storage/local-volume-provisioner:v2.4.0
+                securityContext:
+                  privileged: true
+                env:
+                - name: MY_NODE_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: spec.nodeName
+                - name: MY_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: JOB_CONTAINER_IMAGE
+                  value: k8s.gcr.io/sig-storage/local-volume-provisioner:v2.4.0
+                ports:
+                - name: metrics
+                  containerPort: 8080
+                volumeMounts:
+                  - name: provisioner-config
+                    mountPath: /etc/provisioner/config
+                    readOnly: true
+                  - name: provisioner-dev
+                    mountPath: /dev
+                  - name: "{{ local_storage_class }}"
+                    mountPath: /mnt/disks
+                    mountPropagation: HostToContainer
+            volumes:
+              - name: provisioner-config
+                configMap:
+                  name: local-static-provisioner-config
+              - name: provisioner-dev
+                hostPath:
+                  path: /dev
+              - name: "{{ local_storage_class }}"
+                hostPath:
+                  path: /mnt/disks
+  register: _result

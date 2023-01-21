@@ -1,7 +1,0 @@
----
-
-all:
-  vars:
-    fyre_ocptype: ocpplus
-    fyre_site: rtp
-    fyre_group_id: 419

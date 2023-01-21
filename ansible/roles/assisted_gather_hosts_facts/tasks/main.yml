@@ -5,18 +5,21 @@
     url: "{{ infra_env_url }}/hosts"
   register: _result
 
-- name: Set host facts
-  set_fact:
-    host_id: "{{ item.id }}"
-    host_inventory: "{{ item.inventory }}"
-    host_url: "{{ assisted_install_host_url }}{{ item.href }}"
-  loop: "{{ _result.json }}"
-  delegate_to: "{{ item.requested_hostname }}"
-  delegate_facts: true
+- when: _result.json | length > 0
+  block:
 
-- name: Set host hostname fact
-  set_fact:
-    host_hostname: "{{ hostvars[item].host_inventory['hostname'] }}"
-  loop: "{{ groups['cluster_hosts'] }}"
-  delegate_to: "{{ item}}"
-  delegate_facts: true
+    - name: Set host facts
+      set_fact:
+        host_id: "{{ item.id }}"
+        host_inventory: "{{ item.inventory | from_json }}"
+        host_url: "{{ assisted_install_host_url }}{{ item.href }}"
+      loop: "{{ _result.json }}"
+      delegate_to: "{{ item.requested_hostname }}"
+      delegate_facts: true
+
+    - name: Set host hostname fact
+      set_fact:
+        host_hostname: "{{ hostvars[item].host_inventory['hostname'] }}"
+      loop: "{{ groups['cluster_hosts'] }}"
+      delegate_to: "{{ item}}"
+      delegate_facts: true

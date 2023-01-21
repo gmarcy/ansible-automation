@@ -1,9 +1,7 @@
 ---
 
-- import_playbook: ../plays/gather_localhost_facts.yml
-- import_playbook: ../plays/load_playbook_secrets.yml
-- import_playbook: ../plays/create_cluster_facts_group.yml
-- import_playbook: ../plays/find_localhost_cluster_network_address.yml
-- import_playbook: ../plays/assisted_setup_installer.yml
-- import_playbook: ../plays/assisted_register_cluster.yml
-- import_playbook: ../plays/assisted_gather_cluster_facts.yml
+- import_playbook: ../plays/gather_playbook_facts.yml
+- import_playbook: ../plays/request_cluster.yml
+  vars:
+    stop_after_task: 'assisted-register-cluster'
+- import_playbook: ../plays/gather_cluster_facts.yml

@@ -1,19 +1,17 @@
 ---
 
 - name: Setup nfs storage
-  hosts: master_nodes
+  hosts: cluster_storage
   gather_facts: false
   tags: nfs_storage
   roles:
+  - role: create_target_namespace
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ hostvars['cncf-provisioner']['nfs_namespace'] }}"
+    when: hostvars['cncf-provisioner']['nfs_required']
   - role: cncf_nfs_storage
-    when: hostvars['provision-cluster']['nfs_required']
-
-- name: Deploy nfs provisioner
-  hosts: setup_storage
-  gather_facts: false
-  tags: nfs_storage
-  roles:
-  - role: storage_nfs_provisioner
-    kubeconfig_path: "{{ fetched_files_path }}kubeconfig"
-    nfs_storage_namespace: "{{ hostvars['provision-cluster']['nfs_namespace'] }}"
-    when: hostvars['provision-cluster']['nfs_required']
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    kubernetes_distro: "{{ hostvars['cluster-facts']['kubernetes_distro'] }}"
+    nfs_storage_namespace: "{{ hostvars['cncf-provisioner']['nfs_namespace'] }}"
+    target_hostname: "{{ hostvars[groups['master_nodes'] | first].fqdn }}"
+    when: hostvars['cncf-provisioner']['nfs_required']

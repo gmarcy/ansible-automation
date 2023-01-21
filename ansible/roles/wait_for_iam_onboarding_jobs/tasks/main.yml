@@ -1,0 +1,19 @@
+---
+
+- name: Wait for IAM onboarding jobs to complete
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    kind: Job
+    name: "{{ item }}"
+    namespace: "{{ common_service_namespace }}"
+    wait: true
+    wait_condition:
+      type: Complete
+    wait_sleep: 20
+    wait_timeout: 900
+  loop:
+  - security-onboarding
+  - iam-onboarding
+  - oidc-client-registration
+  register: _result

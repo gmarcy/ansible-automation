@@ -5,13 +5,21 @@
   gather_facts: false
   tags: was_automation
   roles:
+  - role: create_target_operand_request
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_operand_request_name: 'operand-request-events'
+    target_operand_request_namespace: "{{ was_automation_namespace }}"
+    target_operand_name: 'ibm-events-operator'
+    common_service_operand_name: "{{ hostvars['common-services']['common_service_operand_name'] }}"
+    common_service_operand_namespace: "{{ hostvars['common-services']['common_service_operand_namespace'] }}"
+    common_service_opreq_labels: "{{ hostvars['common-services']['common_service_opreq_labels'] }}"
   - role: install_events_operator
-    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
     kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
-    target_namespace: wasautomation
-    registry_namespace: ibm-common-services
-  - role: install_events_instance
-    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    target_namespace: "{{ was_automation_namespace }}"
+  - role: install_events_operands
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
     kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
-    target_namespace: wasautomation
-    registry_namespace: ibm-common-services
+    target_namespace: "{{ was_automation_namespace }}"
+    registry_namespace: "{{ hostvars['common-services']['common_service_namespace'] }}"

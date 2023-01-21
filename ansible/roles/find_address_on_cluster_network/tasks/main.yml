@@ -1,13 +1,20 @@
 ---
 
+- name: Assert that network_cidr is defined
+  assert:
+    that: hostvars['cluster-facts']['network_cidr'] | default('') | length > 0
+    fail_msg: "The network_cidr must be defined to find the local host interface on that network."
+
 - name: Logic for mac platform
-  when: os_family == 'mac'
+  when: hostvars['localhost-facts']['os_family'] == 'mac'
+  delegate_to: 'localhost-facts'
+  delegate_facts: true
   block:
 
     - name: Find the address on the same network as the cluster_host
       set_fact:
         address_on_cluster_network: "{{ ipv4_address }}"
-      loop: "{{ ansible_interfaces }}"
+      loop: "{{ hostvars['localhost-facts']['ansible_interfaces'] }}"
       vars:
         underscore_item: "{{ 'ansible_' + (item | regex_replace('-', '_')) }}"
         item_facts: "{{ hostvars['localhost-facts'][underscore_item] }}"
@@ -17,13 +24,15 @@
       when: interface_active|bool and (ipv4_address + '/' + ipv4_netmask) | ansible.utils.ipaddr('network/prefix') | ansible.utils.network_in_network(hostvars['cluster-facts']['network_cidr'])
 
 - name: Logic for linux platform
-  when: os_family == 'linux'
+  when: hostvars['localhost-facts']['os_family'] == 'linux'
+  delegate_to: 'localhost-facts'
+  delegate_facts: true
   block:
 
     - name: Find the address on the same network as the cluster_host
       set_fact:
         address_on_cluster_network: "{{ ipv4_address }}"
-      loop: "{{ ansible_interfaces }}"
+      loop: "{{ hostvars['localhost-facts']['ansible_interfaces'] }}"
       vars:
         underscore_item: "{{ 'ansible_' + (item | regex_replace('-', '_')) }}"
         item_facts: "{{ hostvars['localhost-facts'][underscore_item] }}"

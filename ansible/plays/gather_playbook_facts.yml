@@ -1,0 +1,76 @@
+---
+
+- name: Create localhost groups for this playbook
+  hosts: localhost
+  become: false
+  gather_facts: false
+  tags: playbook_facts
+  roles:
+  - role: create_localhost_groups
+    localhost_groups:
+    - group_name: localhost_facts
+      host_name: localhost-facts
+    - group_name: playbook_facts
+      host_name: playbook-facts
+    - group_name: playbook_secrets
+      host_name: playbook-secrets
+
+- name: Check ansible version
+  hosts: localhost_facts
+  become: false
+  gather_facts: false
+  tags: ansible_facts
+  roles:
+  - role: check_ansible_version
+
+- name: Check if requested to stop here
+  hosts: playbook_facts
+  become: false
+  gather_facts: false
+  tags: playbook_facts
+  roles:
+  - role: check_stop_before
+    task_to_check: task-gather-facts
+
+- name: Gather localhost facts for this playbook
+  hosts: localhost_facts
+  become: false
+  gather_facts: false
+  tags: playbook_facts
+  roles:
+  - role: gather_localhost_facts
+
+- name: Gather playbook facts
+  hosts: playbook_facts
+  become: false
+  gather_facts: false
+  tags: playbook_facts
+  roles:
+  - role: set_remote_user
+
+- name: Load playbook secrets we will use during this playbook
+  hosts: playbook_secrets
+  become: false
+  gather_facts: false
+  tags: playbook_facts
+  roles:
+  - role: load_playbook_secrets
+
+- name: "Gather additional facts using playbook_gatherer when requested"
+  hosts: "{{ hostvars['playbook-facts']['playbook_gatherer'] | default('localhost') }}"
+  become: false
+  gather_facts: false
+  tasks:
+  - name: "include_role: {{ gathering_role | default('skipped') }}"
+    include_role:
+      name: "{{ gathering_role }}"
+    when: gathering_role | default('') | length > 0
+
+- name: Check if requested to stop here
+  hosts: playbook_facts
+  become: false
+  gather_facts: false
+  tags: playbook_facts
+  roles:
+  - role: check_stop_after
+    task_to_check: task-gather-facts

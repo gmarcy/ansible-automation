@@ -1,10 +1,20 @@
 ---
 
+- import_playbook: ../plays/add_pull_secrets.yml
+- import_playbook: ../plays/add_repository_mirror_config.yml
+
 - name: Install IBM Operator Catalog
   hosts: cluster_facts
   gather_facts: false
-  tags: ibm_catalog
+  tags: ibm_operator_catalog
   roles:
-  - role: install_ibm_catalog
+  - role: create_target_catalog_source
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
     kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
-    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    target_catalog_source_name: "{{ ibm_operator_catalog_source_name }}"
+    target_catalog_source_namespace: "{{ ibm_operator_catalog_source_namespace }}"
+    target_catalog_source_display_name: "{{ ibm_operator_catalog_source_display_name }}"
+    target_catalog_source_image: "{{ ibm_operator_catalog_source_image }}"
+    target_catalog_source_image_tag: "{{ ibm_operator_catalog_source_image_tag }}"
+    target_catalog_source_publisher: "{{ ibm_operator_catalog_source_publisher }}"
+    target_catalog_source_poll_interval: "{{ ibm_operator_catalog_source_poll_interval }}"

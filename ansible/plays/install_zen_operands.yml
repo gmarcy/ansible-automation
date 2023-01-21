@@ -5,11 +5,12 @@
   gather_facts: false
   tags: was_automation
   roles:
-  - role: install_zen_instance
-    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+  - role: install_zen_operands
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
     kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
-    target_namespace: wasautomation
-    registry_namespace: ibm-common-services
+    target_namespace: "{{ was_automation_namespace }}"
+    registry_namespace: "{{ hostvars['common-services']['common_service_namespace'] }}"
     wait_for_zenservice_success: false
     wait_for_zenstatus_completed: false
     zen_storage_class: "{{ hostvars['cluster-storage']['default_storage_class'] }}"
+    zen_block_class: "{{ hostvars['cluster-storage']['default_block_class'] }}"

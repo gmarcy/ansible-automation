@@ -1,0 +1,19 @@
+---
+
+- name: Authenticate to the cluster
+  community.okd.openshift_auth:
+    host: "{{ cluster_api_url }}"
+    username: "{{ console_username }}"
+    password: "{{ console_password }}"
+    state: present
+    validate_certs: false
+  register: _result
+  no_log: "{{ noLog }}"
+  until: not _result.failed
+
+- name: Set facts for cluster
+  set_fact:
+    api_key: "{{ _result.openshift_auth.api_key }}"
+  no_log: "{{ noLog }}"
+  delegate_to: 'cluster-facts'
+  delegate_facts: true

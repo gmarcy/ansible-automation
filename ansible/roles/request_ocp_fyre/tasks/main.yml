@@ -1,3 +1,0 @@
-- name: import tasks
-  include_tasks: "request-{{ fyre_ocptype }}-fyre.yml"
-  run_once: true

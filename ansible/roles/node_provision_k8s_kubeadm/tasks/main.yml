@@ -1,0 +1,257 @@
+---
+
+- name: Set facts used in this role
+  set_fact:
+    k8s_engine: "{{ hostvars['cluster-facts']['options']['k8s_engine'] }}"
+    k8s_version: "{{ hostvars['cluster-facts']['options']['k8s_version'] }}"
+    k8s_olm_version: "{{ hostvars['cluster-facts']['options']['k8s_olm_version'] | default('v0.20.0') }}"
+    k8s_ingress: "{{ hostvars['cluster-facts']['options']['k8s_ingress'] }}"
+    cncf_github_token: "{{ hostvars['cluster-facts']['options']['cncf_github_token'] | default('accesstokenneededforcncfrepo') }}"
+    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+    ceph_dev: "{{ hostvars['cluster-facts']['options']['ceph_dev'] | default('vdb') }}"
+    rook_release: "{{ hostvars['cluster-facts']['options']['rook_release'] | default('v1.9.3') }}"
+    k8s_infra_hostname: "{{ hostvars['provision-cluster']['k8s_infra_hostname'] }}"
+
+- name: Create folders on infra node
+  file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+  - '~/.kube'
+  - '~/.ssh'
+  - '~/tmp'
+
+- name: Install kubectl
+  community.general.packaging.os.snap:
+    name: kubectl
+    classic: true
+
+- name: Install helm
+  community.general.packaging.os.snap:
+    name: helm
+    classic: true
+
+- name: Extract oc binary
+  unarchive:
+    src: 'https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz'
+    dest: '/tmp/'
+    remote_src: true
+    validate_certs: false
+  register: _result
+
+- name: Copy oc binary to /usr/local/bin
+  copy:
+    src: '/tmp/oc'
+    remote_src: true
+    dest: '/usr/local/bin/'
+    mode: '0755'
+
+- name: Create /etc/containerd folder
+  file:
+    path: '/etc/containerd'
+    state: directory
+
+- name: Copy registries file to config.toml
+  copy:
+    content: |
+      version = 2
+      [plugins]
+        [plugins."io.containerd.grpc.v1.cri"]
+          [plugins."io.containerd.grpc.v1.cri".registry]
+            [plugins."io.containerd.grpc.v1.cri".registry.mirrors]
+              [plugins."io.containerd.grpc.v1.cri".registry.mirrors."*"]
+                endpoint = ["https://{{ hostvars['cluster-facts']['options']['daily_ip'] }}:5000"]
+            [plugins."io.containerd.grpc.v1.cri".registry.configs]
+              [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ hostvars['cluster-facts']['options']['daily_ip'] }}:5000".tls]
+                insecure_skip_verify = true
+              [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ hostvars['cluster-facts']['options']['daily_ip'] }}:5000".auth]
+                username = "{{ hostvars['cluster-facts']['options']['daily_user'] }}"
+                password = "{{ hostvars['cluster-facts']['options']['daily_token'] }}"
+              [plugins."io.containerd.grpc.v1.cri".registry.configs."hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com".tls]
+                insecure_skip_verify = true
+              [plugins."io.containerd.grpc.v1.cri".registry.configs."hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com".auth]
+                username = "{{ hostvars['cluster-facts']['options']['artifactory_username'] }}"
+                password = "{{ hostvars['cluster-facts']['options']['artifactory_token'] }}"
+    dest: '/etc/containerd/config.toml'
+
+- name: Create /etc/modules-load.d/k8s.conf
+  copy:
+    content: |
+      br_netfilter
+    dest: '/etc/modules-load.d/k8s.conf'
+
+- name: create /etc/sysctl.d/k8s.conf
+  copy:
+    content: |
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.bridge.bridge-nf-call-iptables = 1
+      net.ipv4.ip_forward  = 1
+    dest: '/etc/sysctl.d/k8s.conf'
+
+- name: Run apt update
+  apt:
+    update_cache: true
+    cache_valid_time: 3600
+    force_apt_get: true
+  environment:
+  - DEBIAN_FRONTEND: noninteractive
+
+- name: Install jq and containerd
+  apt:
+    package:
+    - jq
+    - containerd
+  environment:
+  - DEBIAN_FRONTEND: noninteractive
+
+- name: Run modprobe br_netfilter
+  command: |
+    modprobe br_netfilter
+  register: _result
+
+- name: Run sysctl commands
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+  loop:
+  - name: net.bridge.bridge-nf-call-iptables
+    value: '1' 
+  - name: net.bridge.bridge-nf-call-ip6tables
+    value: '1'
+  - name: net.ipv4.ip_forward
+    value: '1'
+
+- name: Run swapoff
+  command: |
+    swapoff -a
+  register: _result
+
+- name: Command out swap line in fstab
+  replace:
+    path: /etc/fstab
+    regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+    replace: '# \1'
+
+- name: Run apt-key add apt-key.gpg
+  apt_key:
+    url: 'https://packages.cloud.google.com/apt/doc/apt-key.gpg'
+    state: present
+  environment:
+  - DEBIAN_FRONTEND: noninteractive
+
+- name: Run apt-add-repository
+  apt_repository:
+    repo: "deb https://apt.kubernetes.io/ kubernetes-xenial main"
+    state: present
+    filename: 'kubernetes'
+  environment:
+  - DEBIAN_FRONTEND: noninteractive
+
+- name: Run apt update
+  apt:
+    update_cache: true
+    cache_valid_time: 3600
+    force_apt_get: true
+  environment:
+  - DEBIAN_FRONTEND: noninteractive
+
+- name: Install kubeadm kubelet kubectl
+  apt:
+    package:
+    - kubeadm
+    - kubelet
+    - kubectl
+  environment:
+  - DEBIAN_FRONTEND: noninteractive
+
+- name: Set facts for kubernetes release downgrades
+  set_fact:
+    k8s_downgrade_releases:
+      "1.19": "1.19.16-00"
+      "1.20": "1.20.15-00"
+      "1.21": "1.21.14-00"
+      "1.22": "1.22.16-00"
+      "1.23": "1.23.14-00"
+      "1.24": "1.24.8-00"
+      "1.25": "1.25.4-00"
+
+- name: Set kubernetes_downgrade_version fact
+  set_fact:
+    kubernetes_downgrade_version: "{{ k8s_downgrade_releases[k8s_version | string] | default('') }}"
+
+- name: Install specific version of kubernetes kubeadm kubelet kubectl
+  apt:
+    package:
+    - kubeadm={{ kubernetes_downgrade_version }}
+    - kubelet={{ kubernetes_downgrade_version }}
+    - kubectl={{ kubernetes_downgrade_version }}
+    allow_downgrade: true
+    allow_change_held_packages: true
+  environment:
+  - DEBIAN_FRONTEND: noninteractive
+  when: kubernetes_downgrade_version | length > 0
+
+- name: See if /etc/kubernetes/kubelet.conf already exists
+  stat:
+    path: '/etc/kubernetes/kubelet.conf'
+  register: _result_stat_kubelet_conf
+
+- when: inventory_hostname == k8s_infra_hostname
+  block:
+
+    - name: Pull kubernetes images
+      command: |
+        kubeadm config images pull
+      register: _result
+      when: not (_result_stat_kubelet_conf.stat.exists | bool)
+
+    - name: Setup kubernetes
+      command: |
+        kubeadm init --pod-network-cidr=192.168.0.0/16
+      register: _result
+      when: not (_result_stat_kubelet_conf.stat.exists | bool)
+
+    - name: Wait for /etc/kubernetes/kubelet.conf to exist
+      stat:
+        path: '/etc/kubernetes/kubelet.conf'
+      register: _result_stat
+      delay: 15
+      retries: 20
+      until: _result_stat.stat.exists | bool
+      when: not (_result_stat_kubelet_conf.stat.exists | bool)
+
+    - name: Copy admin.conf to ~/.kube/config
+      copy:
+        src: '/etc/kubernetes/admin.conf'
+        remote_src: true
+        dest: '~/.kube/config'
+        mode: '0600'
+
+    - name: Copy canal.yaml
+      copy:
+        src: canal.yaml
+        dest: ~/canal.yaml
+
+    - name: Install Calico
+      command: kubectl apply -f ~/canal.yaml
+
+    - name: Run kubeadm to get the join command for worker nodes
+      command: kubeadm token create --print-join-command
+      register: _result
+      changed_when: _result is not defined
+
+    - name: Set fact with the contents of the kubeadm join command
+      set_fact:
+        kubeadm_join_command: "{{ _result.stdout | trim }}"
+      delegate_to: 'provision-cluster'
+      delegate_facts: true
+
+- when: inventory_hostname != k8s_infra_hostname
+  block:
+
+    - name: Run join command
+      command: |
+        {{ hostvars['provision-cluster']['kubeadm_join_command'] }}
+      register: _result
+      when: not (_result_stat_kubelet_conf.stat.exists | bool)

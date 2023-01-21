@@ -5,5 +5,5 @@
   gather_facts: false
   tags: cluster_info
   roles:
-  - role: print_ocp_cluster_info
+  - role: print_cluster_info
     description: "WebSphere Automation"

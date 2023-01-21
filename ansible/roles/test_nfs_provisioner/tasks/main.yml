@@ -7,7 +7,7 @@
 
 - name: Ensure test namespace exists
   kubernetes.core.k8s:
-    api_key: "{{ api_key }}"
+    api_key: "{{ api_key | default(omit) }}"
     kind: Namespace
     kubeconfig: "{{ kubeconfig_path }}"
     name: "{{ test_nfs_provisioner_namespace }}"
@@ -16,7 +16,7 @@
 
 - name: Apply the claim.yaml
   kubernetes.core.k8s:
-    api_key: "{{ api_key }}"
+    api_key: "{{ api_key | default(omit) }}"
     kubeconfig: "{{ kubeconfig_path }}"
     state: present
     template: claim.yaml.j2
@@ -24,7 +24,7 @@
 
 - name: Wait for PersistentVolumeClaim to be bound
   kubernetes.core.k8s_info:
-    api_key: "{{ api_key }}"
+    api_key: "{{ api_key | default(omit) }}"
     kind: PersistentVolumeClaim
     kubeconfig: "{{ kubeconfig_path }}"
     name: "{{ test_nfs_provisioner_claim }}"
@@ -36,7 +36,7 @@
 
 - name: Apply the write-pod.yaml
   kubernetes.core.k8s:
-    api_key: "{{ api_key }}"
+    api_key: "{{ api_key | default(omit) }}"
     kubeconfig: "{{ kubeconfig_path }}"
     state: present
     template: write-pod.yaml.j2
@@ -44,7 +44,7 @@
 
 - name: Wait for write-pod success
   kubernetes.core.k8s_info:
-    api_key: "{{ api_key }}"
+    api_key: "{{ api_key | default(omit) }}"
     kind: Pod
     kubeconfig: "{{ kubeconfig_path }}"
     name: write-pod
@@ -56,7 +56,7 @@
 
 - name: Apply the read-pod.yaml
   kubernetes.core.k8s:
-    api_key: "{{ api_key }}"
+    api_key: "{{ api_key | default(omit) }}"
     kubeconfig: "{{ kubeconfig_path }}"
     state: present
     template: read-pod.yaml.j2
@@ -64,7 +64,7 @@
 
 - name: Wait for read-pod success
   kubernetes.core.k8s_info:
-    api_key: "{{ api_key }}"
+    api_key: "{{ api_key | default(omit) }}"
     kind: Pod
     kubeconfig: "{{ kubeconfig_path }}"
     name: read-pod
@@ -76,7 +76,7 @@
 
 - name: Delete test-nfs-provisioner namespace
   kubernetes.core.k8s:
-    api_key: "{{ api_key }}"
+    api_key: "{{ api_key | default(omit) }}"
     kind: Namespace
     kubeconfig: "{{ kubeconfig_path }}"
     name: "{{ test_nfs_provisioner_namespace }}"

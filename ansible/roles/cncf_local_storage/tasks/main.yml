@@ -9,7 +9,7 @@
       volumeBindingMode: "{{ volume_binding_mode }}"
       allowVolumeExpansion: true
     kind: StorageClass
-    kubeconfig: "{{ fetched_files_path }}kubeconfig"
+    kubeconfig: "{{ kubeconfig_path }}"
     name: common-services-stgclass
   vars:
     #provisioner: 'kubernetes.io/no-provisioner'
@@ -17,7 +17,6 @@
     #volumeBindingMode: 'Immediate'
     volume_binding_mode: 'WaitForFirstConsumer'
   register: _result
-  delegate_to: 'localhost'
 
 - name: Create StorageClass local-storage
   kubernetes.core.k8s:
@@ -26,7 +25,7 @@
       provisioner: kubernetes.io/no-provisioner
       volumeBindingMode: WaitForFirstConsumer
     kind: StorageClass
-    kubeconfig: "{{ fetched_files_path }}kubeconfig"
+    kubeconfig: "{{ kubeconfig_path }}"
     name: local-storage
   register: _result
 
@@ -55,7 +54,7 @@
                 - "{{ cluster_name }}-worker-2.fyre.ibm.com"
                 - "{{ cluster_name }}-worker-3.fyre.ibm.com"
     kind: PersistentVolume
-    kubeconfig: "{{ fetched_files_path }}kubeconfig"
+    kubeconfig: "{{ kubeconfig_path }}"
     name: "{{ item.pv_name }}"
   register: _result
   loop:
@@ -70,7 +69,7 @@
   kubernetes.core.k8s:
     api_version: v1
     kind: Namespace
-    kubeconfig: "{{ fetched_files_path }}kubeconfig"
+    kubeconfig: "{{ kubeconfig_path }}"
     name: ibm-common-services
   register: _result
 
@@ -92,7 +91,7 @@
         volumeMode: Filesystem
         volumeName: "{{ item.pvc_volname }}"
     kind: PersistentVolumeClaim
-    kubeconfig: "{{ fetched_files_path }}kubeconfig"
+    kubeconfig: "{{ kubeconfig_path }}"
     name: "{{ item.pvc_name }}"
     namespace: ibm-common-services
   register: _result

@@ -1,0 +1,15 @@
+---
+
+- name: Install cluster registry
+  hosts: cluster_facts
+  gather_facts: false
+  tags: cluster_registry
+  roles:
+  - role: create_target_namespace
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: docker-registry
+  - role: install_cluster_registry
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: docker-registry

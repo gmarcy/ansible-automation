@@ -2,95 +2,95 @@
 
 - name: Create the OperandRegistry
   kubernetes.core.k8s:
-    api_key: "{{ api_key }}"
+    api_key: "{{ api_key | default(omit) }}"
     api_version: operator.ibm.com/v1alpha1
     kind: OperandRegistry
     kubeconfig: "{{ kubeconfig_path }}"
-    name: "{{ ics_operand_registry_name }}"
+    name: "{{ common_service_operand_name }}"
     namespace: "{{ target_namespace }}"
     definition:
       spec:
         operators:
-        - channel: v3.21
+        - channel: "{{ common_service_operator_channel }}"
           installPlanApproval: Automatic
           name: ibm-licensing-operator
-          namespace: "{{ ics_namespace }}"
+          namespace: "{{ common_service_namespace }}"
           packageName: ibm-licensing-operator-app
           scope: public
-          sourceName: "{{ ics_operator_catalog_source }}"
-          sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
-        - channel: v3.21
+          sourceName: "{{ common_service_catalog_source_name }}"
+          sourceNamespace: "{{ common_service_catalog_source_namespace }}"
+        - channel: "{{ common_service_operator_channel }}"
           installPlanApproval: Automatic
           name: ibm-mongodb-operator
-          namespace: "{{ ics_namespace }}"
+          namespace: "{{ common_service_namespace }}"
           packageName: ibm-mongodb-operator-app
-          sourceName: "{{ ics_operator_catalog_source }}"
-          sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
-        - channel: v3.21
+          sourceName: "{{ common_service_catalog_source_name }}"
+          sourceNamespace: "{{ common_service_catalog_source_namespace }}"
+        - channel: "{{ common_service_operator_channel }}"
           installPlanApproval: Automatic
           name: ibm-cert-manager-operator
-          namespace: "{{ ics_namespace }}"
+          namespace: "{{ common_service_namespace }}"
           packageName: ibm-cert-manager-operator
           scope: public
-          sourceName: "{{ ics_operator_catalog_source }}"
-          sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
-        - channel: v3.21
+          sourceName: "{{ common_service_catalog_source_name }}"
+          sourceNamespace: "{{ common_service_catalog_source_namespace }}"
+        - channel: "{{ common_service_operator_channel }}"
           installPlanApproval: Automatic
           name: ibm-iam-operator
-          namespace: "{{ ics_namespace }}"
+          namespace: "{{ common_service_namespace }}"
           packageName: ibm-iam-operator
           scope: public
-          sourceName: "{{ ics_operator_catalog_source }}"
-          sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
-        - channel: v3.21
+          sourceName: "{{ common_service_catalog_source_name }}"
+          sourceNamespace: "{{ common_service_catalog_source_namespace }}"
+        - channel: "{{ common_service_operator_channel }}"
           installPlanApproval: Automatic
           name: ibm-management-ingress-operator
-          namespace: "{{ ics_namespace }}"
+          namespace: "{{ common_service_namespace }}"
           packageName: ibm-management-ingress-operator-app
           scope: public
-          sourceName: "{{ ics_operator_catalog_source }}"
-          sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
-        - channel: v3.21
+          sourceName: "{{ common_service_catalog_source_name }}"
+          sourceNamespace: "{{ common_service_catalog_source_namespace }}"
+        - channel: "{{ common_service_operator_channel }}"
           installPlanApproval: Automatic
           name: ibm-ingress-nginx-operator
-          namespace: "{{ ics_namespace }}"
+          namespace: "{{ common_service_namespace }}"
           packageName: ibm-ingress-nginx-operator-app
           scope: public
-          sourceName: "{{ ics_operator_catalog_source }}"
-          sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
-        - channel: v3.21
+          sourceName: "{{ common_service_catalog_source_name }}"
+          sourceNamespace: "{{ common_service_catalog_source_namespace }}"
+        - channel: "{{ common_service_operator_channel }}"
           installPlanApproval: Automatic
           name: ibm-platform-api-operator
-          namespace: "{{ ics_namespace }}"
+          namespace: "{{ common_service_namespace }}"
           packageName: ibm-platform-api-operator-app
           scope: public
-          sourceName: "{{ ics_operator_catalog_source }}"
-          sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
+          sourceName: "{{ common_service_catalog_source_name }}"
+          sourceNamespace: "{{ common_service_catalog_source_namespace }}"
         - channel: v3
           installPlanApproval: Automatic
           name: ibm-events-operator
-          namespace: "{{ ics_namespace }}"
+          namespace: "{{ common_service_namespace }}"
           packageName: ibm-events-operator
           scope: public
-          sourceName: "{{ ics_operator_catalog_source }}"
-          sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
-        - channel: v3.21
+          sourceName: "{{ common_service_catalog_source_name }}"
+          sourceNamespace: "{{ common_service_operator_catalog_source_namespace }}"
+        - channel: "{{ common_service_operator_channel }}"
           installPlanApproval: Automatic
           name: ibm-zen-operator
-          namespace: "{{ ics_namespace }}"
+          namespace: "{{ common_service_namespace }}"
           packageName: ibm-zen-operator
           scope: public
-          sourceName: "{{ ics_operator_catalog_source }}"
-          sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
+          sourceName: "{{ common_service_catalog_source_name }}"
+          sourceNamespace: "{{ common_service_operator_catalog_source_namespace }}"
   register: _result
 
 - name: Create the OperandConfig
   kubernetes.core.k8s:
-    api_key: "{{ api_key }}"
+    api_key: "{{ api_key | default(omit) }}"
     api_version: operator.ibm.com/v1alpha1
     kind: OperandConfig
     kubeconfig: "{{ kubeconfig_path }}"
-    name: common-service
+    name: "{{ common_service_operand_name }}"
     namespace: "{{ target_namespace }}"
     definition:
       spec:

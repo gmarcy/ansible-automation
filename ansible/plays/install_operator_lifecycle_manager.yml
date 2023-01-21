@@ -1,0 +1,16 @@
+---
+
+- name: Install Operator Lifecycle Manager
+  hosts: cluster_facts
+  gather_facts: false
+  tags: operator_framework
+  roles:
+  - role: create_target_namespace
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: olm
+  - role: install_operator_lifecycle_manager
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: olm
+    target_olm_version: "v0.22.0"

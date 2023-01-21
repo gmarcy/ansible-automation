@@ -1,0 +1,9 @@
+---
+
+- import_playbook: ../plays/gather_playbook_facts.yml
+- import_playbook: ../plays/gather_cluster_facts.yml
+- import_playbook: ../plays/install_ingress_nginx.yml
+- import_playbook: ../plays/install_cert_manager.yml
+- import_playbook: ../plays/install_cluster_registry.yml
+- import_playbook: ../plays/install_kubernetes_dashboard.yml
+- import_playbook: ../plays/install_openshift_console.yml

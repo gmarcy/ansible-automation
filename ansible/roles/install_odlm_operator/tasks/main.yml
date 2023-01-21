@@ -2,7 +2,7 @@
 
 - name: Create Subscription for IBM ODLM
   kubernetes.core.k8s:
-    api_key: "{{ api_key }}"
+    api_key: "{{ api_key | default(omit) }}"
     api_version: operators.coreos.com/v1alpha1
     kind: Subscription
     kubeconfig: "{{ kubeconfig_path }}"
@@ -12,11 +12,11 @@
       metadata:
         labels: "{{ labels }}"
       spec:
-        channel: v3.21
+        channel: "{{ common_service_operator_channel }}"
         installPlanApproval: Automatic
         name: ibm-odlm
         source: "{{ operator_catalog_source }}"
-        sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
+        sourceNamespace: "{{ common_service_catalog_source_namespace }}"
     wait: true
     wait_condition:
       type: CatalogSourcesUnhealthy
@@ -28,7 +28,7 @@
 
 - name: Wait for operand-deployment-lifecycle-manager
   kubernetes.core.k8s_info:
-    api_key: "{{ api_key }}"
+    api_key: "{{ api_key | default(omit) }}"
     kind: Deployment
     kubeconfig: "{{ kubeconfig_path }}"
     name: operand-deployment-lifecycle-manager

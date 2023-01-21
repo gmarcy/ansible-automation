@@ -1,0 +1,8 @@
+---
+
+ansible_host: localhost
+ansible_connection: local
+
+operators_namespace: "{{ inv_operators_namespace | default('openshift-operators') }}"
+community_operators_source: "{{ inv_community_operators_source | default('community-operators') }}"
+community_operators_source_namespace: "{{ inv_community_operators_source_namespace | default('openshift-marketplace') }}"

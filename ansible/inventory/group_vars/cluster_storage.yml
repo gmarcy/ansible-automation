@@ -1,0 +1,22 @@
+---
+
+ansible_host: localhost
+ansible_connection: local
+
+local_storage_class: local-filesystem-storage
+local_storage_namespace: local-storage
+
+nfs_storage_class: nfs-filesystem-storage
+nfs_storage_namespace: nfs-local-storage
+nfs_provisioner: "{{ inv_nfs_provisioner | default(hostvars['cluster-facts']['cluster_domain'] + '/nfs-provisioner') }}"
+nfslocal_storage_class: "{{ inv_nfslocal_storage_class | default('nfs-filesystem-storage') }}"
+nfslocal_block_class: "{{ inv_nfslocal_block_class | default('nfs-filesystem-storage') }}"
+
+# Rook-ceph release from https://github.com/rook/rook/releases
+rook_ceph_release: "{{ inv_rook_ceph_release | default('v1.8.6') }}"
+cephfs_device_filter: "{{ inv_cephfs_device_filter | default('vdb') }}"
+cephfs_storage_class: "{{ inv_cephfs_storage_class | default('rook-cephfs') }}"
+cephfs_block_class: "{{ inv_cephfs_block_class | default('rook-ceph-block') }}"
+
+default_storage_class: "{{ inv_default_storage_class }}"
+default_block_class: "{{ inv_default_block_class }}"

@@ -1,0 +1,35 @@
+---
+
+- name: Enable debugging for the OLM operators
+  hosts: cluster_facts
+  gather_facts: false
+  tags: olm_debug
+  roles:
+  - role: clusterversion_overrides
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    overrides_op: 'add'
+  - role: add_argument_to_deployment
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: openshift-operator-lifecycle-manager
+    target_operator: olm-operator
+    target_argument: '--debug'
+  - role: add_argument_to_deployment
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: openshift-operator-lifecycle-manager
+    target_operator: catalog-operator
+    target_argument: '--debug'
+  - role: gather_app_logs
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: openshift-operator-lifecycle-manager
+    target_app: olm-operator
+    target_fact_name: 'olm_operator_log_before_deployment'
+  - role: gather_app_logs
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: openshift-operator-lifecycle-manager
+    target_app: catalog-operator
+    target_fact_name: 'catalog_operator_log_before_deployment'

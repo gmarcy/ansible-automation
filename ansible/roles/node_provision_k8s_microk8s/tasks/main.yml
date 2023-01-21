@@ -1,0 +1,166 @@
+---
+
+- name: Set facts used in this role
+  set_fact:
+    k8s_version: "{{ hostvars['cluster-facts']['options']['k8s_version'] }}"
+    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+
+- name: Check for progress from previous runs
+  stat:
+    path: '~/.cluster-configured'
+  register: _stat_configured
+
+- when: not _stat_configured.stat.exists
+  block:
+
+    - name: Install microk8s
+      community.general.packaging.os.snap:
+        name: microk8s
+        classic: true
+        channel: "{{ k8s_version + '/stable' }}"
+
+    - name: Disable ha-cluster
+      command: |
+        microk8s disable ha-cluster --force
+      register: _result
+
+    - when: inventory_hostname == k8s_infra_hostname
+      block:
+
+        - name: Create folders on infra node
+          file:
+            path: "{{ item }}"
+            state: directory
+          loop:
+          - '~/.kube'
+          - '~/.ssh'
+          - '~/tmp'
+          - '/etc/rancher/k8s'
+
+        - name: Install kubectl
+          community.general.packaging.os.snap:
+            name: kubectl
+            classic: true
+
+        - name: Install helm
+          community.general.packaging.os.snap:
+            name: helm
+            classic: true
+
+        - name: Extract oc binary
+          unarchive:
+            src: 'https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz'
+            dest: '/tmp/'
+            remote_src: true
+            validate_certs: false
+          register: _result
+
+        - name: Copy oc binary to /usr/local/bin
+          copy:
+            src: '/tmp/oc'
+            remote_src: true
+            dest: '/usr/local/bin/'
+            mode: '0755'
+
+        - name: Wait until cluster is ready
+          command: |
+            microk8s status --wait-ready
+          register: _result
+
+        - name: Fetch the cluster config
+          command: |
+            microk8s config
+          register: _result
+
+        - name: Copy cluster config to ~/.kube/config
+          copy:
+            content: |
+              {{ _result.stdout }}
+            dest: '~/.kube/config'
+            mode: '0600'
+
+        - name: Enable dns
+          command: |
+            microk8s enable dns
+          register: _result
+
+        - name: Enable rbac
+          command: |
+            microk8s enable rbac
+          register: _result
+
+        - name: Load containerd-template.toml
+          command: |
+            cat /var/snap/microk8s/current/args/containerd-template.toml
+          register: containerd_template_toml
+
+        - name: Find first line that includes 'registry.mirrors'
+          set_fact:
+            matched_lines: "{{ lookup('ansible.utils.index_of', containerd_template_toml.stdout_lines, 'regex', 'registry.mirrors', wantlist=true) }}"
+
+        - name: Join the lines we are interested in
+          set_fact:
+            joined_lines: "{{ containerd_template_toml.stdout_lines[0 : (matched_lines | first | int) + 1] | list | join('\n') }}"
+
+        - delegate_to: 'provision-cluster'
+          block:
+
+            - name: Create merged file
+              copy:
+                content: |
+                  {{ joined_lines }}
+                      [plugins."io.containerd.grpc.v1.cri".registry.mirrors]
+                        [plugins."io.containerd.grpc.v1.cri".registry.mirrors."*"]
+                          endpoint = ["https://{{ hostvars['cluster-facts']['options']['daily_ip'] }}:5000"]
+                      [plugins."io.containerd.grpc.v1.cri".registry.configs]
+                        [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ hostvars['cluster-facts']['options']['daily_ip'] }}:5000".tls]
+                          insecure_skip_verify = true
+                        [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ hostvars['cluster-facts']['options']['daily_ip'] }}:5000".auth]
+                          username = "{{ hostvars['cluster-facts']['options']['daily_user'] }}"
+                          password = "{{ hostvars['cluster-facts']['options']['daily_token'] }}"
+                        [plugins."io.containerd.grpc.v1.cri".registry.configs."hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com".tls]
+                          insecure_skip_verify = true
+                        [plugins."io.containerd.grpc.v1.cri".registry.configs."hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com".auth]
+                          username = "{{ hostvars['cluster-facts']['options']['artifactory_username'] }}"
+                          password = "{{ hostvars['cluster-facts']['options']['artifactory_token'] }}"
+                dest: '/tmp/containerd-template.toml'
+
+    - name: Replace original file with new file
+      copy:
+        src: '/tmp/containerd-template.toml'
+        dest: '/var/snap/microk8s/current/args/containerd-template.toml'
+
+    - name: Stop microk8s
+      command: |
+        microk8s stop
+      register: _result
+
+    - name: Start microk8s
+      command: |
+        microk8s start
+      register: _result
+
+    - when: inventory_hostname != k8s_infra_hostname
+      block:
+
+        - name: Run microk8s add node
+          command: |
+            microk8s add-node
+          register: _result
+          delegate_to: "{{ k8s_infra_hostname }}"
+
+        - name: Set fact for private network join command
+          set_fact:
+            microk8s_join_command: "{{ item | trim }}"
+          loop: "{{ _result.stdout_lines }}"
+          when: item is match(' *microk8s join ' + hostvars[k8s_infra_hostname]['privateip'] + ':25000.*')
+
+        - name: Run the join command
+          command: |
+            {{ microk8s_join_command }}
+          register: _result
+
+    - name: Touch cluster-configured file
+      file:
+        path: '~/.cluster-configured'
+        state: touch

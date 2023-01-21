@@ -1,0 +1,13 @@
+---
+
+- name: Add cluster version overrides for OLM operators
+  shell: |
+    "{{ cluster_bin_dir }}/oc" --kubeconfig "{{ cluster_dir }}/kubeconfig" patch clusterversion version --type=merge -p '{"spec": {"overrides":[{"kind": "Deployment", "name": "olm-operator", "namespace": "openshift-operator-lifecycle-manager", "unmanaged": true, "group": "apps"},{"kind": "Deployment", "name": "catalog-operator", "namespace": "openshift-operator-lifecycle-manager", "unmanaged": true, "group": "apps"}]}}'
+  register: _result
+  when: overrides_op == 'add'
+
+- name: Remove cluster version overrides for OLM operators
+  shell: |
+    "{{ cluster_bin_dir }}/oc" --kubeconfig "{{ cluster_dir }}/kubeconfig" patch clusterversion version --type=json -p '[{"op": "remove", "path": "/spec/overrides" }]'
+  register: _result
+  when: overrides_op == 'remove'

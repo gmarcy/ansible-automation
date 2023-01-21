@@ -2,7 +2,7 @@
 
 - name: Ensure namespace exists
   kubernetes.core.k8s:
-    api_key: "{{ api_key }}"
+    api_key: "{{ api_key | default(omit) }}"
     kind: Namespace
     kubeconfig: "{{ kubeconfig_path }}"
     name: "{{ nfs_storage_namespace }}"
@@ -11,7 +11,7 @@
 
 - name: Check for existing StorageClass
   kubernetes.core.k8s_info:
-    api_key: "{{ api_key }}"
+    api_key: "{{ api_key | default(omit) }}"
     api_version: storage.k8s.io/v1
     kind: StorageClass
     kubeconfig: "{{ kubeconfig_path }}"
@@ -26,7 +26,7 @@
 
     - name: Create the PVC for NFS storage from local storage
       kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
+        api_key: "{{ api_key | default(omit) }}"
         api_version: v1
         definition:
           spec:
@@ -43,7 +43,7 @@
 
     - name: Wait for PersistentVolumeClaim to be created
       kubernetes.core.k8s_info:
-        api_key: "{{ api_key }}"
+        api_key: "{{ api_key | default(omit) }}"
         api_version: v1
         kind: PersistentVolumeClaim
         kubeconfig: "{{ kubeconfig_path }}"
@@ -56,7 +56,7 @@
 
     - name: Create nfs-provisioner service account
       kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
+        api_key: "{{ api_key | default(omit) }}"
         kind: ServiceAccount
         kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-provisioner
@@ -65,7 +65,7 @@
 
     - name: Create the security context constraints
       kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
+        api_key: "{{ api_key | default(omit) }}"
         api_version: security.openshift.io/v1
         definition:
           allowHostDirVolumePlugin: true
@@ -93,7 +93,7 @@
           supplementalGroups:
             type: RunAsAny
           users:
-          - system:serviceaccount:nfs-storage:nfs-provisioner
+          - system:serviceaccount:{{ nfs_storage_namespace }}:nfs-provisioner
           volumes:
           - configMap
           - downwardAPI
@@ -105,10 +105,11 @@
         kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-provisioner
       register: _result
+      when: kubernetes_distro == 'openshift'
 
     - name: Wait for SecurityContextConstraints to be created
       kubernetes.core.k8s_info:
-        api_key: "{{ api_key }}"
+        api_key: "{{ api_key | default(omit) }}"
         api_version: security.openshift.io/v1
         kind: SecurityContextConstraints
         kubeconfig: "{{ kubeconfig_path }}"
@@ -117,11 +118,12 @@
       delay: 10
       retries: 24
       until: (_result.resources | length > 0) and (_result.resources[0].runAsUser.type == 'RunAsAny')
+      when: kubernetes_distro == 'openshift'
     
     - name: Apply the pod security policy
       kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
-        api_version: extensions/v1beta1
+        api_key: "{{ api_key | default(omit) }}"
+        api_version: policy/v1beta1
         definition:
           spec:
             fsGroup:
@@ -146,24 +148,24 @@
         kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-provisioner
       register: _result
-      when: openshift_distro not in ['okd','ocp']
+      when: kubernetes_distro != 'openshift'
 
     - name: Wait for PodSecurityPolicy to be created
       kubernetes.core.k8s_info:
-        api_key: "{{ api_key }}"
-        api_version: extensions/v1beta1
+        api_key: "{{ api_key | default(omit) }}"
+        api_version: policy/v1beta1
         kind: PodSecurityPolicy
         kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-provisioner
       register: _result
       delay: 10
       retries: 24
-      until: (_result.resources | length > 0) and (_result.resources[0].runAsUser.type == 'RunAsAny')
-      when: openshift_distro not in ['okd','ocp']
+      until: (_result.resources | length > 0) and (_result.resources[0].spec.runAsUser.rule == 'RunAsAny')
+      when: kubernetes_distro != 'openshift'
 
     - name: Create the cluster role
       kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
+        api_key: "{{ api_key | default(omit) }}"
         api_version: rbac.authorization.k8s.io/v1
         definition:
           rules:
@@ -194,7 +196,7 @@
 
     - name: Create the cluster role binding
       kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
+        api_key: "{{ api_key | default(omit) }}"
         api_version: rbac.authorization.k8s.io/v1
         definition:
           subjects:
@@ -213,7 +215,7 @@
 
     - name: Create the role
       kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
+        api_key: "{{ api_key | default(omit) }}"
         api_version: rbac.authorization.k8s.io/v1
         definition:
           rules:
@@ -228,7 +230,7 @@
 
     - name: Create the role binding
       kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
+        api_key: "{{ api_key | default(omit) }}"
         api_version: rbac.authorization.k8s.io/v1
         definition:
           subjects:
@@ -257,7 +259,7 @@
 
     - name: Apply the deployment or statefulset
       kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
+        api_key: "{{ api_key | default(omit) }}"
         api_version: apps/v1
         definition:
           spec:
@@ -273,6 +275,8 @@
                   app: nfs-provisioner
               spec:
                 serviceAccount: nfs-provisioner
+                tolerations:
+                  - operator: "Exists"
                 terminationGracePeriodSeconds: 10
                 containers:
                   - name: nfs-provisioner
@@ -342,7 +346,7 @@
     
     - name: Check that Deployment or StatefulSet has been created
       kubernetes.core.k8s_info:
-        api_key: "{{ api_key }}"
+        api_key: "{{ api_key | default(omit) }}"
         api_version: apps/v1
         kind: "{{ 'StatefulSet' if (nfs_provisioner_use_statefulset | default(false)) else 'Deployment' }}"
         kubeconfig: "{{ kubeconfig_path }}"
@@ -355,7 +359,7 @@
     
     - name: Apply the service.yaml
       kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
+        api_key: "{{ api_key | default(omit) }}"
         api_version: v1
         definition:
           metadata:
@@ -403,7 +407,7 @@
     
     - name: Check that Service has been created
       kubernetes.core.k8s_info:
-        api_key: "{{ api_key }}"
+        api_key: "{{ api_key | default(omit) }}"
         label_selectors:
         - app=nfs-provisioner
         kind: Service
@@ -414,7 +418,7 @@
     
     - name: Create the storage class
       kubernetes.core.k8s:
-        api_key: "{{ api_key }}"
+        api_key: "{{ api_key | default(omit) }}"
         api_version: storage.k8s.io/v1
         definition:
           provisioner: "{{ nfs_provisioner }}"
@@ -427,7 +431,7 @@
     
     - name: Check that StorageClass has been created
       kubernetes.core.k8s_info:
-        api_key: "{{ api_key }}"
+        api_key: "{{ api_key | default(omit) }}"
         api_version: storage.k8s.io/v1
         kind: StorageClass
         kubeconfig: "{{ kubeconfig_path }}"

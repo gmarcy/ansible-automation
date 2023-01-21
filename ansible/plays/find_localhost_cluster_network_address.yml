@@ -1,8 +1,0 @@
----
-
-- name: Find address of localhost interface on cluster network
-  hosts: localhost_facts
-  gather_facts: false
-  tags: localhost_facts
-  roles:
-  - role: find_address_on_cluster_network

@@ -1,0 +1,15 @@
+---
+
+- name: Install openshift-console
+  hosts: cluster_facts
+  gather_facts: false
+  tags: openshift_console
+  roles:
+  - role: create_target_namespace
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: openshift-console
+  - role: install_openshift_console
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: openshift-console

@@ -1,0 +1,6 @@
+---
+
+- name: Ensure user specific systemd instance are persistent
+  ansible.builtin.command: |
+    loginctl enable-linger {{ hostvars['playbook-facts']['remote_user'] }}
+  register: _result

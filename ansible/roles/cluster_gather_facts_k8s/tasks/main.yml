@@ -1,0 +1,158 @@
+---
+
+- when: k8s_node_provisioning_role is not defined
+  block:
+
+    - name: Set facts used in this role
+      set_fact:
+        cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"
+        cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+        fyre_user: "{{ hostvars['playbook-secrets']['fyre_user'] }}"
+        fyre_apikey: "{{ hostvars['playbook-secrets']['fyre_apikey'] }}"
+        ssh_config: "{{ lookup('env', 'HOME') + '/.ssh/config.' + hostvars['cluster-facts']['cluster_name'] }}"
+
+    - name: Check to see if we already have a cluster with the name we want
+      uri:
+        url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showclusters"
+        method: GET
+        user:  "{{ fyre_user }}"
+        validate_certs: false
+        password: "{{ fyre_apikey }}"
+        force_basic_auth: true
+        return_content: true
+      changed_when: false
+      register: cluster_status_response
+      until: cluster_status_response.status != -1
+
+    - name: Set cluster_status_json fact
+      set_fact:
+        cluster_status_json: "{{ item }}"
+      loop: "{{ (cluster_status_response.content | from_yaml)['clusters'] }}"
+      when: item.name == cluster_name
+
+    - name: Set fact for check that cluster already exists
+      set_fact:
+        cluster_exists: "{{ cluster_status_json is defined }}"
+        cluster_status: "{{ cluster_status_json['status'] | default('unknown') }}"
+
+    - name: Check for error
+      assert:
+        that: cluster_status != 'error'
+      when: cluster_exists
+
+    - name: Print a message about the state of the cluster
+      debug:
+        msg: "{{ 'Cluster ' + cluster_name + ((' exists (' + cluster_status + ').') if cluster_exists else ' does not exist.') }}"
+
+    - name: Fetch the cluster details
+      uri:
+        url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showclusterdetails&cluster_name={{ cluster_name }}"
+        method: GET
+        user:  "{{ fyre_user }}"
+        validate_certs: false
+        password: "{{ fyre_apikey }}"
+        force_basic_auth: true
+        return_content: true
+      changed_when: false
+      register: cluster_details_response
+      until: cluster_details_response.status != -1
+
+    - name: Set fact for cluster_details_json
+      set_fact:
+        cluster_details_json: "{{ (cluster_details_response.content | from_json)[cluster_name] }}"
+
+    - name: Create node groups
+      add_host:
+        name: "{{ item.node }}"
+        groups: "{{ host_node_groups[host_node_role] }}"
+        ansible_connection: ssh
+        ansible_host: "{{ item.node }}"
+        ansible_ssh_extra_args: "{{ '-F ' + ssh_config }}"
+        ansible_ssh_user: root
+        cluster_role: "{{ host_node_role }}"
+        fqdn: "{{ item.node + '.fyre.ibm.com' }}"
+        short_hostname: "{{ item.node }}"
+        privateip: "{{ item.privateip }}"
+        publicip: "{{ item.publicip }}"
+      loop: "{{ cluster_details_json }}"
+      vars:
+        host_node_role: "{{ 'infra' if (item.node is match('.*-inf$')) else (item.node | regex_replace('^.*-([^0-9]*)[0-9]?$', '\\1')) }}"
+        host_node_groups:
+          infra:
+          - all_nodes
+          - infra_node
+          master:
+          - all_nodes
+          - cluster_nodes
+          - master_nodes
+          worker:
+          - all_nodes
+          - cluster_nodes
+          - worker_nodes
+      changed_when: false
+
+    - name: Set infra node hostname fact
+      set_fact:
+        k8s_infra_hostname: "{{ groups['infra_node'] | default(groups['master_nodes']) | first }}"
+
+    - name: Set infra node publicip fact
+      set_fact:
+        k8s_infra_publicip: "{{ hostvars[k8s_infra_hostname]['publicip'] }}"
+
+    - name: Set infra node privateip fact
+      set_fact:
+        k8s_infra_privateip: "{{ hostvars[k8s_infra_hostname]['privateip'] }}"
+
+    - name: Clear register results
+      set_fact:
+        cluster_status_response: {}
+        user_quota: {}
+        fyre_status: {}
+        response_json: {}
+        request_status_response: {}
+        cluster_details_response: {}
+        ssh_keypair: {}
+        vars_group: {}
+        vars_inventory: {}
+        vars_pre_env: {}
+        vars_env: {}
+
+- name: Set kubeconfig_path and cluster_api_url facts
+  set_fact:
+    cluster_api_url: "{{ 'https://' + hostvars[k8s_infra_hostname]['fqdn'] + ':6443' }}"
+    kubeconfig_path: "{{ cluster_dir + '/kubeconfig' }}"
+
+- name: Set kubeconfig_path and cluster_api_url facts
+  set_fact:
+    cluster_api_url: "{{ cluster_api_url }}"
+    kubeconfig_path: "{{ kubeconfig_path }}"
+    cluster_fqdn: "{{ hostvars[k8s_infra_hostname]['fqdn'] }}"
+    cluster_publicip: "{{ k8s_infra_publicip }}"
+  delegate_to: 'cluster-facts'
+  delegate_facts: true
+
+- name: Check to see if we already have fetched the kubeconfig
+  stat:
+    path: "{{ kubeconfig_path }}"
+  register: _result_stat
+
+- when: not _result_stat.stat.exists
+  block:
+
+    - name: Create cluster_dir folder
+      file:
+        path: "{{ cluster_dir }}"
+        state: directory
+
+    - name: Load contents of kubeconfig
+      command:
+        cat ~/.kube/config
+      register: _result
+      delegate_to: "{{ k8s_infra_hostname }}"
+
+    - name: Write local kubeconfig
+      copy:
+        content: |
+          {{ _result.stdout }}
+        dest: "{{ kubeconfig_path }}"
+        mode: '0600'

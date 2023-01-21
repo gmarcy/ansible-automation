@@ -1,0 +1,21 @@
+---
+
+- name: Create PlatformNavigator instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: integration.ibm.com/v1beta1
+    kind: PlatformNavigator
+    name: integration-quickstart
+    namespace: "{{ target_namespace }}"
+    definition:
+      spec:
+        license:
+          accept: true
+          license: L-RJON-CD3JKX
+        mqDashboard: true
+        replicas: 1
+        storage:
+          class: "{{ hostvars['cluster-storage']['default_storage_class'] }}"
+        version: 2022.2.1
+  register: _result

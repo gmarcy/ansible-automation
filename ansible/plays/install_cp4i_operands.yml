@@ -1,0 +1,11 @@
+---
+
+- name: Install CloudPak for Integration operands into cluster
+  hosts: integration_platform
+  gather_facts: false
+  tags: integration_platform
+  roles:
+  - role: install_cp4i_operands
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ cp4i_namespace }}"

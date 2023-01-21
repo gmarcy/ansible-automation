@@ -1,0 +1,370 @@
+---
+
+- when: inventory_hostname in groups['cluster_nodes']
+  block:
+
+    - name: Disable apt periodic upgrades
+      copy:
+        content: |
+          APT::Periodic::Enable "0";
+        dest: /etc/apt/apt.conf.d/30disable-periodic-upgrades
+      when: hostvars[inventory_hostname].distribution_family == 'Debian'
+
+    - name: Update package cache
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+      environment:
+      - DEBIAN_FRONTEND: noninteractive
+      register: _result
+      changed_when: _result is not defined
+      when: hostvars[inventory_hostname].distribution_family == 'Debian'
+
+    - name: Install the python3-pip package if it is missing
+      package:
+        name: python3-pip
+
+    - name: Install latest pip module
+      ansible.builtin.pip:
+        name: pip
+        state: latest
+
+    - name: Install latest kubernetes module
+      ansible.builtin.pip:
+        name: kubernetes
+        state: latest
+
+    - name: Install the jq package if it is missing
+      package:
+        name: jq
+
+    - name: Add line to /etc/hosts for master node public ip address
+      lineinfile:
+        path: /etc/hosts
+        line: "{{ host_vars.ansible_host }} {{ host_vars.fqdn }} {{ host_vars.short_hostname }}"
+        insertbefore: "{{ '^' + host_vars.privateip + ' .*' }}"
+        firstmatch: true
+      vars:
+        host_vars: "{{ hostvars[inventory_hostname] }}"
+
+    - name: Disable selinux
+      command: setenforce 0
+      register: _result
+      when: hostvars[inventory_hostname].distribution_family == 'CentOS'
+
+    - name: Replace line in /etc/sysconfig/selinux to disable SELINUX for master node
+      lineinfile:
+        path: /etc/sysconfig/selinux
+        line: 'SELINUX=disabled'
+        regex: '^SELINUX=enforcing'
+        firstmatch: true
+      when: hostvars[inventory_hostname].distribution_family == 'CentOS'
+
+    - name: Update package cache
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+      environment:
+      - DEBIAN_FRONTEND: noninteractive
+      register: _result
+      changed_when: _result is not defined
+      when: hostvars[inventory_hostname].distribution_family == 'Debian'
+
+    - name: Install firewalld
+      apt:
+        name: firewalld
+      environment:
+      - DEBIAN_FRONTEND: noninteractive
+      when: hostvars[inventory_hostname].distribution_family == 'Debian'
+
+    - name: Run firewall-offline-cmd to list existing rules
+      command: firewall-offline-cmd --list-all
+      register: _result
+      changed_when: _result is not defined
+
+    - name: Set fact for ports we want the firewall to allow
+      set_fact:
+        firewall_ports:
+          - '6443/tcp'
+          - '2379-2380/tcp'
+          - '10250/tcp'
+          - '10251/tcp'
+          - '10252/tcp'
+          - '10255/tcp'
+
+    - name: Set fact if we have already added the ports
+      set_fact:
+        firewall_configured: "{{ ports | symmetric_difference(firewall_ports) | length == 0 }}"
+      loop: "{{ _result.stdout_lines }}"
+      vars:
+        ports: "{{ [] if item is not match('^ *ports: ') else item | regex_replace('^ *ports: ','') | split(' ') }}"
+      when: ports | length > 0
+
+    - when: not firewall_configured
+      block:
+
+        - name: Start firewalld
+          systemd:
+            name: firewalld
+            state: started
+          changed_when: false
+
+        - name: Set firewall rules
+          ansible.posix.firewalld:
+            port: "{{ item }}"
+            permanent: true
+            state: enabled
+          loop: "{{ firewall_ports }}"
+  
+        - name: Reload firewalld
+          command: firewall-cmd --reload
+          register: _result
+          changed_when: _result is not defined
+
+        - name: Stop and disable firewalld
+          systemd:
+            name: firewalld
+            state: stopped
+            enabled: false
+          changed_when: false
+
+    - name: Setup network bridging
+      command: modprobe br_netfilter
+      register: _result
+      changed_when: _result is not defined
+
+    - name: Set bridge to use iptables
+      shell: |
+        echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: _result is not defined
+
+    - name: Disable swap partitions in /etc/fstab
+      lineinfile:
+        path: /etc/fstab
+        line: '#\1'
+        regexp: '^([^#].*swap.*)'
+        backrefs: true
+      register: _result
+
+    - name: Run swapoff -a
+      command: swapoff -a
+      register: _result
+      changed_when: _result is not defined
+
+    - name: Check marker file for this play
+      stat:
+        path: kube_docker_setup
+      register: _result
+
+    - name: Setup kubernetes docker on cluster nodes
+      set_fact:
+        kube_docker_setup: "{{ _result.stat.exists | bool }}"
+        kubernetes_version: "{{ hostvars['cncf-provisioner']['kubernetes_version'] }}"
+
+    - when: not kube_docker_setup
+      block:
+
+        - name: Install the repository
+          copy:
+            content: |
+              [kubernetes]
+              name=Kubernetes
+              baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+              enabled=1
+              gpgcheck=0
+              repo_gpgcheck=1
+              gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+            dest: /etc/yum.repos.d/kubernetes.repo
+            mode: 0644
+          when: hostvars[inventory_hostname].distribution_family == 'CentOS'
+
+        - name: Install kubernetes and docker
+          package:
+            name:
+              - "{{ 'kubelet-' + kubernetes_version }}"
+              - "{{ 'kubeadm-' + kubernetes_version }}"
+              - "{{ 'kubectl-' + kubernetes_version }}"
+              - kubernetes-cni-0.8.7-0.x86_64
+            state: present
+          when: hostvars[inventory_hostname].distribution_family == 'CentOS'
+
+        - name: Install yum-utils
+          package:
+            name: yum-utils
+            state: present
+          when: hostvars[inventory_hostname].distribution_family == 'CentOS'
+
+        - name: Run yum-config-manager to add the docker-ce repo
+          command: yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+          when: hostvars[inventory_hostname].distribution_family == 'CentOS'
+
+        - name: Run yum makecache
+          command: yum makecache
+          when: hostvars[inventory_hostname].distribution_family == 'CentOS'
+
+        - name: Install docker-ce
+          dnf:
+            name: docker-ce
+            allowerasing: true
+          when: hostvars[inventory_hostname].distribution_family == 'CentOS'
+
+        - name: Update packages
+          apt:
+            name: docker.io
+            state: present
+          environment:
+          - DEBIAN_FRONTEND: noninteractive
+          when: hostvars[inventory_hostname].distribution_family == 'Debian'
+
+        - name: Add the gpg key for google cloud packages
+          shell: |
+            curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add
+            apt-add-repository "deb http://apt.kubernetes.io/ kubernetes-xenial main"
+          args:
+            executable: /bin/bash
+          environment:
+          - DEBIAN_FRONTEND: noninteractive
+          register: _result
+          changed_when: _result is not defined
+          when: hostvars[inventory_hostname].distribution_family == 'Debian'
+
+        - name: Install kubelet, kubeadm, and kubectl
+          apt:
+            name:
+              - kubelet
+              - kubeadm
+              - kubectl
+            state: present
+          environment:
+          - DEBIAN_FRONTEND: noninteractive
+          when: hostvars[inventory_hostname].distribution_family == 'Debian'
+
+        - name: Install specific versions of kubadm, kubelet, and kubectl
+          apt:
+            name:
+              - "{{ 'kubelet=' + kubernetes_version + '-00' }}"
+              - "{{ 'kubeadm=' + kubernetes_version + '-00' }}"
+              - "{{ 'kubectl=' + kubernetes_version + '-00' }}"
+            allow_downgrades: true
+            # allow_change_held_packages: true
+          environment:
+          - DEBIAN_FRONTEND: noninteractive
+          when: hostvars[inventory_hostname].distribution_family == 'Debian'
+
+        - name: Enable and restart docker service
+          systemd:
+            name: docker
+            state: restarted
+            enabled: true
+          changed_when: false
+
+        - name: Enable and restart kubelet service
+          systemd:
+            name: kubelet
+            state: restarted
+            enabled: true
+          changed_when: false
+
+        - name: Touch file to indicate we have completed kube docker setup
+          file:
+            path: kube_docker_setup
+            state: touch
+          changed_when: false
+
+    - name: Reenable apt periodic upgrades
+      file:
+        path: /etc/apt/apt.conf.d/30disable-periodic-upgrades
+        state: absent
+      when: hostvars[inventory_hostname].distribution_family == 'Debian'
+
+- when: inventory_hostname == groups['master_nodes'][0]
+  block:
+
+    - name: Check to see if we have already run the kubeadm init
+      stat:
+        path: /etc/kubernetes/admin.conf
+      register: _result_stat
+
+    - when: not _result_stat.stat.exists
+      block:
+
+        - name: Pull kubernetes images
+          command:
+            kubeadm config images pull
+          register: _result
+
+        - name: Setup Kubernetes
+          command: |
+            kubeadm init --pod-network-cidr=192.168.0.0/16 --node-name {{ hostvars[inventory_hostname]['fqdn'] }} --control-plane-endpoint {{ hostvars[inventory_hostname]['fqdn'] }}
+          register: _result
+
+- when: inventory_hostname in groups['cluster_nodes']
+  block:
+
+    - name: Get cluster node status
+      command: |
+        kubectl get node {{ hostvars[inventory_hostname].fqdn }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: _result
+      failed_when: _result is not defined
+      delegate_to: "{{ groups['master_nodes'][0] }}"
+
+    - name: Set fact if cluster node is ready
+      set_fact:
+        cluster_node_ready: "{{ _result.stdout == 'True' }}"
+
+    - when: inventory_hostname == groups['master_nodes'][0]
+      block:
+
+        - when: not cluster_node_ready
+          block:
+
+            - name: Create pull secret
+              command: |
+                kubectl create secret docker-registry global-pull-secret --docker-username={{ docker_user }} --docker-password={{ docker_password }} -n=kube-system
+              environment:
+                KUBECONFIG: /etc/kubernetes/admin.conf
+              vars:
+                docker_user: "{{ hostvars['playbook-secrets']['docker_io_user'] }}"
+                docker_password: "{{ hostvars['playbook-secrets']['docker_io_password'] }}"
+
+            - name: Copy canal.yaml
+              copy:
+                src: canal.yaml
+                dest: ~/canal.yaml
+
+            - name: Install Calico
+              command: |
+                kubectl apply -f ~/canal.yaml
+              environment:
+                KUBECONFIG: /etc/kubernetes/admin.conf
+
+        - when: groups['cluster_nodes'] | difference([groups['master_nodes'][0]]) | map('extract',hostvars,'cluster_node_ready') | unique | difference([true]) | length > 0
+          block:
+
+            - name: Run kubeadm to get the join command for worker nodes
+              command: |
+                kubeadm token create --print-join-command
+              register: _result
+              changed_when: _result is not defined
+
+            - name: Set fact with the contents of the kubeadm join command
+              set_fact:
+                kubeadm_join_command: "{{ _result.stdout | trim }}"
+              delegate_to: 'cncf-provisioner'
+              delegate_facts: true
+
+    - when: inventory_hostname != groups['master_nodes'][0]
+      block:
+
+        - when: not cluster_node_ready
+          block:
+
+            - name: Run the kubeadm join command
+              command: |
+                {{ hostvars['cncf-provisioner']['kubeadm_join_command'] }}
+              register: _result

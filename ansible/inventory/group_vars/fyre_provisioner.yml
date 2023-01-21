@@ -1,0 +1,38 @@
+---
+
+ansible_host: localhost
+ansible_connection: local
+
+# Fyre constants
+
+fyre_apiurl: "https://api.fyre.ibm.com/rest/v1/"
+fyre_clusterstatusurl: "{{ fyre_apiurl }}?operation=query&request=showclusterdetails&cluster_name={{ cluster_name }}"
+fyre_opshowclusterurl: "{{ fyre_apiurl }}?operation=query&request=showclusters"
+
+fyreocpplus_ocpdeployurl: 'https://ocpapi.svl.ibm.com/v1/ocp/'
+fyreocpplus_clusterstatusurl: "{{ fyreocpplus_ocpdeployurl + cluster_name }}"
+
+# Custom OCP cluster facts
+
+rhcos_url_prefix: "{{ 'https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/' + rhcos_version_path + '/' }}"
+rhcos_sha_url: "{{ rhcos_url_prefix + 'sha256sum.txt' }}"
+
+clients_url_prefix: "{{ 'https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/' + ocp_version_path + '/' }}"
+clients_sha_url: "{{ clients_url_prefix + 'sha256sum.txt' }}"
+
+# Fyre parameters
+
+fyre_ocptype: "{{ inv_fyre_ocptype | default('ocpplus') }}"
+fyre_site: "{{ inv_fyre_site | default('rtp') }}"
+fyre_platform: "{{ inv_fyre_platform | default('x') }}"
+fyre_group_id: "{{ inv_fyre_group_id | default('0') }}"
+fyre_force_basic_auth: "{{ inv_fyre_force_basic_auth | default(true) }}"
+fyre_master_quantity: "{{ inv_fyre_master_quantity | default(3) }}"
+fyre_master_cpu: "{{ inv_fyre_master_cpu | default(8) }}"
+fyre_master_memory: "{{ inv_fyre_master_memory | default(16) }}"
+fyre_worker_quantity: "{{ inv_fyre_worker_quantity | default(3) }}"
+fyre_worker_cpu: "{{ inv_fyre_worker_cpu | default(8) }}"
+fyre_worker_memory: "{{ inv_fyre_worker_memory | default(16) }}"
+fyre_worker_additional_disk: "{{ inv_fyre_worker_additional_disk | default(['200']) }}"
+fyre_quickburn_size: "{{ inv_fyre_quickburn_size | default('medium') }}"
+fyre_quickburn_ttl: "{{ inv_fyre_quickburn_ttl | default(12) }}"

@@ -6,8 +6,6 @@
   tags: was_automation
   roles:
   - role: wait_for_wsa_ready
-    api_key: "{{ hostvars['cluster-facts']['api_key'] }}"
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
     kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
-    target_namespace: "{{ wsa_namespace }}"
-    install_healing: "{{ wsa_install_healing }}"
-    operator_airgap: "{{ wsa_operator_airgap }}"
+    common_service_namespace: "{{ hostvars['common-services']['common_service_namespace'] }}"

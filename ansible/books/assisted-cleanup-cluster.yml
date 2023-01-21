@@ -1,8 +1,0 @@
----
-
-- import_playbook: ../plays/gather_localhost_facts.yml
-- import_playbook: ../plays/load_playbook_secrets.yml
-- import_playbook: ../plays/create_cluster_facts_group.yml
-- import_playbook: ../plays/assisted_unregister_cluster.yml
-- import_playbook: ../plays/assisted_cleanup_ipxe_folders.yml
-- import_playbook: ../plays/power_off_cluster_hosts.yml

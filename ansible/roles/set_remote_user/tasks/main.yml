@@ -1,0 +1,20 @@
+---
+
+- name: Lookup remote_user from command-line
+  set_fact:
+    cli_args_remote_user: "{{ lookup('cli_args', 'remote_user') }}"
+
+- name: Set fact from command-line arg
+  set_fact:
+    cli_remote_user: "{{ cli_args_remote_user if (cli_args_remote_user is string) else '' }}"
+
+- name: Check for empty remote user when running in a container
+  assert:
+    msg:
+      - "You must provide the user for the playbook when running in a container."
+      - "e.g. --user root"
+    that: not container_run or cli_remote_user | length > 0
+
+- name: Define remote_user
+  set_fact:
+    remote_user: "{{ cli_remote_user if (cli_remote_user | length > 0) else hostvars['localhost-facts'].local_user }}"

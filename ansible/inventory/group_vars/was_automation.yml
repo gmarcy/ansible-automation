@@ -1,0 +1,25 @@
+---
+
+ansible_host: localhost
+ansible_connection: local
+
+was_automation_install_healing: "{{ inv_was_automation_install_healing | default('true') }}"
+was_automation_replicas_1: "{{ inv_was_automation_replicas_1 | default('true') }}"
+was_automation_operator_singlenamespace: "{{ inv_was_automation_operator_singlenamespace | default('false') }}"
+was_automation_airgap_install: "{{ inv_was_automation_airgap_install | default('false') }}"
+
+was_automation_catalog_source_name: "{{ inv_was_automation_catalog_source_name | default('ibm-operator-catalog') }}"
+was_automation_catalog_source_namespace: "{{ inv_was_automation_catalog_source_namespace | default('openshift-marketplace') }}"
+was_automation_catalog_source_display_name: "{{ inv_was_automation_catalog_source_display_name | default('IBM Operator Catalog') }}"
+was_automation_catalog_source_image: "{{ inv_was_automation_catalog_source_image | default('icr.io/cpopen/ibm-operator-catalog') }}"
+was_automation_catalog_source_image_tag: "{{ inv_was_automation_catalog_source_image_tag | default('') }}"
+was_automation_catalog_source_publisher: "{{ inv_was_automation_catalog_source_publisher | default('IBM') }}"
+was_automation_catalog_source_poll_interval: "{{ inv_was_automation_catalog_source_poll_interval | default('45m') }}"
+
+was_automation_operator_channel: "{{ inv_was_automation_operator_channel | default('v1.5') }}"
+was_automation_namespace: "{{ inv_was_automation_namespace | default('wasautomation') }}"
+
+was_automation_operator_version: "{{ inv_was_automation_operator_version | default(was_automation_operator_channel + '.0') }}"
+was_automation_operator_name: "{{ inv_was_automation_operator_name | default('ibm-websphere-automation') }}"
+was_automation_operator_namespace: "{{ inv_was_automation_operator_namespace | default('openshift-operators') }}"
+was_automation_operator_group: "{{ inv_was_automation_operator_group | default('ibm-websphere-automation-group') }}"

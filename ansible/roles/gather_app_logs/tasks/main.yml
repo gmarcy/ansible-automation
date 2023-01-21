@@ -1,0 +1,35 @@
+---
+
+- name: Create cluster logs directory if absent
+  file:
+    path: "{{ cluster_dir }}/logs/"
+    state: directory
+  register: _result
+
+- name: Collect logs from target_app in target_namespace
+  shell: |
+    "{{ cluster_bin_dir }}/oc" --kubeconfig "{{ cluster_dir }}/kubeconfig" logs --previous=true --selector "app={{ target_app }}" --tail=-1 -n "{{ target_namespace }}"
+  register: _result_prev
+  failed_when: _result_prev is not defined
+
+- name: Copy stdout to cluster_logs_dir
+  copy:
+    content: |
+      {{ _result_prev.stdout }}
+    dest: "{{ cluster_dir }}/logs/{{ target_fact_name }}_previous.log"
+  when: _result_prev.rc == 0
+
+- name: Collect logs from target_app in target_namespace
+  shell: |
+    "{{ cluster_bin_dir }}/oc" --kubeconfig "{{ cluster_dir }}/kubeconfig" logs --selector "app={{ target_app }}" --tail=-1 -n "{{ target_namespace }}"
+  register: _result
+
+- name: Save the result in target_fact_name fact
+  set_fact:
+    "{{ target_fact_name }}": "{{ _result }}"
+
+- name: Copy stdout to cluster_logs_dir
+  copy:
+    content: |
+      {{ _result.stdout }}
+    dest: "{{ cluster_dir }}/logs/{{ target_fact_name }}.log"

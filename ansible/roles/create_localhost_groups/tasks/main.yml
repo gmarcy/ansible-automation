@@ -2,7 +2,7 @@
 
 - name: Create localhost groups
   add_host:
-    host: "{{ item['host_name'] }}"
+    name: "{{ item['host_name'] }}"
     group: "{{ item['group_name'] }}"
     ansible_host: localhost
     ansible_connection: local

@@ -1,0 +1,391 @@
+---
+
+- name: Check for existing kubernetes-dashboard
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: apps/v1
+    kind: Deployment
+    name: kubernetes-dashboard
+    namespace: "{{ target_namespace }}"
+  register: _result
+
+- name: Set fact if kubernetes-dashboard is already running
+  set_fact:
+    dashboard_running: "{{ _result.resources | map(attribute='status.conditions') | flatten | selectattr('type','equalto','Available') | selectattr('status','equalto','True') | length > 0 }}"
+
+- when: not dashboard_running
+  block:
+
+    - name: Create the kubernetes-dashboard ServiceAccount
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: v1
+        kind: ServiceAccount
+        name: kubernetes-dashboard
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            labels:
+              k8s-app: kubernetes-dashboard
+      register: _result
+
+    - name: Create the kubernetes-dashboard Service
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: v1
+        kind: Service
+        name: kubernetes-dashboard
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            labels:
+              k8s-app: kubernetes-dashboard
+          spec:
+            ports:
+              - port: 443
+                targetPort: 8443
+            selector:
+              k8s-app: kubernetes-dashboard
+      register: _result
+
+    - name: Create the kubernetes-dashboard-certs Secret
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: v1
+        kind: Secret
+        name: kubernetes-dashboard-certs
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            labels:
+              k8s-app: kubernetes-dashboard
+          type: Opaque
+      register: _result
+
+    - name: Create the kubernetes-dashboard-csrf Secret
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: v1
+        kind: Secret
+        name: kubernetes-dashboard-csrf
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            labels:
+              k8s-app: kubernetes-dashboard
+          type: Opaque
+          data:
+            csrf: ""
+      register: _result
+
+    - name: Create the kubernetes-dashboard-key-holder Secret
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: v1
+        kind: Secret
+        name: kubernetes-dashboard-key-holder
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            labels:
+              k8s-app: kubernetes-dashboard
+          type: Opaque
+      register: _result
+
+    - name: Create the kubernetes-dashboard-settings ConfigMap
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: v1
+        kind: ConfigMap
+        name: kubernetes-dashboard-settings
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            labels:
+              k8s-app: kubernetes-dashboard
+      register: _result
+
+    - name: Create the kubernetes-dashboard Role
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: rbac.authorization.k8s.io/v1
+        kind: Role
+        name: kubernetes-dashboard
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            labels:
+              k8s-app: kubernetes-dashboard
+          rules:
+            # Allow Dashboard to get, update and delete Dashboard exclusive secrets.
+            - apiGroups: [""]
+              resources: ["secrets"]
+              resourceNames: ["kubernetes-dashboard-key-holder", "kubernetes-dashboard-certs", "kubernetes-dashboard-csrf"]
+              verbs: ["get", "update", "delete"]
+              # Allow Dashboard to get and update 'kubernetes-dashboard-settings' config map.
+            - apiGroups: [""]
+              resources: ["configmaps"]
+              resourceNames: ["kubernetes-dashboard-settings"]
+              verbs: ["get", "update"]
+              # Allow Dashboard to get metrics.
+            - apiGroups: [""]
+              resources: ["services"]
+              resourceNames: ["heapster", "dashboard-metrics-scraper"]
+              verbs: ["proxy"]
+            - apiGroups: [""]
+              resources: ["services/proxy"]
+              resourceNames: ["heapster", "http:heapster:", "https:heapster:", "dashboard-metrics-scraper", "http:dashboard-metrics-scraper"]
+              verbs: ["get"]
+      register: _result
+
+    - name: Create the kubernetes-dashboard ClusterRole
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: rbac.authorization.k8s.io/v1
+        kind: ClusterRole
+        name: kubernetes-dashboard
+        definition:
+          metadata:
+            labels:
+              k8s-app: kubernetes-dashboard
+          rules:
+            # Allow Metrics Scraper to get metrics from the Metrics server
+            - apiGroups: ["metrics.k8s.io"]
+              resources: ["pods", "nodes"]
+              verbs: ["get", "list", "watch"]
+      register: _result
+
+    - name: Create the kubernetes-dashboard RoleBinding
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: rbac.authorization.k8s.io/v1
+        kind: RoleBinding
+        name: kubernetes-dashboard
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            labels:
+              k8s-app: kubernetes-dashboard
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: Role
+            name: kubernetes-dashboard
+          subjects:
+            - kind: ServiceAccount
+              name: kubernetes-dashboard
+              namespace: "{{ target_namespace }}"
+      register: _result
+
+    - name: Create the kubernetes-dashboard ClusterRoleBinding
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: rbac.authorization.k8s.io/v1
+        kind: ClusterRoleBinding
+        name: kubernetes-dashboard
+        definition:
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: kubernetes-dashboard
+          subjects:
+            - kind: ServiceAccount
+              name: kubernetes-dashboard
+              namespace: "{{ target_namespace }}"
+      register: _result
+
+    - name: Create the kubernetes-dashboard Deployment
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: apps/v1
+        kind: Deployment
+        name: kubernetes-dashboard
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            labels:
+              k8s-app: kubernetes-dashboard
+          spec:
+            replicas: 1
+            revisionHistoryLimit: 10
+            selector:
+              matchLabels:
+                k8s-app: kubernetes-dashboard
+            template:
+              metadata:
+                labels:
+                  k8s-app: kubernetes-dashboard
+              spec:
+                securityContext:
+                  seccompProfile:
+                    type: RuntimeDefault
+                containers:
+                  - name: kubernetes-dashboard
+                    image: kubernetesui/dashboard:v2.7.0
+                    imagePullPolicy: Always
+                    ports:
+                      - containerPort: 8443
+                        protocol: TCP
+                    args:
+                      - --auto-generate-certificates
+                      - --namespace=kubernetes-dashboard
+                      # Uncomment the following line to manually specify Kubernetes API server Host
+                      # If not specified, Dashboard will attempt to auto discover the API server and connect
+                      # to it. Uncomment only if the default does not work.
+                      # - --apiserver-host=http://my-address:port
+                    volumeMounts:
+                      - name: kubernetes-dashboard-certs
+                        mountPath: /certs
+                      # Create on-disk volume to store exec logs
+                      - mountPath: /tmp
+                        name: tmp-volume
+                    livenessProbe:
+                      httpGet:
+                        scheme: HTTPS
+                        path: /
+                        port: 8443
+                      initialDelaySeconds: 30
+                      timeoutSeconds: 30
+                    securityContext:
+                      allowPrivilegeEscalation: false
+                      readOnlyRootFilesystem: true
+                      runAsUser: 1001
+                      runAsGroup: 2001
+                volumes:
+                  - name: kubernetes-dashboard-certs
+                    secret:
+                      secretName: kubernetes-dashboard-certs
+                  - name: tmp-volume
+                    emptyDir: {}
+                serviceAccountName: kubernetes-dashboard
+                nodeSelector:
+                  "kubernetes.io/os": linux
+                # Comment the following tolerations if Dashboard must not be deployed on master
+                tolerations:
+                  - key: node-role.kubernetes.io/master
+                    effect: NoSchedule
+      register: _result
+
+    - name: Create the dashboard-metrics-scraper Service
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: v1
+        kind: Service
+        name: dashboard-metrics-scraper
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            labels:
+              k8s-app: dashboard-metrics-scraper
+          spec:
+            ports:
+              - port: 8000
+                targetPort: 8000
+            selector:
+              k8s-app: dashboard-metrics-scraper
+      register: _result
+
+    - name: Create the dashboard-metrics-scraper Deployment
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: apps/v1
+        kind: Deployment
+        name: dashboard-metrics-scraper
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            labels:
+              k8s-app: dashboard-metrics-scraper
+          spec:
+            replicas: 1
+            revisionHistoryLimit: 10
+            selector:
+              matchLabels:
+                k8s-app: dashboard-metrics-scraper
+            template:
+              metadata:
+                labels:
+                  k8s-app: dashboard-metrics-scraper
+              spec:
+                securityContext:
+                  seccompProfile:
+                    type: RuntimeDefault
+                containers:
+                  - name: dashboard-metrics-scraper
+                    image: kubernetesui/metrics-scraper:v1.0.8
+                    ports:
+                      - containerPort: 8000
+                        protocol: TCP
+                    livenessProbe:
+                      httpGet:
+                        scheme: HTTP
+                        path: /
+                        port: 8000
+                      initialDelaySeconds: 30
+                      timeoutSeconds: 30
+                    volumeMounts:
+                    - mountPath: /tmp
+                      name: tmp-volume
+                    securityContext:
+                      allowPrivilegeEscalation: false
+                      readOnlyRootFilesystem: true
+                      runAsUser: 1001
+                      runAsGroup: 2001
+                serviceAccountName: kubernetes-dashboard
+                nodeSelector:
+                  "kubernetes.io/os": linux
+                # Comment the following tolerations if Dashboard must not be deployed on master
+                tolerations:
+                  - key: node-role.kubernetes.io/master
+                    effect: NoSchedule
+                volumes:
+                  - name: tmp-volume
+                    emptyDir: {}
+      register: _result
+
+    - name: Create the kubernetes-dashboard Ingress
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: networking.k8s.io/v1
+        kind: Ingress
+        name: kubernetes-dashboard
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            labels:
+              k8s-app: kubernetes-dashboard
+            annotations:
+              nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+              nginx.ingress.kubernetes.io/rewrite-target: /
+          spec:
+            ingressClassName: nginx
+            tls:
+              - hosts:
+                  - "{{ 'dashboard.apps.' + hostvars['cluster-facts']['cluster_publicip'] + '.nip.io' }}"
+                secretName: kubernetes-dashboard-certs
+            rules:
+              - host: "{{ 'dashboard.apps.' + hostvars['cluster-facts']['cluster_publicip'] + '.nip.io' }}"
+                http:
+                  paths:
+                    - pathType: Prefix
+                      path: /
+                      backend:
+                        service:
+                          name: kubernetes-dashboard
+                          port:
+                            number: 443
+      register: _result

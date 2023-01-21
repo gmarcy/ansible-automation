@@ -1,0 +1,14 @@
+---
+
+- name: Omit from documentation grapher
+  block:
+    - name: Stop the deployment if required
+      block:
+        - name: When requested, stop before task {{ task_to_check }}
+          ansible.builtin.add_host:
+            name: "playbook-facts"
+            playbook_terminated: true
+        - name: End play
+          ansible.builtin.meta: end_play
+      when: stop_before_task is defined and stop_before_task == task_to_check
+  tags: omit_from_grapher

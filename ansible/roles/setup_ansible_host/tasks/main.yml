@@ -1,0 +1,117 @@
+---
+
+- when: "'setup_ansible_host' not in (roles_completed | default([]))"
+  block:
+
+    - name: Set _ssh_target fact
+      ansible.builtin.set_fact:
+        _ssh_target: "{{ hostvars[inventory_hostname].ansible_ssh_user }}@{{ hostvars[inventory_hostname].ansible_host }}"
+
+    - name: Set _ssh_command fact
+      ansible.builtin.set_fact:
+        _ssh_command: "ssh {{ hostvars[inventory_hostname].ansible_ssh_common_args }} {{ hostvars[inventory_hostname].ansible_ssh_extra_args | default() }} {{ _ssh_target }}"
+
+    - name: Confirm that we can run ssh to inventory_hostname
+      ansible.builtin.command: |
+        {{ _ssh_command }} test -f .ansible/setup_completed \&\& echo completed \|\| echo connected
+      register: _result
+      failed_when: _result is not defined
+      changed_when: false
+      delegate_to: 'cluster-facts'
+
+    - name: Provide informative message if ssh connect fails
+      ansible.builtin.fail:
+        msg: "ansible setup requires ssh remote access to {{ _ssh_target }}"
+      when: _result.stdout is not in ['completed', 'connected']
+
+    - name: Set fact if ansible setup host has already been completed
+      set_fact:
+        setup_host_completed: "{{ _result.stdout == 'completed' }}"
+
+    - when: not setup_host_completed
+      block:
+
+        - name: Confirm that we can run ssh to inventory_hostname, and sudo without a password
+          ansible.builtin.command: |
+            {{ _ssh_command }} sudo echo sudoer
+          register: _result
+          failed_when: _result is not defined
+          changed_when: false
+          delegate_to: 'cluster-facts'
+
+        - name: Provide informative message if sudo on ssh connect fails
+          ansible.builtin.fail:
+            msg: "ansible setup requires being able to run sudo for {{ _ssh_target }}"
+          when: _result.stdout != 'sudoer'
+
+        - name: Set ansible_python_interpreter
+          set_fact:
+            ansible_python_interpreter: "{{ ansible_python.executable | default('/usr/bin/python3') }}"
+          when: not ansible_python_interpreter is defined
+
+        - name: Confirm that we can run ssh to inventory_hostname, sudo without a password, and the python interpreter is present
+          ansible.builtin.command: |
+            {{ _ssh_command }} sudo ls {{ ansible_python_interpreter }}
+          register: _result
+          failed_when: _result is not defined
+          changed_when: false
+          delegate_to: 'cluster-facts'
+
+        - name: Set fact when python is present
+          set_fact:
+            python_present: "{{ _result.stdout == ansible_python_interpreter }}"
+
+        - when: not python_present
+          block:
+
+            - name: Provide informative message if python not present on remote host
+              ansible.builtin.debug:
+                msg: "ansible setup requires that {{ ansible_python_interpreter }} be installed for {{ _ssh_target }}, will attempt to install it remotely."
+
+            - name: Fetch contents of /etc/os-release
+              ansible.builtin.command: |
+                {{ _ssh_command }} cat /etc/os-release
+              register: _result
+              changed_when: "_result.rc == 0"
+              delegate_to: 'cluster-facts'
+
+            - name: Set fact for python_package_manager
+              set_fact:
+                python_package_manager: "{{ 'dnf' if (_result.stdout_lines | join(' ') is match('.*[Ff][Ee][Dd][Oo][Rr][Aa].*')) else 'apt-get' }}"
+
+            - name: Run python install
+              ansible.builtin.command: |
+                {{ _ssh_command }} sudo {{ python_package_manager }} install -y python3
+              register: _result
+              changed_when: "_result.rc == 0"
+              delegate_to: 'cluster-facts'
+
+            - name: Reconfirm that we can run ssh to inventory_hostname, sudo without a password, and the python interpreter is present
+              ansible.builtin.command: |
+                {{ _ssh_command }} sudo ls {{ ansible_python_interpreter }}
+              register: _result
+              failed_when: _result is not defined
+              changed_when: "_result.rc == 0"
+              delegate_to: 'cluster-facts'
+
+            - name: Provide informative message if python not present on remote host
+              ansible.builtin.fail:
+                msg: "ansible setup requires that {{ ansible_python_interpreter }} be installed for {{ _ssh_target }}"
+              when: _result.stdout != ansible_python_interpreter
+
+        - name: Confirm that we have ansible host connectivity
+          ansible.builtin.ping:
+
+        - name: Ensure .ansible folder exists
+          file:
+            path: .ansible
+            state: directory
+
+        - name: Touch .ansible/setup_completed
+          file:
+            path: .ansible/setup_completed
+            state: touch
+
+    - name: Set fact that we have completed this role
+      set_fact:
+        roles_completed: "{{ roles_completed | default([]) | union(['setup_ansible_host']) }}"

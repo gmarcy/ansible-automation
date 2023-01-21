@@ -1,0 +1,9 @@
+---
+
+ansible_host: localhost
+ansible_connection: local
+
+container_run: "{{ running_in_container | default(false) | bool }}"
+
+playbook_terminated: false
+tasks_completed: []

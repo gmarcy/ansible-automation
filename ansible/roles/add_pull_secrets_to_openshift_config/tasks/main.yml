@@ -2,7 +2,7 @@
 
 - name: Fetch cluster pull secret
   kubernetes.core.k8s_info:
-    api_key: "{{ api_key }}"
+    api_key: "{{ api_key | default(omit) }}"
     kind: Secret
     kubeconfig: "{{ kubeconfig_path }}"
     name: pull-secret
@@ -13,52 +13,66 @@
   set_fact:
     cluster_pull_secret: "{{ _result.resources[0].data['.dockerconfigjson'] | b64decode }}"
 
-- name: Create the auth_value for each element in pull_secrets
+- name: Set cluster_pull_secret auths keys fact
   set_fact:
-    auth_values: "{{ (auth_values | default([])) + [(item.username + ':' + item.password) | b64encode] }}"
-  loop: "{{ pull_secrets }}"
+    cluster_auth_keys: "{{ cluster_pull_secret.auths.keys() }}"
 
-- name: Create the auths value for each element in pull_secrets
+- name: Check if all of our keys are already present
   set_fact:
-    auths_values: "{{ (auths_values | default([])) | union([{'auths': [{'key': item.key, 'value': { 'auth': auth_values[ansible_loop.index0], 'email': item.email } }] | items2dict }]) }}"
-  loop: "{{ pull_secrets }}"
-  loop_control:
-    extended: true
+    auth_key_not_found: true
+  loop: "{{ pull_secrets | map(attribute='key') }}"
+  when: item not in cluster_auth_keys
 
-- name: Combine all the auth values
-  set_fact:
-    new_pull_secret: "{{ (new_pull_secret | default(cluster_pull_secret)) | combine(item, recursive=true) }}"
-  loop: "{{ auths_values }}"
+- when: auth_key_not_found | default(false)
+  name: Only add secrets if keys were missing
+  block:
 
-- name: If the secret hasn't changed then we don't need to update
-  set_fact:
-    found_changes: false
+    - name: Create the auth_value for each element in pull_secrets
+      set_fact:
+        auth_values: "{{ (auth_values | default([])) + [(item.username + ':' + item.password) | b64encode] }}"
+      loop: "{{ pull_secrets }}"
 
-- name: Set fact if there is a difference in the two sets of keys
-  set_fact:
-    found_changes: true
-  when: new_pull_secret.auths.keys() | list | symmetric_difference(cluster_pull_secret.auths.keys() | list) | length > 0
+    - name: Create the auths value for each element in pull_secrets
+      set_fact:
+        auths_values: "{{ (auths_values | default([])) | union([{'auths': [{'key': item.key, 'value': { 'auth': auth_values[ansible_loop.index0], 'email': item.email } }] | items2dict }]) }}"
+      loop: "{{ pull_secrets }}"
+      loop_control:
+        extended: true
 
-- name: Set fact if there is a difference in the values for those keys
-  set_fact:
-    found_changes: true
-  loop: "{{ new_pull_secret.auths.keys() | list }}"
-  when:
-  - not found_changes
-  - new_pull_secret.auths[item] != cluster_pull_secret.auths[item]
+    - name: Combine all the auth values
+      set_fact:
+        new_pull_secret: "{{ (new_pull_secret | default(cluster_pull_secret)) | combine(item, recursive=true) }}"
+      loop: "{{ auths_values }}"
 
-- name: Update merged cluster pull secret
-  kubernetes.core.k8s:
-    api_key: "{{ api_key }}"
-    definition:
-      data:
-        .dockerconfigjson: "{{ new_pull_secret | to_json | b64encode }}"
-      type: kubernetes.io/dockerconfigjson
-    kind: Secret
-    kubeconfig: "{{ kubeconfig_path }}"
-    merge_type: merge
-    name: pull-secret
-    namespace: openshift-config
-    state: present
-  register: _result
-  when: found_changes
+    - name: If the secret hasn't changed then we don't need to update
+      set_fact:
+        found_changes: false
+
+    - name: Set fact if there is a difference in the two sets of keys
+      set_fact:
+        found_changes: true
+      when: new_pull_secret.auths.keys() | list | symmetric_difference(cluster_pull_secret.auths.keys() | list) | length > 0
+
+    - name: Set fact if there is a difference in the values for those keys
+      set_fact:
+        found_changes: true
+      loop: "{{ new_pull_secret.auths.keys() | list }}"
+      when:
+      - not found_changes
+      - new_pull_secret.auths[item] != cluster_pull_secret.auths[item]
+
+    - name: Update merged cluster pull secret
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        definition:
+          data:
+            .dockerconfigjson: "{{ new_pull_secret | to_json | b64encode }}"
+          type: kubernetes.io/dockerconfigjson
+        kind: Secret
+        kubeconfig: "{{ kubeconfig_path }}"
+        merge_type: merge
+        name: pull-secret
+        namespace: openshift-config
+        state: present
+      register: _result
+      when: found_changes

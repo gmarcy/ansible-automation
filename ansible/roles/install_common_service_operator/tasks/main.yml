@@ -1,36 +1,156 @@
 ---
 
-- name: Create Subscription for IBM Common Service Operator
+- when: common_service_operator_channel == 'v4.0'
+  name: Apply v1alpha1 certmanager crds
   kubernetes.core.k8s:
-    api_key: "{{ api_key }}"
-    api_version: operators.coreos.com/v1alpha1
-    kind: Subscription
+    kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    src: "{{ item }}"
+  register: _result
+  with_fileglob: 'certmanager.*.yaml'
+
+- when: hostvars['cluster-facts']['kubernetes_distro'] != 'openshift'
+  block:
+
+    - name: Lookup ingress-nginx-controller port
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        kind: Service
+        name: ingress-nginx-controller
+        namespace: ingress-nginx
+      register: _result
+
+    - name: Set fact for the https ingress node port
+      set_fact:
+        node_port: "{{ _result.resources | map(attribute='spec.ports') | flatten | selectattr('targetPort','==','https') | map(attribute='nodePort') | first }}"
+
+    - name: Create ibm-cpp-config ConfigMap
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        kind: ConfigMap
+        name: ibm-cpp-config
+        namespace: "{{ common_service_namespace }}"
+        definition:
+          data:
+            domain_name: "{{ hostvars[hostvars['k8s-provisioner']['k8s_infra_hostname']]['fqdn'] + ':' + node_port | string }}"
+            kubernetes_cluster_type: cncf
+      register: _result
+
+- when: false and common_service_operator_channel == 'v4.0'
+  name: Create namespace-scope ConfigMap
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
     kubeconfig: "{{ kubeconfig_path }}"
-    name: "{{ ics_operator_name }}-v3.21-{{ ics_operator_catalog_source }}-{{ ics_operator_catalog_source_namespace }}"
-    namespace: "{{ ics_operator_namespace }}"
+    kind: ConfigMap
+    name: namespace-scope
+    namespace: "{{ common_service_namespace }}"
+    definition:
+      data:
+        namespaces: "{{ common_service_namespace }}"
+  register: _result
+
+- when: false and common_service_operator_channel == 'v4.0'
+  name: Enable access to CS Operator through NetworkPolicy
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: networking.k8s.io/v1
+    kind: NetworkPolicy
+    name: access-to-ibm-common-service-operator
+    namespace: "{{ common_service_namespace }}"
     definition:
       metadata:
         labels:
-          operators.coreos.com/ibm-common-service-operator.openshift-operators: ""
+          component: cpfs
       spec:
-        channel: v3.21
+        podSelector:
+          matchLabels:
+            name: "{{ common_service_operator_name }}"
+        ingress:
+          - {}
+        policyTypes:
+          - Ingress
+
+- name: Create Subscription for IBM Common Service Operator
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: Subscription
+    name: "{{ common_service_operator_name + '-' + common_service_operator_channel + '-' + common_service_catalog_source_name + '-' + common_service_catalog_source_namespace }}"
+    namespace: "{{ common_service_operator_namespace }}"
+    definition:
+      metadata:
+        labels: "{{ labels }}"
+      spec:
+        channel: "{{ common_service_operator_channel }}"
         installPlanApproval: Automatic
-        name: "{{ ics_operator_name }}"
-        source: "{{ ics_operator_catalog_source }}"
-        sourceNamespace: "{{ ics_operator_catalog_source_namespace }}"
-        startingCSV: ibm-common-service-operator.v3.21.0
+        name: "{{ common_service_operator_name }}"
+        source: "{{ common_service_catalog_source_name }}"
+        sourceNamespace: "{{ common_service_catalog_source_namespace }}"
+        startingCSV: "{{ common_service_operator_name + '.' + common_service_operator_version }}"
+  vars:
+    key: "{{ 'operators.coreos.com/' + common_service_operator_name + '.' + common_service_operator_namespace }}"
+    labels: "{{ [{'key': key, 'value': '' }] | items2dict }}"
   register: _result
 
 - name: Wait for ibm-common-service-operator
   kubernetes.core.k8s_info:
-    api_key: "{{ api_key }}"
-    kind: Deployment
+    api_key: "{{ api_key | default(omit) }}"
     kubeconfig: "{{ kubeconfig_path }}"
-    name: "{{ ics_operator_name }}"
-    namespace: "{{ ics_operator_namespace }}"
+    kind: Deployment
+    name: "{{ common_service_operator_name }}"
+    namespace: "{{ common_service_operator_namespace }}"
     wait: true
     wait_condition:
       type: Available
     wait_sleep: 20
     wait_timeout: 300
   register: _result
+
+- when: false and common_service_operator_channel == 'v4.0'
+  block:
+
+    - name: Remove possible stale scripts
+      file:
+        path: "{{ hostvars['cluster-facts']['cluster_dir'] + '/ibm-common-service-operator' }}"
+        state: absent
+
+    - name: Clone the scripts branch of the ibm-common-service-operator repo
+      git:
+        clone: true
+        dest: "{{ hostvars['cluster-facts']['cluster_dir'] + '/ibm-common-service-operator' }}"
+        repo: https://github.com/IBM/ibm-common-service-operator.git
+        version: scripts
+      register: _result
+
+    - name: Set fact for the files we are going to apply
+      set_fact:
+        policy_files: "{{ lookup('fileglob', hostvars['cluster-facts']['cluster_dir'] + '/ibm-common-service-operator/networkpolicy/*.yaml', wantlist=true) }}"
+
+    - name: Replace all occurrences of the common_service_namespace
+      lineinfile:
+        path: "{{ item }}"
+        backrefs: true
+        regexp: '(.*)csNamespace(.*)'
+        line: "{{ '\\1' + common_service_namespace + '\\2' }}"
+        state: present
+      loop: "{{ policy_files }}"
+
+    - name: Replace all occurrences of the was_automation_namespace
+      lineinfile:
+        path: "{{ item }}"
+        backrefs: true
+        regexp: "(.*)zenNamespace(.*)"
+        line: "{{ '\\1' + hostvars['was-automation']['was_automation_namespace'] + '\\2' }}"
+        state: present
+      loop: "{{ policy_files }}"
+
+    - name: Apply the updated files to the cluster
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        src: "{{ item }}"
+      register: _result
+      loop: "{{ policy_files }}"

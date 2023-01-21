@@ -1,0 +1,216 @@
+---
+
+- name: Set facts used in this next section
+  set_fact:
+    container_name: "{{ hostvars['cluster-facts']['cluster_name'] + '-haproxy' }}"
+    ingress_on_masters: true
+
+- name: Check for systemd user service config
+  stat:
+    path: "{{ user_home + '/.config/systemd/user/container-' + container_name + '.service' }}"
+  register: _result
+
+- name: Set fact that haproxy service config exists
+  set_fact:
+    haproxy_service_defined: "{{ _result.stat.exists }}"
+
+- when: not haproxy_service_defined
+  block:
+
+    - name: Create haproxy folders
+      file:
+        path: "{{ item }}"
+        state: directory
+      loop:
+      - "{{ user_home + '/.kube/haproxy' }}"
+      - "{{ user_home + '/.kube/haproxy/etc' }}"
+      - "{{ user_home + '/.kube/haproxy/lib' }}"
+
+    - name: Write cluster specific haproxy.cfg
+      copy:
+        content: |
+          #---------------------------------------------------------------------
+          global
+              log         127.0.0.1 local2
+              chroot      /var/lib/haproxy
+              pidfile     /var/run/haproxy.pid
+              maxconn     4000
+              user        haproxy
+              group       haproxy
+              daemon
+              stats socket /var/lib/haproxy/stats
+
+          defaults
+              mode                    http
+              log                     global
+              option                  httplog
+              option                  dontlognull
+              option http-server-close
+              option forwardfor       except 127.0.0.0/8
+              option                  redispatch
+              retries                 3
+              timeout http-request    10s
+              timeout queue           1m
+              timeout connect         10s
+              timeout client          1m
+              timeout server          1m
+              timeout http-keep-alive 10s
+              timeout check           10s
+              maxconn                 3000
+
+          #---------------------------------------------------------------------
+
+          listen stats
+              bind :9000
+              mode http
+              stats enable
+              stats uri /
+              monitor-uri /healthz
+
+
+          frontend kubernetes-api-server
+              bind *:6443
+              default_backend kubernetes-api-server
+              mode tcp
+              option tcplog
+
+          backend kubernetes-api-server
+              balance source
+              mode tcp
+          {% for host in groups['master_nodes'] | list %}
+              server {{ host }} {{ hostvars[host].ansible_host }}:6443 check
+          {% endfor %}
+
+
+          {% if hostvars['cluster-facts']['kubernetes_distro'] == 'openshift' %}
+          frontend machine-config-server
+              bind *:22623
+              default_backend machine-config-server
+              mode tcp
+              option tcplog
+
+          backend machine-config-server
+              balance source
+              mode tcp
+          {% for host in groups['master_nodes'] | list %}
+              server {{ host }} {{ hostvars[host].ansible_host }}:22623 check
+          {% endfor %}
+
+
+          {% endif %}
+          frontend ingress-http
+              bind *:80
+              default_backend ingress-http
+              mode tcp
+              option tcplog
+
+          backend ingress-http
+              balance source
+              mode tcp
+          {% for host in groups['worker_nodes'] | default([]) | list %}
+              server {{ host }} {{ hostvars[host].ansible_host + ':' + http_node_port | string }} check
+          {% endfor %}
+          {% for host in groups['master_nodes'] | list %}
+          {% if ingress_on_masters or groups['worker_nodes'] | default([]) | length == 0 %}
+              server {{ host }} {{ hostvars[host].ansible_host + ':' + http_node_port | string }} check
+          {% endif %}
+          {% endfor %}
+
+
+          frontend ingress-https
+              bind *:443
+              default_backend ingress-https
+              mode tcp
+              option tcplog
+
+          backend ingress-https
+              balance source
+              mode tcp
+          {% for host in groups['worker_nodes'] | default([]) | list %}
+              server {{ host }} {{ hostvars[host].ansible_host + ':' + https_node_port | string }} check
+          {% endfor %}
+          {% for host in groups['master_nodes'] | list %}
+          {% if ingress_on_masters or groups['worker_nodes'] | default([]) | length == 0 %}
+              server {{ host }} {{ hostvars[host].ansible_host + ':' + https_node_port | string }} check
+          {% endif %}
+          {% endfor %}
+
+
+          #---------------------------------------------------------------------
+        dest: "{{ user_home + '/.kube/haproxy/etc/haproxy.cfg' }}"
+        mode: '0600'
+
+    - name: Install buildah if required
+      package:
+        name:
+        - buildah
+        - podman
+        - skopeo
+        state: present
+
+    - name: Remove any old buildah container
+      ansible.builtin.shell: |
+        set -eo pipefail
+        if [ "$(buildah ls --filter {{ 'name=buildah-' + container_name }} --format {% raw %}'{{ .ContainerName }}'{% endraw %})" != "" ]
+        then
+          buildah rm {{ 'buildah-' + container_name }}
+        fi
+      args:
+        executable: /bin/bash
+      register: _result
+      changed_when: "_result.rc == 0"
+
+    - name: Create a new container image for haproxy
+      command: |
+        buildah from --name {{ 'buildah-' + container_name }} docker.io/library/haproxy:2.3
+      register: _result
+
+    - name: Update packages
+      command: |
+        buildah run {{ 'buildah-' + container_name }} -- apt-get -y update
+      register: _result
+
+    - name: Copy generated haproxy.cfg into container
+      command: |
+        buildah copy {{ 'buildah-' + container_name }} {{ user_home + '/.kube/haproxy/etc/haproxy.cfg' }} /usr/local/etc/haproxy/haproxy.cfg
+      register: _result
+
+    - name: Commit the container image
+      command: |
+        buildah commit {{ 'buildah-' + container_name }} {{ 'localhost/' + container_name + ':latest' }}
+      register: _result
+
+    - name: Remove the buildah image
+      command: |
+        buildah rm {{ 'buildah-' + container_name }}
+      register: _result
+
+    - name: Run the container with podman
+      containers.podman.podman_container:
+        name: "{{ container_name }}"
+        image: "{{ 'localhost/' + container_name + ':latest' }}"
+        network: host
+        state: stopped
+        volumes:
+        - "{{ user_home + '/.kube/haproxy/lib' }}:/var/lib/haproxy:Z"
+      register: _result_container_info
+      retries: 5
+      delay: 10
+      until: not _result_container_info.failed
+
+    - name: Clear temp facts
+      set_fact:
+        _result_container_info: null
+
+    - name: Create a systemd unit for the container
+      containers.podman.podman_generate_systemd:
+        name: "{{ container_name }}"
+        dest: "{{ user_home + '/.config/systemd/user/' }}"
+
+    - name: Start the systemd unit
+      systemd:
+        name: "{{ 'container-' + container_name }}"
+        daemon_reload: true
+        state: started
+        enabled: true
+        scope: user

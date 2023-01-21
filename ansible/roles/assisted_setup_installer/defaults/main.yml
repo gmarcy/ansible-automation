@@ -1,6 +1,6 @@
 ---
 
-download_base_url: "https://raw.githubusercontent.com/openshift/assisted-service/release-4.13"
+download_base_url: "https://raw.githubusercontent.com/openshift/assisted-service/release-4.14"
 
 download_paths:
   os_images: "os_images.json"

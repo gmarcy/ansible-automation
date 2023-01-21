@@ -1,0 +1,66 @@
+---
+
+- name: Unregister our cluster with the assisted-install service
+  set_fact:
+    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+
+- name: Get a list of the cluster objects
+  uri:
+    url: "{{ assisted_install_rest_url }}/clusters"
+  register: _result
+
+- name: See if our cluster already exists
+  set_fact:
+    cluster_id: "{{ item.id }}"
+  loop: "{{ _result.json }}"
+  when: item.name == cluster_name
+
+- name: Get a list of the infra-env objects
+  uri:
+    url: "{{ assisted_install_rest_url }}/infra-envs"
+  register: _result
+
+- name: See if our infra-env already exists
+  set_fact:
+    infra_env_id: "{{ item.id }}"
+  loop: "{{ _result.json }}"
+  when: item.name == (cluster_name + '_infra-env')
+
+- name: Delete old cluster object
+  uri:
+    url: "{{ assisted_install_rest_url }}/clusters/{{ cluster_id }}"
+    method: DELETE
+    status_code: 204
+  when: cluster_id | default('') | length > 0
+
+- name: Delete old infra-env object
+  uri:
+    url: "{{ assisted_install_rest_url }}/infra-envs/{{ infra_env_id }}"
+    method: DELETE
+    status_code: 204
+  when: infra_env_id | default('') | length > 0
+
+- name: Cleanup any deployment artifacts
+  import_role:
+    name: cleanup_deployment_folders
+  vars:
+    cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"
+
+- name: Collect ipxe macaddrs from all cluster hosts
+  set_fact:
+    cluster_ipxe_macaddrs: "{{ (cluster_ipxe_macaddrs | default([])) + [item] }}"
+  loop: "{{ hostvars['cluster-facts']['cluster_host_names'] | map('extract', hostvars, 'ipxe_mac_address') }}"
+
+- name: Remove the ipxe folders for the cluster mac addresses
+  file:
+    path: "{{ services_dir + '/ipxe/' + item }}"
+    state: absent
+  loop: "{{ cluster_ipxe_macaddrs }}"
+
+- name: Power down the cluster hosts
+  import_role:
+    name: power_off_cluster_hosts
+  vars:
+    cluster_host_names: "{{ hostvars['cluster-facts']['cluster_host_names'] }}"
+    ipmitool_password: "{{ hostvars['playbook-secrets']['ipmitool_password'] }}"
+    ipmitool_username: "{{ hostvars['playbook-secrets']['ipmitool_username'] }}"

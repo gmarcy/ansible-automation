@@ -2,7 +2,7 @@
 
 - name: Check for existing external-tls-secret
   kubernetes.core.k8s_info:
-    api_key: "{{ api_key }}"
+    api_key: "{{ api_key | default(omit) }}"
     kind: Secret
     kubeconfig: "{{ kubeconfig_path }}"
     name: external-tls-secret
@@ -15,7 +15,7 @@
 
 - name: Fetch ibm-nginx-internal-tls-ca secret
   kubernetes.core.k8s_info:
-    api_key: "{{ api_key }}"
+    api_key: "{{ api_key | default(omit) }}"
     kind: Secret
     kubeconfig: "{{ kubeconfig_path }}"
     name: ibm-nginx-internal-tls-ca
@@ -28,7 +28,7 @@
 
 - name: Create external-tls-secret
   kubernetes.core.k8s:
-    api_key: "{{ api_key }}"
+    api_key: "{{ api_key | default(omit) }}"
     kind: Secret
     kubeconfig: "{{ kubeconfig_path }}"
     name: external-tls-secret

@@ -1,0 +1,153 @@
+---
+
+- name: Set facts for this role
+  set_fact:
+    registry_certs_path_base: "{{ user_home + '/.kube/registry/certs' }}"
+    registry_auth_path_base: "{{ user_home + '/.kube/registry/auth' }}"
+
+- name: Check if we already have the registry artifacts
+  stat:
+    path: "{{ registry_auth_path_base + '/htpasswd' }}"
+  register: _result
+
+- name: Set fact if work completed
+  set_fact:
+    registry_artifacts_exist: "{{ _result.stat.exists }}"
+
+- when: not registry_artifacts_exist
+  block:
+
+    - name: Set facts for this role
+      set_fact:
+        cluster_ip: "{{ hostvars['cluster-facts']['cluster_publicip'] }}"
+        cluster_ip_fqdn: "{{ hostvars['cluster-facts']['cluster_publicip'] + '.nip.io' }}"
+        cluster_fqdn: "{{ hostvars['cluster-facts']['cluster_fqdn'] }}"
+        secret_ca_passphrase: EverythingIsAwesome
+        registry_username: registry
+        registry_password: 'p@ssw0rd'
+        registry_service_owner: "{{ hostvars['playbook-facts']['remote_user'] }}"
+        registry_service_group: "{{ hostvars['playbook-facts']['remote_user'] }}"
+        ca_path_base: "{{ user_home + '/.kube/cluster-ca' }}"
+
+    - name: Set fact for cluster subject alternative names
+      set_fact:
+        cluster_san:
+        - "{{ 'IP:' + cluster_ip }}"
+        - "{{ 'DNS:' + cluster_ip_fqdn }}"
+        - "{{ 'DNS:registry.' + cluster_ip_fqdn }}"
+        - "{{ 'DNS:cp-console.' + cluster_ip_fqdn }}"
+        - "{{ 'DNS:*.apps.' + cluster_ip_fqdn }}"
+        - "{{ 'DNS:' + cluster_fqdn }}"
+        - "{{ 'DNS:registry.' + cluster_fqdn }}"
+        - "{{ 'DNS:cp-console.' + cluster_fqdn }}"
+
+    - name: Create directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0700'
+      loop:
+      - "{{ ca_path_base }}"
+      - "{{ registry_certs_path_base }}"
+      - "{{ registry_auth_path_base }}"
+
+    - name: Add python3-pip package
+      package:
+        name: python3-pip
+        state: present
+
+    - name: Add python libraries we need
+      pip:
+        name:
+        - kubernetes
+        - cryptography
+        - passlib
+        state: latest
+        extra_args: --user
+
+    # Set up the CA
+
+    - name: Create private key with password protection
+      community.crypto.openssl_privatekey:
+        path: "{{ ca_path_base + '/ca-certificate.key' }}"
+        passphrase: "{{ secret_ca_passphrase }}"
+        cipher: auto
+
+    - name: Create certificate signing request (CSR) for CA certificate
+      community.crypto.openssl_csr_pipe:
+        privatekey_path: "{{ ca_path_base + '/ca-certificate.key' }}"
+        privatekey_passphrase: "{{ secret_ca_passphrase }}"
+        common_name: Ansible CA
+        use_common_name_for_san: false
+        basic_constraints:
+        - 'CA:TRUE'
+        basic_constraints_critical: true
+        key_usage:
+        - keyCertSign
+        key_usage_critical: true
+      register: ca_csr
+
+    - name: Create self-signed CA certificate from CSR
+      community.crypto.x509_certificate:
+        path: "{{ ca_path_base + '/ca-certificate.pem' }}"
+        csr_content: "{{ ca_csr.csr }}"
+        privatekey_path: "{{ ca_path_base + '/ca-certificate.key' }}"
+        privatekey_passphrase: "{{ secret_ca_passphrase }}"
+        provider: selfsigned
+
+    # Use the CA to sign a certificate for the registry
+
+    - name: Create private key for new certificate of registry
+      community.crypto.openssl_privatekey:
+        path: "{{ registry_certs_path_base + '/certificate.key' }}"
+      run_once: true
+
+    - name: Create certificate signing request (CSR) for new certificate
+      community.crypto.openssl_csr_pipe:
+        privatekey_path: "{{ registry_certs_path_base + '/certificate.key' }}"
+        subject_alt_name: "{{ cluster_san }}"
+      run_once: true
+      register: csr
+
+    - name: Check whether certificate exists
+      stat:
+        path: "{{ registry_certs_path_base + '/certificate.pem' }}"
+      run_once: true
+      register: certificate_exists
+
+    - name: Read existing certificate if exists
+      slurp:
+        src: "{{ registry_certs_path_base + '/certificate.pem' }}"
+      when: certificate_exists.stat.exists
+      run_once: true
+      register: certificate
+
+    - name: Sign certificate with our CA
+      community.crypto.x509_certificate_pipe:
+        content: "{{ (certificate.content | b64decode) if certificate_exists.stat.exists else omit }}"
+        csr_content: "{{ csr.csr }}"
+        provider: ownca
+        ownca_path: "{{ ca_path_base + '/ca-certificate.pem' }}"
+        ownca_privatekey_path: "{{ ca_path_base + '/ca-certificate.key' }}"
+        ownca_privatekey_passphrase: "{{ secret_ca_passphrase }}"
+        ownca_not_after: +365d  # valid for one year
+        ownca_not_before: "-1d"  # valid since yesterday
+      run_once: true
+      register: certificate
+
+    - name: Write certificate file for registry
+      copy:
+        dest: "{{ registry_certs_path_base + '/certificate.pem' }}"
+        content: "{{ certificate.certificate }}"
+      run_once: true
+      when: certificate is changed
+
+    - name: Generate htpasswd entry
+      community.general.htpasswd:
+        path: "{{ registry_auth_path_base + '/htpasswd' }}"
+        crypt_scheme: bcrypt
+        name: "{{ registry_username }}"
+        password: "{{ registry_password }}"
+        owner: "{{ registry_service_owner }}"
+        group: "{{ registry_service_group }}"
+        mode: '0600'

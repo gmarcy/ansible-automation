@@ -1,9 +1,0 @@
----
-
-- name: Print cephfs cluster information
-  hosts: cluster_facts
-  gather_facts: false
-  tags: cluster_info
-  roles:
-  - role: print_ocp_cluster_info
-    description: "Rook/CephFS"
