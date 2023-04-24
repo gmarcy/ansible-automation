@@ -1,0 +1,42 @@
+---
+
+all:
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  children:
+    all_nodes:
+    cluster_facts:
+      hosts:
+        cluster-facts:
+      vars:
+        cluster_provisioner: 'fyre_provisioner'
+        inv_cluster_description: 'OpenShift Cluster'
+        inv_cluster_domain: cp.fyre.ibm.com
+        inv_kubernetes_distro: openshift
+        inv_openshift_distro: ocp
+        inv_openshift_version: 'custom'
+    fyre_provisioner:
+      hosts:
+        fyre-provisioner:
+      vars:
+        provisioning_role: 'cluster_request_fyre'
+        deprovisioning_role: 'cluster_cleanup_fyre'
+        cluster_facts_role: 'cluster_gather_facts_fyre'
+        deploy_infra_services: false
+        inv_fyre_ocptype: ocpplus
+        inv_fyre_site: rtp
+        inv_fyre_group_id: 419
+        inv_fyre_worker_cpu: 16
+        inv_fyre_worker_memory: 32
+        rhcos_version_path: '4.11/latest'
+        ocp_version_path: 'ocp/stable-4.11'
+    cluster_storage:
+      hosts:
+        cluster-storage:
+      vars:
+        storage_provisioner: 'rook-cephfs'
+        provisioning_role: 'storage_deploy_cephfs'
+        deprovisioning_role: 'storage_remove_cephfs'
+        inv_rook_ceph_release: v1.10.4
+        inv_default_storage_class: "{{ cephfs_storage_class }}"
+        inv_default_block_class: "{{ cephfs_block_class }}"

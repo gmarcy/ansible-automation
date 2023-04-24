@@ -1,0 +1,126 @@
+---
+
+- name: Set facts used in this role
+  set_fact:
+    cephfs_setup_dir: "{{ hostvars['cluster-facts']['cluster_dir'] + '/cephfs' }}"
+    device_filter: "{{ cephfs_device_filter }}"
+    kubernetes_distro: "{{ hostvars['cluster-facts']['kubernetes_distro'] }}"
+
+- name: Check if CephCluster exists
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: ceph.rook.io/v1
+    kind: CephCluster
+    name: rook-ceph
+    namespace: rook-ceph
+  register: _result_cephcluster
+
+- name: Set fact if CephFS is Ready
+  set_fact:
+    cephfs_is_present: "{{ _result_cephcluster.resources | length > 0 }}"
+
+- when: cephfs_is_present | default(false) or true
+  name: Unnstall CephFS
+  block:
+
+    - name: Set rook_setup_dir fact
+      set_fact:
+        rook_setup_dir: "{{ cephfs_setup_dir }}/rook"
+
+    - name: Set majorRelease fact
+      set_fact:
+        majorRelease: "{{ rook_ceph_release | regex_replace('(v[0-9]+\\.[0-9]+)\\..*', '\\1') }}"
+
+    - name: Set path for examples within rook repo
+      set_fact:
+        rook_examples_dir: "{{ rook_setup_dir + ('/cluster/examples/kubernetes/ceph' if (majorRelease | regex_replace('v[0-9]+\\.([0-9]+)\\..*', '\\1') | int >= 8) else '/deploy/examples') }}"
+
+    - name: Delete rook-ceph-block StorageClass
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: storage.k8s.io/v1
+        kind: StorageClass
+        name: rook-ceph-block
+        state: absent
+        wait: true
+      register: _result
+
+    - name: Delete rook-cephfs StorageClass
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: storage.k8s.io/v1
+        kind: StorageClass
+        name: rook-cephfs
+        state: absent
+        wait: true
+      register: _result
+
+    - name: Patch the rook-ceph CephCluster cleanupPolicy
+      kubernetes.core.k8s_json_patch:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: ceph.rook.io/v1
+        kind: CephCluster
+        name: rook-ceph
+        namespace: rook-ceph
+        patch:
+        - op: replace
+          path: /spec/cleanupPolicy/confirmation
+          value: 'yes-really-destroy-data'
+        wait: true
+      register: _result
+      when: cephfs_is_present
+
+    - name: Delete rook-ceph CephCluster
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: ceph.rook.io/v1
+        kind: CephCluster
+        name: rook-ceph
+        namespace: rook-ceph
+        state: absent
+        wait: true
+      register: _result
+
+    - name: Apply operator-openshift.yaml to the cluster
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        src: "{{ rook_examples_dir + '/operator-openshift.yaml' }}"
+        state: absent
+        wait: true
+      register: _result
+      when: kubernetes_distro == 'openshift'
+
+    - name: Apply operator.yaml to the cluster
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        src: "{{ rook_examples_dir + '/operator.yaml' }}"
+        state: absent
+        wait: true
+      register: _result
+      when: kubernetes_distro != 'openshift'
+
+    - name: Apply common.yaml to the cluster
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        src: "{{ rook_examples_dir + '/common.yaml' }}"
+        state: absent
+        wait: true
+      register: _result
+
+    - name: Apply crds.yaml to the cluster
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        src: "{{ rook_examples_dir + '/crds.yaml' }}"
+        state: absent
+        wait: true
+      register: _result
+      when: majorRelease != 'v1.4'

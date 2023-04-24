@@ -1,0 +1,35 @@
+---
+
+all:
+  children:
+    cluster_operators:
+      hosts:
+        cluster-operators:
+      vars:
+        operators_to_deploy:
+        - name: cert-manager
+          namespace: community-cert-manager
+          catalog: community-operators
+    common_services:
+      hosts:
+        common-services:
+      vars:
+        inv_common_service_catalog_source_name: 'opencloud-operators'
+        inv_common_service_catalog_source_display_name: 'IBMCS Test Operators'
+        inv_common_service_catalog_source_image: "{{ inv_common_service_catalog_source_image_cs4 }}"
+        inv_common_service_catalog_source_image_tag: "{{ inv_common_service_catalog_source_image_tag_cs4 }}"
+        inv_common_service_namespace: 'wasautomation'
+        inv_common_service_operand_namespace: 'wasautomation'
+        inv_common_service_operator_group: 'ibm-websphere-automation-group'
+        inv_common_service_operator_namespace: 'wasautomation'
+        inv_common_service_operator_channel: 'v4.0'
+        inv_common_service_operator_version: 'v4.0.0'
+    was_automation:
+      hosts:
+        was-automation:
+      vars:
+        inv_was_automation_catalog_source_name: 'websphere-automation-catalog'
+        inv_was_automation_catalog_source_display_name: 'IBM WebSphere Automation Catalog'
+        inv_was_automation_catalog_source_image: "{{ inv_was_automation_catalog_source_image_cs4 }}"
+        inv_was_automation_catalog_source_image_tag: "{{ inv_was_automation_catalog_source_image_tag_cs4 }}"
+        inv_was_automation_operator_singlenamespace: true

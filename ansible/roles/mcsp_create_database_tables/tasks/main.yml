@@ -1,0 +1,98 @@
+---
+
+- debug:
+    msg:
+    - "{{ 'Database EndPoint URL: ' + target_endpoint_url }}"
+    - "{{ 'Database Profile: ' + target_profile }}"
+
+- name: Set facts used in this role
+  set_fact:
+    mcsp_table_suffix: "{{ mcsp_database['suffix'] }}"
+    aws_target: "{{ '--endpoint-url ' + target_endpoint_url + ' --profile ' + target_profile + ' --no-cli-pager' }}"
+    billing_mode: PAY_PER_REQUEST
+
+- name: Collect facts for all tables in the files folder with GlobalSecondaryIndexes
+  set_fact:
+    db_tables_with_gsi: "{{ db_tables_with_gsi | default({}) | combine({item: (lookup('file', item) | from_json) }) }}"
+  loop: "{{ lookup('fileglob', '*.json', wantlist=True) }}"
+  vars:
+    db_table: "{{ lookup('file', item) | from_json }}"
+  when: db_table['GlobalSecondaryIndexes'] is defined
+
+- name: Collect facts for all tables in the files folder without GlobalSecondaryIndexes
+  set_fact:
+    db_tables_without_gsi: "{{ db_tables_without_gsi | default({}) | combine({item: (lookup('file', item) | from_json) }) }}"
+  loop: "{{ lookup('fileglob', '*.json', wantlist=True) }}"
+  vars:
+    db_table: "{{ lookup('file', item) | from_json }}"
+  when: db_table['GlobalSecondaryIndexes'] is not defined
+
+- name: Determine which tables with GSI already exist
+  command: |
+    aws dynamodb describe-table {{ aws_target }} --table-name {{ table_name }}
+  loop: "{{ db_tables_with_gsi.keys() }}"
+  vars:
+    db_table: "{{ db_tables_with_gsi[item] }}"
+    table_name: "{{ db_table['TableBaseName'] + '.' + mcsp_table_suffix }}"
+  register: _result
+  failed_when: _result.rc not in [0, 254]
+  changed_when: false
+
+- name: Set db_tables_with_gsi_absent fact
+  set_fact:
+    db_tables_with_gsi_absent: "{{ db_tables_with_gsi_absent | default([]) | union([db_table]) }}"
+  loop: "{{ _result.results }}"
+  vars:
+    db_table: "{{ db_tables_with_gsi[item.item] }}"
+  when: item.rc != 0
+
+- name: Determine which tables without GSI already exist
+  command: |
+    aws dynamodb describe-table {{ aws_target }} --table-name {{ table_name }}
+  loop: "{{ db_tables_without_gsi.keys() }}"
+  vars:
+    db_table: "{{ db_tables_without_gsi[item] }}"
+    table_name: "{{ db_table['TableBaseName'] + '.' + mcsp_table_suffix }}"
+  register: _result
+  failed_when: _result.rc not in [0, 254]
+  changed_when: false
+
+- name: Set db_tables_without_gsi_absent fact
+  set_fact:
+    db_tables_without_gsi_absent: "{{ db_tables_without_gsi_absent | default([]) | union([db_table]) }}"
+  loop: "{{ _result.results }}"
+  vars:
+    db_table: "{{ db_tables_without_gsi[item.item] }}"
+  when: item.rc != 0
+
+- name: Create the tables without GSI first
+  command: |
+    aws dynamodb create-table {{ aws_target }} --billing-mode {{ billing_mode }} --table-name {{ table_name }} --attribute-definitions '{{ attribute_definitions | to_json }}' --key-schema '{{ key_schema | to_json }}'
+  loop: "{{ db_tables_without_gsi_absent | default([]) }}"
+  loop_control:
+    loop_var: db_table
+  vars:
+    table_name: "{{ db_table.TableBaseName + '.' + mcsp_table_suffix }}"
+    attribute_definitions: "{{ db_table.TableAttributes }}"
+    key_schema: "{{ db_table.TableKeySchema }}"
+
+- name: Wait for the tables without GSI first
+  command: |
+    aws dynamodb wait table-exists {{ aws_target }} --table-name {{ table_name }}
+  loop: "{{ db_tables_without_gsi_absent | default([]) }}"
+  loop_control:
+    loop_var: db_table
+  vars:
+    table_name: "{{ db_table.TableBaseName + '.' + mcsp_table_suffix }}"
+
+- name: Create the tables with GSI last
+  command: |
+    aws dynamodb create-table {{ aws_target }} --billing-mode {{ billing_mode }} --table-name {{ table_name }} --attribute-definitions '{{ attribute_definitions | to_json }}' --key-schema '{{ key_schema | to_json }}' --global-secondary-indexes '{{ global_secondary_indexes | to_json }}'
+  loop: "{{ db_tables_with_gsi_absent | default([]) }}"
+  loop_control:
+    loop_var: db_table
+  vars:
+    table_name: "{{ db_table.TableBaseName + '.' + mcsp_table_suffix }}"
+    attribute_definitions: "{{ db_table.TableAttributes }}"
+    key_schema: "{{ db_table.TableKeySchema }}"
+    global_secondary_indexes: "{{ db_table.GlobalSecondaryIndexes }}"

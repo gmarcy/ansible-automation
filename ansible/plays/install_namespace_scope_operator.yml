@@ -1,0 +1,14 @@
+---
+
+- name: Install Namespace Scope Operator
+  hosts: common_services
+  gather_facts: false
+  tags: common_services
+  roles:
+  - role: create_target_subscription
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_operator_name: ibm-namespace-scope-operator-restricted
+    target_operator_namespace: "{{ common_service_operator_namespace }}"
+    target_catalog_source_name: "{{ common_service_catalog_source_name }}"
+    target_catalog_source_namespace: "{{ common_service_catalog_source_namespace }}"

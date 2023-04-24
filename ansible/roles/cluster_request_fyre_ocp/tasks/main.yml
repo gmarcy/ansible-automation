@@ -16,10 +16,11 @@
   until: ocpexistance.status != -1
 
 - name: Create Fyre OCP
-  when: ocpexistance.status is not in [200] # Status is only defined if cluster does not exist
+  when: ocpexistance.status is not in [200]
   block:
 
-    - debug:
+    - name: cluster not found
+      debug:
         msg: "Cluster was not found so creating new cluster called '{{ cluster_name }}'"
 
     - name: Only set ocp_version fact when this is not a custom install
@@ -129,6 +130,9 @@
     force_basic_auth: "{{ fyre_force_basic_auth }}"
   changed_when: false
   register: error_status
+  delay: 20
+  retries: 600
+  until: error_status.status != -1
 
 - name: check for error status
   fail:
@@ -147,12 +151,16 @@
     validate_certs: False
     password: "{{ fyreapikey }}"
     force_basic_auth: "{{ fyre_force_basic_auth }}"
-    return_content: yes
   changed_when: false
   register: cluster_status_response
-  until: (cluster_status_response.status == 200) and cluster_status_response.json is defined and (cluster_status_response.json.clusters[0].deployment_status  =="deployed" or cluster_status_response.json.clusters[0].deployment_status == "failed")
+  until: (cluster_status_response.status == 200) and cluster_status_response.json is defined and (cluster_status_response.json.clusters[0].deployment_status == "deployed" or cluster_status_response.json.clusters[0].deployment_status == "failed")
   retries: 600
   delay: 20
+
+- name: Check for deployment status failed
+  fail:
+    msg: "Cluster failed to deploy"
+  when: cluster_status_response.json.clusters[0].deployment_status == "failed"
 
 - name: check for error status after loop check
   fail:

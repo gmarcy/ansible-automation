@@ -1,0 +1,77 @@
+{
+  "TableBaseName": "TenantMgt.SiRoleBinding",
+  "TableAttributes": [
+    {
+      "AttributeName": "uid",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "identityType",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "roleName",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "identityUid",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "crn",
+      "AttributeType": "S"
+    }
+  ],
+  "TableKeySchema": [
+    {
+      "AttributeName": "uid",
+      "KeyType": "HASH"
+    }
+  ],
+  "GlobalSecondaryIndexes": [
+    {
+      "IndexName": "si-role-binding-roleName-crn",
+      "KeySchema": [
+        {
+            "AttributeName": "roleName",
+            "KeyType": "HASH"
+        },
+        {
+            "AttributeName": "crn",
+            "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "ALL"
+      }
+    },
+    {
+      "IndexName": "si-role-binding-crn",
+      "KeySchema": [
+        {
+          "AttributeName": "crn",
+          "KeyType": "HASH"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "ALL"
+      }
+    },
+    {
+      "IndexName": "si-role-binding-identity-uid-identity-type",
+      "KeySchema": [
+        {
+          "AttributeName": "identityUid",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "identityType",
+          "KeyType": "RANGE"
+        }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        }
+    }
+  ]
+}

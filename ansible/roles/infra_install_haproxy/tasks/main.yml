@@ -32,8 +32,10 @@
           #---------------------------------------------------------------------
           global
               log         127.0.0.1 local2
-              chroot      /var/lib/haproxy
-              pidfile     /var/run/haproxy.pid
+              # not running as root
+              #chroot      /var/lib/haproxy
+              #pidfile     /var/run/haproxy.pid
+              pidfile     /var/lib/haproxy/haproxy.pid
               maxconn     4000
               user        haproxy
               group       haproxy
@@ -138,7 +140,7 @@
 
           #---------------------------------------------------------------------
         dest: "{{ user_home + '/.kube/haproxy/etc/haproxy.cfg' }}"
-        mode: '0600'
+        mode: '0644'
 
     - name: Install buildah if required
       package:
@@ -162,12 +164,22 @@
 
     - name: Create a new container image for haproxy
       command: |
-        buildah from --name {{ 'buildah-' + container_name }} docker.io/library/haproxy:2.3
+        buildah from --name {{ 'buildah-' + container_name }} docker.io/library/haproxy:2.7
       register: _result
 
     - name: Update packages
       command: |
-        buildah run {{ 'buildah-' + container_name }} -- apt-get -y update
+        buildah run --user 0:0 {{ 'buildah-' + container_name }} -- env DEBIAN_FRONTEND=noninteractive apt-get -y update
+      register: _result
+
+    - name: Install libcap2-bin
+      command: |
+        buildah run --user 0:0 {{ 'buildah-' + container_name }} -- env DEBIAN_FRONTEND=noninteractive apt-get -y install libcap2-bin
+      register: _result
+
+    - name: Update packages
+      command: |
+        buildah run --user 0:0 {{ 'buildah-' + container_name }} -- setcap 'cap_net_bind_service=+ep' /usr/local/sbin/haproxy
       register: _result
 
     - name: Copy generated haproxy.cfg into container
@@ -191,8 +203,6 @@
         image: "{{ 'localhost/' + container_name + ':latest' }}"
         network: host
         state: stopped
-        volumes:
-        - "{{ user_home + '/.kube/haproxy/lib' }}:/var/lib/haproxy:Z"
       register: _result_container_info
       retries: 5
       delay: 10

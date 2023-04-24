@@ -1,0 +1,23 @@
+{
+  "TableBaseName": "TenantMgt.SubscriptionAuditV2",
+  "TableAttributes": [
+    {
+      "AttributeName": "subscriptionId",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "tsCreated",
+      "AttributeType": "S"
+    }
+  ],
+  "TableKeySchema": [
+    {
+      "AttributeName": "subscriptionId",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "tsCreated",
+      "KeyType": "RANGE"
+    }
+  ]
+}

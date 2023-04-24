@@ -1,35 +1,51 @@
 ---
 
+- when: false
+  name: Create ibm-zen-config ConfigMap
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: v1
+    kind: ConfigMap
+    name: ibm-zen-config
+    namespace: "{{ target_namespace }}"
+    definition:
+      data:
+        zen: |-
+          storage_data:
+            storageClass: "{{ zen_storage_class }}"
+            fileStorageClass: "{{ zen_storage_class }}"
+            blockStorageClass: "{{ zen_block_class }}"
+  register: _result
+
 - name: Create ZenService instance
   kubernetes.core.k8s:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: zen.cpd.ibm.com/v1
     kind: ZenService
-    kubeconfig: "{{ kubeconfig_path }}"
-    name: websphereauto
+    name: iaf-zen-cpdservice
     namespace: "{{ target_namespace }}"
     definition:
       spec:
         csNamespace: "{{ registry_namespace }}"
+        fileStorageClass: "{{ zen_storage_class }}"
         iamIntegration: true
         scaleConfig: small
-        storageClass: "{{ zen_storage_class }}"
-        fileStorageClass: "{{ zen_storage_class }}"
-        blockStorageClass: "{{ zen_block_class }}"
     wait: "{{ wait_for_zenservice_success | default(true) }}"
     wait_condition:
       type: Successful
     wait_sleep: 60
-    wait_timeout: 2400
+    wait_timeout: 3600
   register: _result
 
 - name: Wait for ZenService to reach zenStatus of Completed
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: zen.cpd.ibm.com/v1
     kind: ZenService
-    kubeconfig: "{{ kubeconfig_path }}"
-    name: websphereauto
+    name: iaf-zen-cpdservice
     namespace: "{{ target_namespace }}"
   register: _result
   delay: 30

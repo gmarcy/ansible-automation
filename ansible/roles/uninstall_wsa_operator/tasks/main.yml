@@ -1,0 +1,24 @@
+---
+
+- name: Remove the primary CSV for IBM WebSphere Automation Operator
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: ClusterServiceVersion
+    name: "{{ was_automation_operator_name }}.{{ was_automation_operator_version }}"
+    namespace: "{{ target_namespace if operator_singlenamespace else was_automation_operator_namespace }}"
+    state: absent
+  register: _result
+
+- name: Remove Subscription for IBM WebSphere Automation Operator
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: Subscription
+    name: "{{ was_automation_operator_name }}"
+    namespace: "{{ target_namespace if operator_singlenamespace else was_automation_operator_namespace }}"
+    state: absent
+    wait: true
+  register: _result

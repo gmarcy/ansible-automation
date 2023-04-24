@@ -1,0 +1,9 @@
+---
+
+host_address: 192.168.222.202
+install_disk: nvme0n1
+ipmi_info:
+  address: 192.168.123.202
+  interface: lanplus
+ipxe_mac_address: 3c-ec-ef-44-ed-90
+cephfs_device_filter: sda

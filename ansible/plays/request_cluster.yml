@@ -8,16 +8,23 @@
     include_role:
       name: "{{ provisioning_role }}"
 
+- name: Generate artifactory token when required
+  hosts: playbook_secrets
+  gather_facts: false
+  pre_tasks:
+  - name: Set need_artifactory_token fact
+    set_fact:
+      need_artifactory_token: "{{ artifactory_identity_token is defined and artifactory_token is not defined }}"
+  roles:
+  - role: generate_artifactory_token
+    when: need_artifactory_token and artifactory_generate_access_token is defined
+
 - name: "Provision nodes using node_provisioning_role when requested"
   hosts: all_nodes
   gather_facts: false
   roles:
   - role: setup_ansible_host
-    ansible_ssh_user: "{{ hostvars['playbook-facts']['remote_user'] }}"
-    remote_user: "{{ hostvars['playbook-facts']['remote_user'] }}"
   - role: gather_host_facts
-    ansible_ssh_user: "{{ hostvars['playbook-facts']['remote_user'] }}"
-    remote_user: "{{ hostvars['playbook-facts']['remote_user'] }}"
     gather_packages_info: false
     gather_services_info: false
 

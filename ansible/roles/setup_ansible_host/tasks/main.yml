@@ -17,7 +17,7 @@
       register: _result
       failed_when: _result is not defined
       changed_when: false
-      delegate_to: 'cluster-facts'
+      delegate_to: 'localhost-facts'
 
     - name: Provide informative message if ssh connect fails
       ansible.builtin.fail:
@@ -37,7 +37,7 @@
           register: _result
           failed_when: _result is not defined
           changed_when: false
-          delegate_to: 'cluster-facts'
+          delegate_to: 'localhost-facts'
 
         - name: Provide informative message if sudo on ssh connect fails
           ansible.builtin.fail:
@@ -55,7 +55,7 @@
           register: _result
           failed_when: _result is not defined
           changed_when: false
-          delegate_to: 'cluster-facts'
+          delegate_to: 'localhost-facts'
 
         - name: Set fact when python is present
           set_fact:
@@ -73,7 +73,7 @@
                 {{ _ssh_command }} cat /etc/os-release
               register: _result
               changed_when: "_result.rc == 0"
-              delegate_to: 'cluster-facts'
+              delegate_to: 'localhost-facts'
 
             - name: Set fact for python_package_manager
               set_fact:
@@ -84,7 +84,7 @@
                 {{ _ssh_command }} sudo {{ python_package_manager }} install -y python3
               register: _result
               changed_when: "_result.rc == 0"
-              delegate_to: 'cluster-facts'
+              delegate_to: 'localhost-facts'
 
             - name: Reconfirm that we can run ssh to inventory_hostname, sudo without a password, and the python interpreter is present
               ansible.builtin.command: |
@@ -92,7 +92,7 @@
               register: _result
               failed_when: _result is not defined
               changed_when: "_result.rc == 0"
-              delegate_to: 'cluster-facts'
+              delegate_to: 'localhost-facts'
 
             - name: Provide informative message if python not present on remote host
               ansible.builtin.fail:

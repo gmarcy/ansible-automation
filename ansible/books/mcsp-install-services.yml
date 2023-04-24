@@ -1,0 +1,13 @@
+---
+
+- import_playbook: ../plays/gather_playbook_facts.yml
+- import_playbook: ../plays/gather_cluster_facts.yml
+- import_playbook: ../plays/install_w3id_oauth_issuer.yml
+- import_playbook: ../plays/prepare_mcsp_services_group.yml
+- import_playbook: ../plays/install_ibm_catalog.yml
+- import_playbook: ../plays/prepare_cluster_operators_group.yml
+- import_playbook: ../plays/install_cluster_operators.yml
+- import_playbook: ../plays/mcsp_create_serving_signer.yml
+- import_playbook: ../plays/mcsp_deploy_argo_services.yml
+- import_playbook: ../plays/mcsp_create_dynamodb.yml
+- import_playbook: ../plays/mcsp_create_db_tables.yml

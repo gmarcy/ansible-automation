@@ -3,9 +3,9 @@
 ansible_host: localhost
 ansible_connection: local
 
-cluster_name: "{{ inv_cluster_name | default('') }}"
 cluster_description: "{{ inv_cluster_description | default('Kubernetes Cluster') }}"
 cluster_domain: "{{ inv_cluster_domain }}"
+cluster_fqdn: "{{ cluster_name + '.' + cluster_domain }}"
 network_cidr: "{{ inv_network_cidr | default('') }}"
 http_proxy: "{{ inv_cluster_proxy | default('') }}"
 cluster_host_names: "{{ inv_cluster_hosts | default('') }}"
@@ -20,11 +20,3 @@ openshift_version: "{{ inv_openshift_version | default('') }}"
 
 cluster_dir: "{{ lookup('env','HOME') + '/.kube/clusters/' + cluster_name }}"
 cluster_bin_dir: "{{ cluster_dir + '/bin' }}"
-
-ibm_operator_catalog_source_name: "{{ inv_ibm_operator_catalog_source_name | default('ibm-operator-catalog') }}"
-ibm_operator_catalog_source_namespace: "{{ inv_ibm_operator_catalog_source_namespace | default('openshift-marketplace') }}"
-ibm_operator_catalog_source_display_name: "{{ inv_ibm_operator_catalog_source_display_name | default('IBM Operator Catalog') }}"
-ibm_operator_catalog_source_image: "{{ inv_ibm_operator_catalog_source_image | default('icr.io/cpopen/ibm-operator-catalog') }}"
-ibm_operator_catalog_source_image_tag: "{{ inv_ibm_operator_catalog_source_image_tag | default('') }}"
-ibm_operator_catalog_source_publisher: "{{ inv_ibm_operator_catalog_source_publisher | default('IBM') }}"
-ibm_operator_catalog_source_poll_interval: "{{ inv_ibm_operator_catalog_source_poll_interval | default('45m') }}"

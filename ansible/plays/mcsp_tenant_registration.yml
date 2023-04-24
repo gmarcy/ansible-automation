@@ -1,0 +1,40 @@
+---
+
+- name: Create MCSP Product Registrations, Subscriptions, and Tenants
+  hosts: mcsp_services
+  gather_facts: false
+  tags: mcsp_register
+  tasks:
+  - name: Create product registrations
+    include_role: name=mcsp_create_product_registration
+    loop: "{{ value_templates }}"
+    loop_control:
+      loop_var: value_template
+    vars:
+      Values: "{{ value_template['Values'] }}"
+  - name: Create service broker namespaces
+    include_role: name=create_target_namespace
+    loop: "{{ value_templates }}"
+    loop_control:
+      loop_var: value_template
+    vars:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      target_namespace: "{{ value_template['Values']['namespace'] }}"
+  - name: Add service brokers
+    include_role: name=mcsp_create_service_broker
+    loop: "{{ value_templates }}"
+    loop_control:
+      loop_var: value_template
+    vars:
+      Values: "{{ value_template['Values'] }}"
+  - name: Add subscriptions
+    include_role: name=mcsp_add_subscription
+    loop: "{{ subscriptions }}"
+    loop_control:
+      loop_var: subscription
+  - name: Add tenants
+    include_role: name=mcsp_add_tenant
+    loop: "{{ tenants }}"
+    loop_control:
+      loop_var: tenant

@@ -30,11 +30,11 @@
   retries: 20
   until: >
     (fyre_status.status != -1) and
-    ((fyre_status.content | from_yaml)['clusters'] | default([no_cluster]) | selectattr('name','==',cluster_name) | map(attribute='status') | first) not in ['pending delete', 'deleting']
+    ((fyre_status.content | from_json)['clusters'] | default([no_cluster]) | selectattr('name','==',cluster_name) | map(attribute='status') | first) not in ['pending delete', 'deleting']
 
 - name: Set fyre_status_json fact
   set_fact:
-    fyre_status_json: "{{ fyre_status.content | from_yaml }}"
+    fyre_status_json: "{{ fyre_status.content | from_json }}"
 
 - when: fyre_status_json['status'] != 'error' and wait_for_completion | default(true) | bool
   name: Wait for completion if there wasn't an error

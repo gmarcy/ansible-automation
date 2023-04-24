@@ -1,0 +1,62 @@
+---
+
+- name: Install W3ID OAuth Identity Provider
+  hosts: cluster_facts
+  gather_facts: false
+  tags: cluster_facts
+  roles:
+  - role: install_oauth_idp_openid
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    oauth_name: 'cluster'
+    oauth_idp_name: 'Login-With-W3ID'
+    oauth_idp_openid_client_id: "{{ hostvars['playbook-secrets']['w3id_oauth_issuer_client_id'] }}"
+    oauth_idp_openid_client_secret_name: 'openid-client-secret-idp'
+    oauth_idp_openid_client_secret: "{{ hostvars['playbook-secrets']['w3id_oauth_issuer_client_secret'] }}"
+    oauth_idp_openid_issuer: "{{ hostvars['playbook-secrets']['w3id_oauth_issuer_url'] }}"
+  tasks:
+  - name: Create paris-cluster-admins CRB
+    kubernetes.core.k8s:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      api_version: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      name: paris-cluster-admins
+      definition:
+        roleRef:
+          apiGroup: rbac.authorization.k8s.io
+          kind: ClusterRole
+          name: cluster-admin
+        subjects:
+        - apiGroup: rbac.authorization.k8s.io
+          kind: Group
+          name: liberty-paris-admin
+    register: _result
+  - name: Create w3id-cluster-admins CRB
+    kubernetes.core.k8s:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      api_version: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      name: w3id-cluster-admins
+      definition:
+        roleRef:
+          apiGroup: rbac.authorization.k8s.io
+          kind: ClusterRole
+          name: cluster-admin
+        subjects:
+        - kind: Group
+          apiGroup: rbac.authorization.k8s.io
+          name: w3id-cluster-admins
+    register: _result
+  - name: Create w3id-cluster-admins Group
+    kubernetes.core.k8s:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      api_version: user.openshift.io/v1
+      kind: Group
+      name: w3id-cluster-admins
+      definition:
+        users:
+        - gmarcy@us.ibm.com
+    register: _result

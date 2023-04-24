@@ -1,0 +1,45 @@
+---
+
+- name: Create oauth_idp_openid_client_secret_name Secret
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: v1
+    kind: Secret
+    name: "{{ oauth_idp_openid_client_secret_name }}"
+    namespace: openshift-config
+    definition:
+      data:
+        clientSecret: "{{ oauth_idp_openid_client_secret | b64encode }}"
+      type: Opaque
+  register: _result
+
+- name: Create oauth_name OAuth
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: config.openshift.io/v1
+    kind: OAuth
+    name: "{{ oauth_name }}"
+    definition:
+      spec:
+        identityProviders:
+        - mappingMethod: add
+          name: "{{ oauth_idp_name }}"
+          type: OpenID
+          openID:
+            claims:
+              email:
+              - email
+              groups:
+              - groupIds
+              name:
+              - name
+              preferredUsername:
+              - preferred_username
+            clientID: "{{ oauth_idp_openid_client_id }}"
+            clientSecret:
+              name: "{{ oauth_idp_openid_client_secret_name }}"
+            extraScopes: []
+            issuer: "{{ oauth_idp_openid_issuer }}"
+  register: _result

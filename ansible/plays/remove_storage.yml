@@ -1,9 +1,12 @@
 ---
 
-- name: "Remove storage from {{ hostvars['cluster-facts']['storage_provisioner'] }}"
-  hosts: "{{ hostvars['cluster-facts']['storage_provisioner'] }}"
+- name: "Remove storage from {{ hostvars['cluster-storage']['storage_provisioner'] }}"
+  hosts: cluster_storage
   gather_facts: false
   tasks:
   - name: "include_role: {{ deprovisioning_role }}"
     include_role:
       name: "{{ deprovisioning_role }}"
+    vars:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"

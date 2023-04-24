@@ -6,8 +6,8 @@ ansible_connection: local
 # Fyre constants
 
 fyre_apiurl: "https://api.fyre.ibm.com/rest/v1/"
-fyre_clusterstatusurl: "{{ fyre_apiurl }}?operation=query&request=showclusterdetails&cluster_name={{ cluster_name }}"
-fyre_opshowclusterurl: "{{ fyre_apiurl }}?operation=query&request=showclusters"
+fyre_clusterstatusurl: "{{ fyre_apiurl + '?operation=query&request=showclusterdetails&cluster_name=' + cluster_name }}"
+fyre_opshowclusterurl: "{{ fyre_apiurl + '?operation=query&request=showclusters' }}"
 
 fyreocpplus_ocpdeployurl: 'https://ocpapi.svl.ibm.com/v1/ocp/'
 fyreocpplus_clusterstatusurl: "{{ fyreocpplus_ocpdeployurl + cluster_name }}"
@@ -36,3 +36,21 @@ fyre_worker_memory: "{{ inv_fyre_worker_memory | default(16) }}"
 fyre_worker_additional_disk: "{{ inv_fyre_worker_additional_disk | default(['200']) }}"
 fyre_quickburn_size: "{{ inv_fyre_quickburn_size | default('medium') }}"
 fyre_quickburn_ttl: "{{ inv_fyre_quickburn_ttl | default(12) }}"
+
+# set nodes cpu and memory size based on cluster size
+tshirt_sizes:
+  s:
+    cpu: 2
+    memory: 2
+  m:
+    cpu: 2
+    memory: 4
+  l:
+    cpu: 4
+    memory: 8
+  x:
+    cpu: 8
+    memory: 16
+  xl:
+    cpu: 16
+    memory: 32

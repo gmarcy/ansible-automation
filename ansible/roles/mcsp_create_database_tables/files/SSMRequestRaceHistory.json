@@ -1,0 +1,23 @@
+{
+    "TableBaseName": "TenantMgt.SSMRequestRaceHistory",
+    "TableAttributes": [
+      {
+        "AttributeName": "subscriptionGroupIdentifier",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "id",
+        "AttributeType": "S"
+      }
+    ],
+    "TableKeySchema": [
+      {
+        "AttributeName": "subscriptionGroupIdentifier",
+        "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "id",
+      "KeyType": "RANGE"
+    }
+]
+  }

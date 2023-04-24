@@ -6,7 +6,6 @@
     k8s_version: "{{ hostvars['cluster-facts']['options']['k8s_version'] }}"
     k8s_olm_version: "{{ hostvars['cluster-facts']['options']['k8s_olm_version'] | default('v0.20.0') }}"
     k8s_ingress: "{{ hostvars['cluster-facts']['options']['k8s_ingress'] }}"
-    cncf_github_token: "{{ hostvars['cluster-facts']['options']['cncf_github_token'] | default('accesstokenneededforcncfrepo') }}"
     cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
     ceph_dev: "{{ hostvars['cluster-facts']['options']['ceph_dev'] | default('vdb') }}"
     rook_release: "{{ hostvars['cluster-facts']['options']['rook_release'] | default('v1.9.3') }}"
@@ -22,12 +21,12 @@
   - '~/tmp'
 
 - name: Install kubectl
-  community.general.packaging.os.snap:
+  community.general.snap:
     name: kubectl
     classic: true
 
 - name: Install helm
-  community.general.packaging.os.snap:
+  community.general.snap:
     name: helm
     classic: true
 
@@ -67,9 +66,9 @@
               [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ hostvars['cluster-facts']['options']['daily_ip'] }}:5000".auth]
                 username = "{{ hostvars['cluster-facts']['options']['daily_user'] }}"
                 password = "{{ hostvars['cluster-facts']['options']['daily_token'] }}"
-              [plugins."io.containerd.grpc.v1.cri".registry.configs."hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com".tls]
+              [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ hostvars['playbook-secrets']['artifactory_fqdn'] }}".tls]
                 insecure_skip_verify = true
-              [plugins."io.containerd.grpc.v1.cri".registry.configs."hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com".auth]
+              [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ hostvars['playbook-secrets']['artifactory_fqdn'] }}".auth]
                 username = "{{ hostvars['cluster-facts']['options']['artifactory_username'] }}"
                 password = "{{ hostvars['cluster-facts']['options']['artifactory_token'] }}"
     dest: '/etc/containerd/config.toml'

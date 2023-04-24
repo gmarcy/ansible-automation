@@ -1,0 +1,15 @@
+{
+  "TableBaseName": "TenantMgt.CustomUUID",
+  "TableAttributes": [
+    {
+      "AttributeName": "id",
+      "AttributeType": "S"
+    }
+  ],
+  "TableKeySchema": [
+    {
+      "AttributeName": "id",
+      "KeyType": "HASH"
+    }
+  ]
+}

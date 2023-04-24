@@ -42,39 +42,37 @@
   block:
     # BLOCK_START
 
-    - name: Create setup directory
+    - name: Create cephfs_setup_dir directory
       file:
         path: "{{ cephfs_setup_dir }}"
-        state: "{{ item }}"
+        state: directory
         mode: '0755'
-      with_items:
-      - directory
-
-    # Install ceph
 
     - name: Set rook_setup_dir fact
       set_fact:
         rook_setup_dir: "{{ cephfs_setup_dir }}/rook"
 
-    - name: Remove any previous clone of the rook git repo
+    - name: Create rook_setup_dir directory
       file:
         path: "{{ rook_setup_dir }}"
-        state: "{{ item }}"
-      loop:
-      - absent
-      - directory
+        state: directory
+      register: _result
 
     - name: Clone the rook master or release-major.minor branch
       git:
         repo: http://github.com/rook/rook.git
-        dest: "{{ cephfs_setup_dir }}/rook"
+        dest: "{{ rook_setup_dir }}"
         version: "{{ 'master' if rook_ceph_release == 'master' else 'release-' + (rook_ceph_release | regex_replace('v([0-9]+\\.[0-9]+)\\..*', '\\1')) }}"
+        clone: "{{ _result.changed }}"
+        force: "{{ not _result.changed }}"
 
     - name: Clone the rook HEAD or rook_ceph_release tag
       git:
         repo: http://github.com/rook/rook.git
-        dest: "{{ cephfs_setup_dir }}/rook"
+        dest: "{{ rook_setup_dir }}"
         version: "{{ 'HEAD' if rook_ceph_release == 'master' else rook_ceph_release }}"
+        clone: "{{ _result.changed }}"
+        force: "{{ not _result.changed }}"
 
     - name: Set majorRelease fact
       set_fact:
@@ -173,6 +171,38 @@
         kubeconfig: "{{ kubeconfig_path }}"
         src: "{{ rook_examples_dir + '/cluster.yaml' }}"
       register: _result
+
+    - name: Read rook-ceph-mon-endpoints ConfigMap
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: v1
+        kind: ConfigMap
+        name: rook-ceph-mon-endpoints
+        namespace: rook-ceph
+        wait: true
+      register: _result
+      delay: 30
+      retries: 60
+      until: (_result.resources | length > 0) and (_result.resources[0].data.maxMonId | int) >= 0
+
+    - name: Set fact from data.mapping
+      set_fact:
+        data_node_count: "{{ (_result.resources[0]['data']['mapping'] | from_json)['node'].keys() | length }}"
+
+    - name: Read rook-ceph-mon-endpoints ConfigMap
+      kubernetes.core.k8s_info:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: v1
+        kind: ConfigMap
+        name: rook-ceph-mon-endpoints
+        namespace: rook-ceph
+        wait: true
+      register: _result
+      delay: 30
+      retries: 60
+      until: (_result.resources[0]['data']['csi-cluster-config-json'] | from_json)[0]['monitors'] | length == data_node_count
 
     - name: Wait for all rook-ceph-osd pods to be Running
       kubernetes.core.k8s_info:

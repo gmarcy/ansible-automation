@@ -1,0 +1,32 @@
+---
+
+- import_playbook: ../plays/add_pull_secrets.yml
+- import_playbook: ../plays/add_repository_mirror_config.yml
+- import_playbook: ../plays/assert_default_storage_class.yml
+
+- name: Request WebSphere Automation tenant namespace
+  hosts: was_automation
+  gather_facts: false
+  tags: was_automation
+  roles:
+  - role: request_tenant_namespace
+    service_nss_operand_namespace: "{{ hostvars['common-services']['common_service_operator_namespace'] }}"
+    service_nss_operand_name: "{{ hostvars['common-services']['common_service_operand_name'] }}"
+    tenant_namespace: "{{ hostvars['was-automation']['was_automation_namespace'] }}"
+    tenant_operator_group: "{{ hostvars['was-automation']['was_automation_operator_group'] }}"
+
+- name: Install WebSphere Automation Catalog
+  hosts: was_automation
+  gather_facts: false
+  tags: was_automation
+  roles:
+  - role: create_target_catalog_source
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_catalog_source_name: "{{ was_automation_catalog_source_name }}"
+    target_catalog_source_namespace: "{{ was_automation_catalog_source_namespace }}"
+    target_catalog_source_display_name: "{{ was_automation_catalog_source_display_name }}"
+    target_catalog_source_image: "{{ was_automation_catalog_source_image }}"
+    target_catalog_source_image_tag: "{{ was_automation_catalog_source_image_tag }}"
+    target_catalog_source_publisher: "{{ was_automation_catalog_source_publisher }}"
+    target_catalog_source_poll_interval: "{{ was_automation_catalog_source_poll_interval }}"

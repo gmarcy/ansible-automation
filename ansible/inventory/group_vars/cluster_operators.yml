@@ -3,6 +3,43 @@
 ansible_host: localhost
 ansible_connection: local
 
-operators_namespace: "{{ inv_operators_namespace | default('openshift-operators') }}"
-community_operators_source: "{{ inv_community_operators_source | default('community-operators') }}"
-community_operators_source_namespace: "{{ inv_community_operators_source_namespace | default('openshift-marketplace') }}"
+cluster_operators_namespace: "{{ inv_cluster_operators_namespace | default('openshift-operators') }}"
+cluster_operators_catalog_source_namespace: "{{ inv_cluster_operators_catalog_source_namespace | default('openshift-marketplace') }}"
+
+community_operators_catalog_source_name: "{{ inv_community_operators_catalog_source_name | default('community-operators') }}"
+community_operators_catalog_source_namespace: "{{ inv_community_operators_catalog_source_namespace | default(cluster_operators_catalog_source_namespace) }}"
+
+certified_operators_catalog_source_name: "{{ inv_certified_operators_catalog_source_name | default('certified-operators') }}"
+certified_operators_catalog_source_namespace: "{{ inv_certified_operators_catalog_source_namespace | default(cluster_operators_catalog_source_namespace) }}"
+
+redhat_marketplace_catalog_source_name: "{{ inv_redhat_marketplace_catalog_source_name | default('redhat-marketplace') }}"
+redhat_marketplace_catalog_source_namespace: "{{ inv_redhat_marketplace_catalog_source_namespace | default(cluster_operators_catalog_source_namespace) }}"
+
+redhat_operators_catalog_source_name: "{{ inv_redhat_operators_catalog_source_name | default('redhat-operators') }}"
+redhat_operators_catalog_source_namespace: "{{ inv_redhat_operators_catalog_source_namespace | default(cluster_operators_catalog_source_namespace) }}"
+
+ibm_operator_catalog_source_name: "{{ inv_ibm_operator_catalog_source_name | default('ibm-operator-catalog') }}"
+ibm_operator_catalog_source_namespace: "{{ inv_ibm_operator_catalog_source_namespace | default(cluster_operators_catalog_source_namespace) }}"
+
+ibm_operator_catalog_source_display_name: "{{ inv_ibm_operator_catalog_source_display_name | default('IBM Operator Catalog') }}"
+ibm_operator_catalog_source_image: "{{ inv_ibm_operator_catalog_source_image | default('icr.io/cpopen/ibm-operator-catalog') }}"
+ibm_operator_catalog_source_image_tag: "{{ inv_ibm_operator_catalog_source_image_tag | default('') }}"
+ibm_operator_catalog_source_publisher: "{{ inv_ibm_operator_catalog_source_publisher | default('IBM') }}"
+ibm_operator_catalog_source_poll_interval: "{{ inv_ibm_operator_catalog_source_poll_interval | default('45m') }}"
+
+cluster_operators_catalog_source_map:
+  community-operators:
+    name: "{{ community_operators_catalog_source_name }}"
+    namespace: "{{ community_operators_catalog_source_namespace }}"
+  certified-operators:
+    name: "{{ certified_operators_catalog_source_name }}"
+    namespace: "{{ certified_operators_catalog_source_namespace }}"
+  redhat-marketplace:
+    name: "{{ redhat_marketplace_catalog_source_name }}"
+    namespace: "{{ redhat_marketplace_catalog_source_namespace }}"
+  redhat-operators:
+    name: "{{ redhat_operators_catalog_source_name }}"
+    namespace: "{{ redhat_operators_catalog_source_namespace }}"
+  ibm-operator-catalog:
+    name: "{{ ibm_operator_catalog_source_name }}"
+    namespace: "{{ ibm_operator_catalog_source_namespace }}"

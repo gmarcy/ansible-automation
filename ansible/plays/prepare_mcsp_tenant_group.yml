@@ -1,0 +1,19 @@
+---
+
+- import_playbook: ../plays/add_pull_secrets.yml
+
+- name: Install Multi-Cloud SaaS Platform Tenant
+  hosts: mcsp_tenant
+  gather_facts: false
+  tags: mcsp_tenant
+  tasks:
+  - name: Create service broker namespaces
+    include_role:
+      name: create_target_namespace
+    loop: "{{ service_brokers | default([]) }}"
+    loop_control:
+      loop_var: service_broker
+    vars:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      target_namespace: "{{ service_broker['namespace'] }}"

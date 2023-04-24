@@ -1,0 +1,39 @@
+---
+
+- import_playbook: ../plays/add_pull_secrets.yml
+
+- name: Install Multi-Cloud SaaS Platform Services
+  hosts: mcsp_services
+  gather_facts: false
+  tags: mcsp_services
+  roles:
+  - role: create_target_namespace
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ mcsp_stm_okd_sa_namespace }}"
+  - role: create_target_service_accounts
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ mcsp_stm_okd_sa_namespace }}"
+    target_service_account_names: "{{ mcsp_stm_okd_sa_names }}"
+    target_version: "{{ mcsp_stm_okd_sa_token_version }}"
+  - role: create_target_namespace
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ mcsp_target.namespace }}"
+  tasks:
+  - name: Fetch auth token
+    kubernetes.core.k8s_info:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      api_version: v1
+      kind: Secret
+      name: "{{ (mcsp_stm_okd_sa_names_default | first) + '-token-' + mcsp_stm_okd_sa_token_version }}"
+      namespace: "{{ mcsp_stm_okd_sa_namespace }}"
+    register: _result
+    no_log: "{{ noLog }}"
+  - name: Set mcsp_rest_api_auth_token fact
+    set_fact:
+      mcsp_rest_api_auth_token: "{{ item.data.token | b64decode }}"
+    loop: "{{ _result.resources }}"
+    no_log: "{{ noLog }}"

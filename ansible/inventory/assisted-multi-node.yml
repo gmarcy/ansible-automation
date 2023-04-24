@@ -1,0 +1,53 @@
+---
+
+all:
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  children:
+    all_nodes:
+    cluster_facts:
+      hosts:
+        cluster-facts:
+      vars:
+        cluster_provisioner: 'assisted_install'
+        inv_cluster_description: 'OpenShift Cluster'
+        inv_cluster_name: multi-node
+        inv_cluster_domain: clusters.lab.gmarcy.com
+        inv_cluster_single_node: false
+        inv_cluster_api_vip: 192.168.222.248
+        inv_cluster_ingress_vip: 192.168.222.249
+        inv_network_cidr: 192.168.222.0/24
+        inv_cluster_proxy: http://192.168.222.212:3128
+        inv_cluster_hosts:
+          - server2
+          - server3
+          - server4
+        inv_kubernetes_distro: openshift
+        inv_openshift_distro: ocp
+        inv_openshift_version: '4.11.17'
+    cluster_hosts:
+      hosts:
+        server2:
+        server3:
+        server4:
+      vars:
+        host_domain: lab.gmarcy.com
+    assisted_install:
+      hosts:
+        assisted-install:
+      vars:
+        provisioning_role: 'cluster_request_assisted'
+        deprovisioning_role: 'cluster_cleanup_assisted'
+        cluster_facts_role: 'cluster_gather_facts_assisted'
+        inv_assisted_install_host: assisted.lab.gmarcy.com
+    cluster_storage:
+      hosts:
+        cluster-storage:
+      vars:
+        storage_provisioner: 'rook-cephfs'
+        provisioning_role: 'storage_deploy_cephfs'
+        deprovisioning_role: 'storage_remove_cephfs'
+        inv_rook_ceph_release: v1.10.4
+        inv_cephfs_device_filter: sda
+        inv_default_storage_class: "{{ cephfs_storage_class }}"
+        inv_default_block_class: "{{ cephfs_block_class }}"

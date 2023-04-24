@@ -1,0 +1,23 @@
+{
+  "TableBaseName": "TenantMgt.SSMAuditV2",
+  "TableAttributes": [
+    {
+      "AttributeName": "ssmInstanceId",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "tsCreated",
+      "AttributeType": "S"
+    }
+  ],
+  "TableKeySchema": [
+    {
+      "AttributeName": "ssmInstanceId",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "tsCreated",
+      "KeyType": "RANGE"
+    }
+  ]
+}

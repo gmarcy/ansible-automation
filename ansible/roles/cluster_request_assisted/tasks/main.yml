@@ -170,14 +170,14 @@
 
 - name: Set host hostname fact
   set_fact:
-    host_hostname: "{{ hostvars[item].host_inventory['hostname'] }}"
+    host_hostname: "{{ hostvars[item]['host_inventory']['hostname'] }}"
   loop: "{{ groups['cluster_hosts'] }}"
   delegate_to: "{{ item}}"
   delegate_facts: true
 
 - name: Wait for hosts to enter known state or beyond
   uri:
-    url: "{{ hostvars[item].host_url }}"
+    url: "{{ hostvars[item]['host_url'] }}"
   loop: "{{ groups['cluster_hosts'] }}"
   register: _result
   delay: 30
@@ -186,13 +186,13 @@
 
 - name: Fetch current hosts status
   uri:
-    url: "{{ hostvars[item].host_url }}"
+    url: "{{ hostvars[item]['host_url'] }}"
   loop: "{{ groups['cluster_hosts'] }}"
   register: _result
 
 - name: Wait for hosts to enter ready to install state
   uri:
-    url: "{{ hostvars[item].host_url }}"
+    url: "{{ hostvars[item]['host_url'] }}"
   loop: "{{ groups['cluster_hosts'] }}"
   register: _result
   delay: 30
@@ -226,7 +226,7 @@
         status_code: 201
       loop: "{{ cluster_install_disks }}"
       vars:
-        host_url: "{{ hostvars[item[0]].host_url }}"
+        host_url: "{{ hostvars[item[0]]['host_url'] }}"
         disk_name: "{{ item[1][0] }}"
         install_disk_id: "{{ item[1][1] }}"
       register: _result
@@ -238,7 +238,7 @@
 
 - name: Wait for hosts to enter ready to install state
   uri:
-    url: "{{ hostvars[item].host_url }}"
+    url: "{{ hostvars[item]['host_url'] }}"
   loop: "{{ groups['cluster_hosts'] }}"
   register: _result
   delay: 30
@@ -254,42 +254,115 @@
 
     - name: Collect the paths and eligibility of all disks on all cluster hosts
       set_fact:
-        cluster_disks: "{{ cluster_disks | default([]) + ([hostname] | product(paths)) }}"
+        cluster_disks: "{{ cluster_disks | default([]) | union([ssh_host] | product(paths)) }}"
       loop: "{{ groups['cluster_hosts'] | zip(groups['cluster_hosts'] | map('extract', hostvars, 'host_inventory') | map(attribute='disks')) }}"
       vars:
-        hostname: "{{ item[0] }}"
+        ssh_host: "{{ item[0] + '.' + hostvars[item[0]]['host_domain'] }}"
         paths: "{{ item[1] | map(attribute='path') | zip(item[1] | map(attribute='installation_eligibility.eligible', default=false)) }}"
+
+    - name: Find eligible disks
+      set_fact:
+        eligible_disks: "{{ eligible_disks | default([]) | union([[ssh_host, path]]) }}"
+      loop: "{{ cluster_disks }}"
+      vars:
+        ssh_host: "{{ item[0] }}"
+        path: "{{ item[1][0] }}"
+        eligible: "{{ item[1][1] }}"
+      when: eligible
+
+    - name: Find eligible hosts
+      set_fact:
+        eligible_hosts: "{{ eligible_hosts | default([]) | union([ssh_host]) }}"
+      loop: "{{ eligible_disks }}"
+      vars:
+        ssh_host: "{{ item[0] }}"
+
+    - name: Run ssh to find any lvm partitions
+      command:
+        ssh {{ ssh_user }}@{{ ssh_host }} sudo pvdisplay -C -o pv_name,vg_name --no-headings --separator ':'
+      loop: "{{ eligible_hosts }}"
+      vars:
+        ssh_host: "{{ item }}"
+      register: _result
+      changed_when: _result is not defined
+
+    - name: Create a list of all the pv/vg names
+      set_fact:
+        pv_vg_names: "{{ pv_vg_names | default([]) | union(entries) }}"
+      loop: "{{ _result.results | map(attribute='item') | zip(_result.results | map(attribute='stdout_lines')) }}"
+      vars:
+        entries: "{{ [item[0]] | product(item[1]) }}"
+      when: item[1] | length > 0
+
+    - when: pv_vg_names | default([]) | length > 0
+      name: Remove lvm volumes from any of our eligible disks
+      block:
+
+      - name: Create a list of the pvs/vgs to check
+        set_fact:
+          pv_vg_to_check: "{{ pv_vg_to_check | default([]) | union([{'host': ssh_host, 'pv': pv_name, 'vg': vg_name}]) }}"
+        loop: "{{ pv_vg_names }}"
+        vars:
+          ssh_host: "{{ item[0] }}"
+          pv_name: "{{ item[1] | trim | split(':') | first }}"
+          vg_name: "{{ item[1] | trim | split(':') | last }}"
+
+      - name: Create a list of the pvs/vgs to remove
+        set_fact:
+          pv_vg_to_remove: "{{ pv_vg_to_remove | default([]) | union(matching_pvs) }}"
+        loop: "{{ eligible_disks }}"
+        vars:
+          matching_pvs: "{{ pv_vg_to_check | selectattr('host','==',item[0]) | selectattr('pv','match','^' + item[1]) }}"
+        when: matching_pvs | length > 0
+
+      - name: Run ssh to remove any lvm volume groups
+        command:
+          ssh {{ ssh_user }}@{{ ssh_host }} sudo vgremove -f {{ vg_name }}
+        loop: "{{ pv_vg_to_remove }}"
+        vars:
+          ssh_host: "{{ item['host'] }}"
+          vg_name: "{{ item['vg'] }}"
+        register: _result
+        changed_when: _result is not defined
+        when: vg_name | length > 0
+
+      - name: Run ssh to remove lvm physical volumes
+        command:
+          ssh {{ ssh_user }}@{{ ssh_host }} sudo pvremove -f {{ pv_name }}
+        loop: "{{ pv_vg_to_remove }}"
+        vars:
+          ssh_host: "{{ item['host'] }}"
+          pv_name: "{{ item['pv'] }}"
+        register: _result
+        changed_when: _result is not defined
+        when: pv_name | length > 0
 
     - name: Run ssh to wipe the filesystems of all eligible disks
       command:
         ssh {{ ssh_user }}@{{ ssh_host }} sudo wipefs -a {{ path }}
-      loop: "{{ cluster_disks }}"
+      loop: "{{ eligible_disks }}"
       vars:
-        ssh_host: "{{ item[0] }}.{{ hostvars[item[0]].host_domain }}"
-        path: "{{ item[1][0] }}"
-        eligible: "{{ item[1][1] }}"
+        ssh_host: "{{ item[0] }}"
+        path: "{{ item[1] }}"
       register: _result
       changed_when: _result is not defined
-      when: eligible
 
     - name: Run ssh to wipe the filesystems of all eligible disks
       command:
         ssh {{ ssh_user }}@{{ ssh_host }} sudo dd if=/dev/zero of={{ path }}  bs=1M count=10 conv=fsync
-      loop: "{{ cluster_disks }}"
+      loop: "{{ eligible_disks }}"
       vars:
-        ssh_host: "{{ item[0] }}.{{ hostvars[item[0]].host_domain }}"
-        path: "{{ item[1][0] }}"
-        eligible: "{{ item[1][1] }}"
+        ssh_host: "{{ item[0] }}"
+        path: "{{ item[1] }}"
       register: _result
       changed_when: _result is not defined
-      when: eligible
 
     - name: Run ssh to show status of all disks
       command:
         ssh {{ ssh_user }}@{{ ssh_host }} sudo lsblk
-      loop: "{{ groups['cluster_hosts'] }}"
+      loop: "{{ eligible_hosts }}"
       vars:
-        ssh_host: "{{ item }}.{{ hostvars[item].host_domain }}"
+        ssh_host: "{{ item }}"
       register: _result
       changed_when: _result is not defined
 
@@ -304,7 +377,7 @@
 
 - name: Wait for hosts to enter ready to install state
   uri:
-    url: "{{ hostvars[item].host_url }}"
+    url: "{{ hostvars[item]['host_url'] }}"
   loop: "{{ groups['cluster_hosts'] }}"
   register: _result
   delay: 30

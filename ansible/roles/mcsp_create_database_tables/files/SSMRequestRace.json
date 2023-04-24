@@ -1,0 +1,15 @@
+{
+    "TableBaseName": "TenantMgt.SSMRequestRace",
+    "TableAttributes": [
+      {
+        "AttributeName": "subscriptionGroupIdentifier",
+        "AttributeType": "S"
+      }
+    ],
+    "TableKeySchema": [
+      {
+        "AttributeName": "subscriptionGroupIdentifier",
+        "KeyType": "HASH"
+      }
+    ]
+  }

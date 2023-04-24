@@ -1,0 +1,15 @@
+{
+  "TableBaseName": "TenantMgt.SubscriptionCreateRace",
+  "TableAttributes": [
+    {
+      "AttributeName": "keyValue",
+      "AttributeType": "S"
+    }
+  ],
+  "TableKeySchema": [
+    {
+      "AttributeName": "keyValue",
+      "KeyType": "HASH"
+    }
+  ]
+}

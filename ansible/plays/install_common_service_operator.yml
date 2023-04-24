@@ -1,10 +1,18 @@
 ---
 
-- name: Install IBM Common Service Operator
+- name: Install IBM Common Service Operator and Operands
   hosts: common_services
   gather_facts: false
   tags: common_services
   roles:
-  - role: install_common_service_operator
+  - role: create_target_subscription
     api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
     kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_operator_name: "{{ common_service_operator_name }}"
+    target_operator_namespace: "{{ common_service_operator_namespace }}"
+    target_catalog_source_name: "{{ common_service_catalog_source_name }}"
+    target_catalog_source_namespace: "{{ common_service_catalog_source_namespace }}"
+  - role: install_common_service_operands
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ common_service_namespace }}"

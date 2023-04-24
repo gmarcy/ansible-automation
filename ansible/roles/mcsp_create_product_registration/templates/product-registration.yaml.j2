@@ -1,0 +1,218 @@
+apiVersion: meter.automation.ibm.com/v2
+kind: ProductRegistrationV2
+metadata:
+  name: {{ Values.serviceName }}-{{ Values.environment }}
+  namespace: product-registration
+spec:
+  marketplace: AWS
+  headless: false
+  asyncProvisioning: true
+  productID: {{ Values.productID }}
+  productName: {{ Values.productName }}
+  productCode: {{ Values.productCode }}
+  productDescription: {{ Values.productDescription }}
+  serviceID: {{ Values.serviceID }}
+  serviceInstanceCsbSchemaVersion: latest
+  productOwner: fake.product.owner@ibm.com
+  productReleaseVersion: v1.0.0
+  productLogoURL: https://my-product-logo.dev.test
+  productSupportURL: https://my-support-page.dev.test
+  productPurchaseURL: https://my-purchase-page.dev.test
+  mgmntConsoleProductLogoURL: https://my-mgmnt-console-product-logo.dev.test
+  lifecycleEmailTemplates:
+    trialSubscriptionStart:
+      enabled: true
+      templateID: d-89d0487624d5499fb2470b7c0315f858
+      secretName: asp-sendgrid
+    trialSubscriptionReady:
+      enabled: true
+      templateID: d-85c705b501244f60ab3c9df2b39d205f
+      secretName: asp-sendgrid
+    trialUpgradePlan:
+      enabled: true
+      templateID: d-71ff3e34e2824c9283b44d0b8a31eb3e
+      secretName: asp-sendgrid
+    paidSubscriptionStart:
+      enabled: true
+      templateID: d-937b88e3321d4404803973b36679ce46
+      secretName: asp-sendgrid
+    paidInstanceReady:
+      enabled: true
+      templateID: d-b6a1a6840897457eb021663a5120bbc6
+      secretName: asp-sendgrid
+    paidInstanceRemoved:
+      enabled: true
+      templateID: d-3146fe8052c74a938597cce67ed53a1a
+      secretName: asp-sendgrid
+    paidSubscriptionRenew:
+      enabled: true
+      templateID: d-52cc63909f044a79b9b8ffd5a3989b31
+      secretName: asp-sendgrid
+    inviteSubscriptionUser:
+      enabled: true
+      templateID: d-8567e8b6ce5d425f81aef9b374b1d200
+      secretName: asp-sendgrid
+    suspendSubscription:
+      enabled: true
+      templateID: d-c44205a85b984381bbc57eef2a44ce94
+      secretName: asp-sendgrid
+  meteringEmailTemplates:
+    trial:
+      consumptionEmailTemplateID:
+        enabled: true
+        templateID: d-a0fb8c1d9b48444f9c530f05b3fa1e33
+        secretName: asp-sendgrid
+      durationEmailTemplateID:
+        enabled: true
+        templateID: d-26974e64ed6340d58328e9a0e75862be
+        secretName: asp-sendgrid
+    paid:
+      consumptionEmailTemplateID:
+        enabled: true
+        templateID: d-a0fb8c1d9b48444f9c530f05b3fa1e33
+        secretName: asp-sendgrid
+      durationEmailTemplateID:
+        enabled: true
+        templateID: d-86baf5062ea5463989c93400fb9d0483
+        secretName: asp-sendgrid
+  overageEmailTemplates:
+    overageCharge:
+      enabled: true
+      templateID: d-96b298d4decf4936a1f05a66b5bcb80c
+      secretName: asp-sendgrid
+    overageLimit:
+      enabled: true
+      templateID: d-72dd20f018e349ba88f6109af3fc986a
+      secretName: asp-sendgrid
+  # optional section used when custom email templates want to be enabled.
+  # customEmailTemplates:
+  #   serviceCustomOverageLimit:
+  #     enabled: true
+  #     templateID: T20500
+  #     secretName: asp-sendgrid
+  offerings:
+    - type: Trial
+      supportedPlanIDs:
+        - {{ Values.plans.trial.id }}
+      partNumbers:
+        - "{{ Values.parts.trial.partNumber }}"
+      instances:
+        minimum: 1
+        maximum: 1
+      supportedRegions:
+        - us-east-1
+    - type: Purchase
+      supportedPlanIDs:
+        - {{ Values.plans.paid.id }}
+      partNumbers:
+        - "{{ Values.parts.paid.partNumber }}"
+      instances:
+        minimum: 1
+        maximum: 5
+      supportedRegions:
+        - us-east-1
+  parts:
+    - partNumber: "{{ Values.parts.trial.partNumber }}"
+      partName: "{{ Values.parts.trial.partName }}"
+      partType: base
+      urxPath: urx.dev.test/trial
+      marketplaceProductPage: product-page.dev.test/trial
+      supportedPlanIDs:
+      - {{ Values.plans.trial.id }}
+      tenantDisplayName:
+        allowUserInput: false
+        default: Trial
+      metrics:
+        - bundleQuantity: 100000
+          prometheusID: api_calls_total
+          prometheusQuery: {{ Values.prometheusQuery }}
+          metricType: point-in-time
+          criteriaID: {{ Values.criteria.trial.id }}
+          displayName: {{ Values.criteria.trial.name }}
+    - partNumber: "{{ Values.parts.paid.partNumber }}"
+      partName: "{{ Values.parts.paid.partName }}"
+      partType: base
+      urxPath: urx.dev.test/paid
+      marketplaceProductPage: product-page.dev.test/paid
+      supportedPlanIDs:
+      - {{ Values.plans.paid.id }}
+      tenantDisplayName:
+        allowUserInput: true
+      metrics:
+        - bundleQuantity: 100000
+          prometheusID: api_calls_total
+          prometheusQuery: {{ Values.prometheusQuery | regex_replace('#','{') }}
+          metricType: point-in-time
+          criteriaID: {{ Values.criteria.paid.id }}
+          displayName: {{ Values.criteria.paid.name }}
+  plans:
+    - id: {{ Values.plans.trial.id }} # foreach using values
+      name: {{ Values.plans.trial.name }}
+    - id: {{ Values.plans.paid.id }} # foreach using values
+      name: {{ Values.plans.paid.name }}
+  durationThresholds:
+    trial:
+      ascending: false
+      meteringEmailTemplates:
+        email: durationEmailTemplateID
+        hardLimit: '' # Subscription/Tenant Management is responsible for sending the suspension email triggered when a contract expires
+      thresholds:
+        - value: 5
+          timeUnit: days
+          actions:
+            - email
+        - value: 0
+          timeUnit: days
+          actions:
+            - hardLimit
+    paid:
+      ascending: false
+      meteringEmailTemplates:
+        email: durationEmailTemplateID
+        hardLimit: '' # Subscription/Tenant Management is responsible for sending the suspension email triggered when a contract expires
+      thresholds:
+        - value: 5
+          timeUnit: days
+          actions:
+            - email
+        - value: 0
+          timeUnit: days
+          actions:
+            - hardLimit
+  consumptionThresholds:
+    trial:
+      - criteriaID: {{ Values.criteria.trial.id }}
+        ascending: true
+        meteringEmailTemplates:
+          email: consumptionEmailTemplateID
+          softLimit: overageCharge
+          hardLimit: overageLimit
+        thresholds:
+          - value: 80 # 80%
+            actions:
+              - email
+          - value: 100 # 100%
+            actions:
+              - email
+              - softLimit
+          - value: 105 # 105%
+            actions:
+              - hardLimit
+    paid:
+      - criteriaID: {{ Values.criteria.paid.id }}
+        ascending: true
+        meteringEmailTemplates:
+          email: consumptionEmailTemplateID
+          softLimit: overageCharge
+          hardLimit: overageLimit
+        thresholds:
+          - value: 80 # 80%
+            actions:
+              - email
+          - value: 100 # 100%
+            actions:
+              - email
+              - softLimit
+          - value: 105 # 105%
+            actions:
+              - hardLimit

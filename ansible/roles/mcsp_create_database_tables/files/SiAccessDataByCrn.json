@@ -1,0 +1,15 @@
+{
+  "TableBaseName": "TenantMgt.SiAccessDataByCrn",
+  "TableAttributes": [
+    {
+      "AttributeName": "crn",
+      "AttributeType": "S"
+    }
+  ],
+  "TableKeySchema": [
+    {
+      "AttributeName": "crn",
+      "KeyType": "HASH"
+    }
+  ]
+}

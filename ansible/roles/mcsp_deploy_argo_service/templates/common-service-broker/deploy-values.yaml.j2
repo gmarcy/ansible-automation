@@ -1,0 +1,43 @@
+csbImage: icr.io/automation-saas-platform/csb/common-service-broker:20221208041734-master-8d1bd09c2a1ef4e190c151f57ec4e397ff193d4f
+serverTls:
+  crt: "<path:automation-saas-platform/csb/server-tls#cert | base64encode>"
+  key: "<path:automation-saas-platform/csb/server-tls#key | base64encode>"
+clientCert:
+  crt: "<path:automation-saas-platform/csb/client-cert#cert | base64encode>"
+  key: "<path:automation-saas-platform/csb/client-cert#key | base64encode>"
+csbConfig: "<path:automation-saas-platform/csb/config#csb_config | base64encode>"
+imagePullSecret: "<path:automation-saas-platform/cicd/global-dockerconfigjson#cloudrock/cicd/global-dockerconfigjson | base64encode>"
+replicas: 2
+csbHealthCheck:
+  enabled: false
+  healthCheckImage: icr.io/automation-saas-platform/csb/csb-health-checker:v1.0.6
+
+# 31-health-check-secret.yaml
+CSB_ROOT_URL: <csb_root_url | base64encode>
+CSB_SERVICE_PLAN_ID: <csb_service_plan_id | base64encode>
+CSB_USER_NAME: <csb_user_name | base64encode>
+CSB_PASSWORD: <csb_password | base64encode>
+CSB_SERVICE_GROUP_ID: <csb_service_group_id | base64encode>
+CSB_SERVICE_INSTANCE_CRN_ID: <csb_service_instance_crn_id | base64encode>
+CSB_SERVICE_ID: <csb_service_id | base64encode>
+SCORE_CARD_API_KEY: <score_card_api_key | base64encode>
+SCORE_CARD_API_URL: <score_card_api_url | base64encode>
+REGION: <region | base64encode>
+ENVIRONMENT: <environment | base64encode>
+
+#encoding section to specify which field values need to be encoded and how
+encoding:
+  - name: single-base64
+    times: 1
+    field_names:
+      CSB_ROOT_URL
+      CSB_SERVICE_PLAN_ID
+      CSB_USER_NAME
+      CSB_PASSWORD
+      CSB_SERVICE_GROUP_ID
+      CSB_SERVICE_INSTANCE_CRN_ID
+      CSB_SERVICE_ID
+      SCORE_CARD_API_KEY
+      SCORE_CARD_API_URL
+      REGION
+      ENVIRONMENT

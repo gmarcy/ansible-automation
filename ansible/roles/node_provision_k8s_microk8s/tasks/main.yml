@@ -14,7 +14,7 @@
   block:
 
     - name: Install microk8s
-      community.general.packaging.os.snap:
+      community.general.snap:
         name: microk8s
         classic: true
         channel: "{{ k8s_version + '/stable' }}"
@@ -38,12 +38,12 @@
           - '/etc/rancher/k8s'
 
         - name: Install kubectl
-          community.general.packaging.os.snap:
+          community.general.snap:
             name: kubectl
             classic: true
 
         - name: Install helm
-          community.general.packaging.os.snap:
+          community.general.snap:
             name: helm
             classic: true
 
@@ -118,9 +118,9 @@
                         [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ hostvars['cluster-facts']['options']['daily_ip'] }}:5000".auth]
                           username = "{{ hostvars['cluster-facts']['options']['daily_user'] }}"
                           password = "{{ hostvars['cluster-facts']['options']['daily_token'] }}"
-                        [plugins."io.containerd.grpc.v1.cri".registry.configs."hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com".tls]
+                        [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ hostvars['playbook-secrets']['artifactory_fqdn'] }}".tls]
                           insecure_skip_verify = true
-                        [plugins."io.containerd.grpc.v1.cri".registry.configs."hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com".auth]
+                        [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ hostvars['playbook-secrets']['artifactory_fqdn'] }}".auth]
                           username = "{{ hostvars['cluster-facts']['options']['artifactory_username'] }}"
                           password = "{{ hostvars['cluster-facts']['options']['artifactory_token'] }}"
                 dest: '/tmp/containerd-template.toml'

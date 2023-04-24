@@ -1,0 +1,38 @@
+---
+
+- name: Remove WebSphereHealth instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: automation.websphere.ibm.com/v1
+    kind: WebSphereHealth
+    name: wsa-health
+    namespace: "{{ target_namespace }}"
+    state: absent
+  register: _result
+  when: install_healing
+
+- name: Create WebSphereSecure instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: automation.websphere.ibm.com/v1
+    kind: WebSphereSecure
+    name: wsa-secure
+    namespace: "{{ target_namespace }}"
+    state: absent
+  register: _result
+  when: (not install_healing) or (install_individual_wsa_operands | default(false))
+
+- name: Create WebSphereAutomation instance
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: automation.websphere.ibm.com/v1
+    kind: WebSphereAutomation
+    name: wsa
+    namespace: "{{ target_namespace }}"
+    state: absent
+    wait: true
+  register: _result
+  when: install_individual_wsa_operands | default(false)

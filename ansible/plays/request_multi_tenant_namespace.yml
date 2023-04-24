@@ -1,0 +1,54 @@
+---
+
+- name: Create Namespaces
+  hosts: common_services
+  gather_facts: false
+  tags: common_services
+  roles:
+  - role: create_target_namespace
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespaces: "{{ [common_service_operator_namespace, common_service_operand_namespace] | unique }}"
+  - role: create_target_operator_group
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ common_service_operator_namespace }}"
+    target_operator_group: "{{ common_service_operator_group }}"
+    target_namespaces:
+    - "{{ common_service_operator_namespace }}"
+
+- import_playbook: ../plays/install_namespace_scope_operator.yml
+
+- name: Install Namespace Scope Operand
+  hosts: common_services
+  gather_facts: false
+  tags: common_services
+  tasks:
+  - name: Fetch NamespaceScope operand
+    kubernetes.core.k8s_info:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      api_version: operator.ibm.com/v1
+      kind: NamespaceScope
+      name: "{{ common_service_operand_name }}"
+      namespace: "{{ common_service_operator_namespace }}"
+    register: _result
+  - name: Set tenant_ns_in_nss_namespaces fact
+    set_fact:
+      service_ns_in_nss_namespaces: "{{ [common_service_operator_namespace, common_service_operand_namespace] | unique | difference(_result.resources[0].spec.namespaceMembers) | length == 0 }}"
+    when: _result.resources | length > 0
+  - name: Create NamespaceScope operand
+    kubernetes.core.k8s:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      api_version: operator.ibm.com/v1
+      kind: NamespaceScope
+      name: "{{ common_service_operand_name }}"
+      namespace: "{{ common_service_operator_namespace }}"
+      definition:
+        spec:
+          csvInjector:
+            enable: true
+          namespaceMembers: "{{ [common_service_operator_namespace, common_service_operand_namespace] | unique }}"
+    register: _result
+    when: not (service_ns_in_nss_namespaces | default(false))

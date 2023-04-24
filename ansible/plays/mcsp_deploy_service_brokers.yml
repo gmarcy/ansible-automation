@@ -1,0 +1,17 @@
+---
+
+- name: Deploy MCSP Common Service Broker Adapter
+  hosts: mcsp_tenant
+  gather_facts: false
+  tags: mcsp_csba_service
+  tasks:
+  - name: Deploy the service brokers
+    include_role:
+      name: mcsp_deploy_service_broker
+    loop: "{{ service_brokers | default([]) }}"
+    loop_control:
+      loop_var: service_broker
+    vars:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      broker_name: "{{ service_broker['name'] }}"

@@ -16,10 +16,10 @@ was_automation_catalog_source_image_tag: "{{ inv_was_automation_catalog_source_i
 was_automation_catalog_source_publisher: "{{ inv_was_automation_catalog_source_publisher | default('IBM') }}"
 was_automation_catalog_source_poll_interval: "{{ inv_was_automation_catalog_source_poll_interval | default('45m') }}"
 
-was_automation_operator_channel: "{{ inv_was_automation_operator_channel | default('v1.5') }}"
+was_automation_operator_channel: "{{ inv_was_automation_operator_channel | default('v1.6') }}"
 was_automation_namespace: "{{ inv_was_automation_namespace | default('wasautomation') }}"
 
 was_automation_operator_version: "{{ inv_was_automation_operator_version | default(was_automation_operator_channel + '.0') }}"
 was_automation_operator_name: "{{ inv_was_automation_operator_name | default('ibm-websphere-automation') }}"
-was_automation_operator_namespace: "{{ inv_was_automation_operator_namespace | default('openshift-operators') }}"
+was_automation_operator_namespace: "{{ inv_was_automation_operator_namespace | default(was_automation_namespace) }}"
 was_automation_operator_group: "{{ inv_was_automation_operator_group | default('ibm-websphere-automation-group') }}"

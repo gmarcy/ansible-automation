@@ -1,0 +1,144 @@
+---
+
+all:
+  children:
+    playbook_secrets:
+      hosts:
+        playbook-secrets:
+      vars:
+        inv_secrets_dir: ~/.ssh/.ansible/.secrets
+        artifactory_generate_access_token:
+          url: "https://na.artifactory.swg-devops.com/access/api/v1/tokens"
+          body:
+            audience: "jfrt@*"
+            description: "3 Day Test Token"
+            include_reference_token: "true"
+            expires_in: "259200"
+    cluster_facts:
+      hosts:
+        cluster-facts:
+      vars:
+        pull_secrets:
+        - key: 'cp.stg.icr.io'
+          username: "{{ hostvars['playbook-secrets']['cp_stg_username'] }}"
+          password: "{{ hostvars['playbook-secrets']['cp_stg_password'] }}"
+          email: 'unused'
+        - key: 'cp.icr.io'
+          username: "{{ hostvars['playbook-secrets']['cp_username'] }}"
+          password: "{{ hostvars['playbook-secrets']['cp_password'] }}"
+          email: 'unused'
+        - key: 'us.icr.io'
+          username: "{{ hostvars['playbook-secrets']['cloudrock_devops_user'] }}"
+          password: "{{ hostvars['playbook-secrets']['cloudrock_devops_apikey'] }}"
+          email: 'unused'
+        - key: 'icr.io'
+          username: "{{ hostvars['playbook-secrets']['cloudrock_devops_user'] }}"
+          password: "{{ hostvars['playbook-secrets']['cloudrock_devops_apikey'] }}"
+          email: 'unused'
+        - key: 'docker.io'
+          username: "{{ hostvars['playbook-secrets']['docker_io_user'] }}"
+          password: "{{ hostvars['playbook-secrets']['docker_io_password'] }}"
+          email: 'unused'
+        - key: 'docker-na-public.artifactory.swg-devops.com'
+          username: "{{ hostvars['playbook-secrets']['artifactory_user'] }}"
+          password: "{{ hostvars['playbook-secrets']['artifactory_token'] }}"
+          email: 'unused'
+        mirror_configs:
+        - mirrors:
+          - cp.stg.icr.io/cp
+          - docker-na-public.artifactory.swg-devops.com/wasliberty-intops-docker-local/cp
+          source: cp.icr.io/cp
+        - mirrors:
+          - cp.stg.icr.io/cp
+          - docker-na-public.artifactory.swg-devops.com/wasliberty-intops-docker-local/cp
+          source: docker.io/ibmcom
+        - mirrors:
+          - docker-na-public.artifactory.swg-devops.com/hyc-cloud-private-daily-docker-local/ibmcom
+          source: cp.icr.io/cp/cpd
+        - mirrors:
+          - docker-na-public.artifactory.swg-devops.com/hyc-cloud-private-daily-docker-local/ibmcom
+          source: quay.io/opencloudio
+        - mirrors:
+          - cp.stg.icr.io/cp
+          - docker-na-public.artifactory.swg-devops.com/wasliberty-intops-docker-local/cp
+          - docker-na-public.artifactory.swg-devops.com/hyc-cloud-private-daily-docker-local/ibmcom
+          source: icr.io/cpopen
+        - mirrors:
+          - docker-na-public.artifactory.swg-devops.com/hyc-cloud-private-daily-docker-local/ibmcom
+          source: icr.io/cpopen/cpfs
+        - mirrors:
+          - docker-na-public.artifactory.swg-devops.com/wasliberty-intops-docker-local/cp
+          source: wasliberty-intops-docker-local.artifactory.swg-devops.com/cp
+        - mirrors:
+          - docker-na-public.artifactory.swg-devops.com/hyc-cloud-private-daily-docker-local/ibmcom
+          source: hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com/ibmcom
+        k8s_k3s_registries_template: |
+          mirrors:
+            "cp.icr.io":
+              endpoint:
+                - "{{ hostvars['playbook-secrets']['artifactory_fqdn'] }}"
+              rewrite:
+                "(.*)": "wasliberty-intops-docker-local/ibmcom/$1"
+            "icr.io":
+              endpoint:
+                - "{{ hostvars['playbook-secrets']['artifactory_fqdn'] }}"
+              rewrite:
+                "^cpopen/([0-9abd-z].*)": "hyc-cloud-private-daily-docker-local/ibmcom/$1"
+                "^cpopen/(c[0-9a-oq-z].*)": "hyc-cloud-private-daily-docker-local/ibmcom/$1"
+                "^cpopen/(cp[0-9a-eg-z].*)": "hyc-cloud-private-daily-docker-local/ibmcom/$1"
+                "^cpopen/cpfs/(.*)": "hyc-cloud-private-daily-docker-local/ibmcom/$1"
+            "quay.io":
+              endpoint:
+                - "{{ hostvars['playbook-secrets']['artifactory_fqdn'] }}"
+              rewrite:
+                "^opencloudio/(.*)": "hyc-cloud-private-daily-docker-local/ibmcom/$1"
+            "docker.io":
+              endpoint:
+                - "{{ hostvars['playbook-secrets']['artifactory_fqdn'] }}"
+              rewrite:
+                "^ibmcom/(.*)": "wasliberty-intops-docker-local/cp/$1"
+          configs:
+            "cp.stg.icr.io":
+              auth:
+                username: {{ hostvars['playbook-secrets']['cp_stg_username'] }}
+                password: {{ hostvars['playbook-secrets']['cp_stg_password'] }}
+              tls:
+                insecure_skip_verify: true
+            "cp.icr.io":
+              auth:
+                username: {{ hostvars['playbook-secrets']['cp_username'] }}
+                password: {{ hostvars['playbook-secrets']['cp_password'] }}
+              tls:
+                insecure_skip_verify: true
+            "docker.io":
+              auth:
+                username: {{ hostvars['playbook-secrets']['docker_io_user'] }}
+                password: {{ hostvars['playbook-secrets']['docker_io_password'] }}
+              tls:
+                insecure_skip_verify: true
+            "{{ hostvars['playbook-secrets']['artifactory_fqdn'] }}":
+              auth:
+                username: {{ hostvars['playbook-secrets']['artifactory_user'] }}
+                password: {{ hostvars['playbook-secrets']['artifactory_token'] }}
+              tls:
+                insecure_skip_verify: true
+    common_services:
+      hosts:
+        common-services:
+      vars:
+        inv_common_service_catalog_source_image_cs4: 'docker-na-public.artifactory.swg-devops.com/hyc-cloud-private-daily-docker-local/ibmcom/ibm-common-service-catalog'
+        inv_common_service_catalog_source_image_tag_cs4: 'cd'
+    integration_platform:
+      hosts:
+        integration-platform:
+      vars:
+        inv_cp4i_catalog_source_image_cs4: 'cp.stg.icr.io/cp/ibm-integration-platform-navigator-aas-catalog'
+        inv_cp4i_catalog_source_image_tag_cs4: '7.0.3-2023-03-06-1501-1b64a22e-amd64-aas@sha256:7f9ab7ec3105d749f018fc4d707b2d0e7c6f30889f705beeeed25acd53db1fbc'
+    was_automation:
+      hosts:
+        was-automation:
+      vars:
+        inv_was_automation_catalog_source_image_cs3: 'docker-na-public.artifactory.swg-devops.com/wasliberty-intops-docker-local/cp/websphere-automation-operator-catalog'
+        inv_was_automation_catalog_source_image_tag_cs3: 'stable'
+        inv_was_automation_catalog_source_image_cs4: 'docker-na-public.artifactory.swg-devops.com/wasliberty-intops-docker-local/cp/websphere-automation-operator-catalog'
+        inv_was_automation_catalog_source_image_tag_cs4: 'stable_cs4'

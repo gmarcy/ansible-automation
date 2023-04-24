@@ -1,0 +1,74 @@
+---
+
+- name: Set facts for this role
+  set_fact:
+    mcsp_namespace: "{{ mcsp_target.namespace }}"
+    mcsp_cluster_name: "{{ hostvars['cluster-facts']['cluster_fqdn'] }}"
+    subs: "{{ subscription }}"
+
+- name: Check for existing MCSP Subscription
+  uri:
+    url: "{{ 'https://subscriptmgtms-' + mcsp_namespace + '.apps.' + mcsp_cluster_name + '/subscriptmgr/api/1.2/subscriptions' }}"
+    method: "GET"
+    headers:
+      Authorization: "{{ 'Bearer ' + mcsp_rest_api_auth_token }}"
+    validate_certs: false
+  register: _result_subscription_list1
+
+- name: Set subscription_exists to false
+  set_fact:
+    subscription_exists: false
+
+- name: Set subscription_exists fact
+  set_fact:
+    subscription_exists: true
+  loop: "{{ _result_subscription_list1.json }}"
+  when: item['name'] == subs.name
+
+- when: not subscription_exists
+  block:
+
+    - name: Create MCSP Subscription
+      uri:
+        url: "{{ 'https://subscriptmgtms-' + mcsp_namespace + '.apps.' + mcsp_cluster_name + '/subscriptmgr/api/1.0/subscriptions' }}"
+        method: "POST"
+        headers:
+          Authorization: "{{ 'Bearer ' + mcsp_rest_api_auth_token }}"
+        validate_certs: false
+        body_format: "json"
+        body:
+          name: "{{ subs.name }}"
+          type: Trial
+          mgmtConsoleData:
+            lineItems:
+            - isProvisionable: true
+              partNumber: "{{ subs.partnum_trial }}"
+              quantity: 100000
+            contacts:
+            - email: "{{ subs.contact_email }}"
+              type: END_CUSTOMER
+              userName: "{{ subs.contact_username }}"
+              ibmUniqueId: "{{ subs.contact_ibm_unique_id }}"
+              firstName: "{{ subs.contact_first_name }}"
+              lastName: "{{ subs.contact_last_name }}"
+            - email: "{{ subs.contact_email }}"
+              type: PROVISIONING_CONTACT
+            purchasePlan: trial
+            trialId: "{{ subs.trial_id }}"
+            marketplace: aws
+            marketplaceProductCode: "{{ subs.product_code }}"
+            marketplaceCustomerId: aws-cust-id
+      register: _result
+    
+    - name: List the subscription
+      uri:
+        url: "{{ 'https://subscriptmgtms-' + mcsp_namespace + '.apps.' + mcsp_cluster_name + '/subscriptmgr/api/1.2/subscriptions' }}"
+        method: "GET"
+        headers:
+          Authorization: "{{ 'Bearer ' + mcsp_rest_api_auth_token }}"
+        validate_certs: false
+      register: _result_subscription_list2
+
+- name: Set mcsp_current_subscriptions fact
+  set_fact:
+    mcsp_current_subscriptions: "{{ _result_subscription_list2.json | default(_result_subscription_list1.json) }}"

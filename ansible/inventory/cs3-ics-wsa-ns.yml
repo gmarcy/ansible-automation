@@ -1,0 +1,24 @@
+---
+
+all:
+  vars:
+    target_catalog: opencloud-operators
+    target_operators: wasautomation-operators
+    target_scopes:
+    - wasautomation
+  children:
+    cluster_operators:
+      hosts:
+        cluster-operators:
+    common_services:
+      hosts:
+        common-services:
+    was_automation:
+      hosts:
+        was-automation:
+      vars:
+        inv_was_automation_catalog_source_name: 'websphere-automation-catalog'
+        inv_was_automation_catalog_source_display_name: 'IBM WebSphere Automation Catalog'
+        inv_was_automation_catalog_source_image: "{{ inv_was_automation_catalog_source_image_cs3 }}"
+        inv_was_automation_catalog_source_image_tag: "{{ inv_was_automation_catalog_source_image_tag_cs3 }}"
+        inv_was_automation_operator_singlenamespace: true

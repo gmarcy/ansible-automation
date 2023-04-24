@@ -1,0 +1,18 @@
+---
+
+- name: Create MCSP database tables
+  hosts: mcsp_services
+  gather_facts: false
+  tags: mcsp_db_tables
+  tasks:
+  - name: Set mcsp_cluster_name fact
+    set_fact:
+      mcsp_cluster_name: "{{ hostvars['cluster-facts']['cluster_fqdn'] }}"
+  - name: Create database tables
+    include_role:
+      name: mcsp_create_database_tables
+    vars:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      target_endpoint_url: "{{ 'http://dynamodblocal-' + mcsp_target['namespace'] + '.apps.' + mcsp_cluster_name }}"
+      target_profile: default

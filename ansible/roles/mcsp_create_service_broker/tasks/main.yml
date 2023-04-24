@@ -1,0 +1,8 @@
+---
+
+- name: Create ServiceBroker
+  kubernetes.core.k8s:
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    template: servicebroker.yaml.j2
+  register: _result

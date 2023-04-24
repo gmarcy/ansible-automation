@@ -14,18 +14,32 @@
   set_fact:
     catalog_source_installed: "{{ _result.resources | length > 0 }}"
 
+- name: Set catalog_source_annotations fact
+  set_fact:
+    catalog_source_annotations:
+      olm.catalogImageTemplate:
+        "{{ target_catalog_source_image_template }}"
+  when: target_catalog_source_image_template | default('') | length > 0
+
+- name: Set catalog_source_image fact
+  set_fact:
+    catalog_source_image: "{{ target_catalog_source_image if (target_catalog_source_image_tag | length == 0) else (target_catalog_source_image + ':' + target_catalog_source_image_tag) }}"
+  when: target_catalog_source_image_template | default('') | length == 0
+
 - name: Create CatalogSource if absent
   kubernetes.core.k8s:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: operators.coreos.com/v1alpha1
     kind: CatalogSource
-    kubeconfig: "{{ kubeconfig_path }}"
     name: "{{ target_catalog_source_name }}"
     namespace: "{{ target_catalog_source_namespace }}"
     definition:
+      metadata:
+        annotations: "{{ catalog_source_annotations | default(omit) }}"
       spec:
         displayName: "{{ target_catalog_source_display_name }}"
-        image: "{{ target_catalog_source_image if (target_catalog_source_image_tag | length == 0) else (target_catalog_source_image + ':' + target_catalog_source_image_tag) }}"
+        image: "{{ catalog_source_image | default(omit) }}"
         publisher: "{{ target_catalog_source_publisher }}"
         sourceType: grpc
         updateStrategy:

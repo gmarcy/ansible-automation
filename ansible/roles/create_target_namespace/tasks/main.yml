@@ -5,6 +5,7 @@
     api_key: "{{ api_key | default(omit) }}"
     kind: Namespace
     kubeconfig: "{{ kubeconfig_path }}"
-    name: "{{ target_namespace }}"
+    name: "{{ item }}"
     state: present
   register: _result
+  loop: "{{ target_namespaces | default([target_namespace]) }}"

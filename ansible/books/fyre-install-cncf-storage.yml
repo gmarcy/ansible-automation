@@ -1,9 +1,0 @@
----
-
-- import_playbook: ../plays/gather_playbook_facts.yml
-- import_playbook: ../plays/request_cluster.yml
-- import_playbook: ../plays/gather_cluster_facts.yml
-- import_playbook: ../plays/prepare_cluster_storage_group.yml
-- import_playbook: ../plays/cncf_local_storage.yml
-- import_playbook: ../plays/cncf_nfs_storage.yml
-- import_playbook: ../plays/cncf_cephfs_storage.yml

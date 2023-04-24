@@ -1,0 +1,15 @@
+{
+    "TableBaseName": "TenantMgt.CSBRawData",
+    "TableAttributes": [
+      {
+        "AttributeName": "id",
+        "AttributeType": "S"
+      }
+    ],
+    "TableKeySchema": [
+      {
+        "AttributeName": "id",
+        "KeyType": "HASH"
+      }
+    ]
+  }

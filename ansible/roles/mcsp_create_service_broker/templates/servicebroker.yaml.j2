@@ -1,0 +1,109 @@
+apiVersion: cerberus.watson.cloud.ibm.com/v1
+kind: ServiceBroker
+metadata:
+  name: "{{ Values.serviceName }}-{{ Values.environment }}"
+  namespace: {{ Values.namespace }}
+spec:
+
+  # "service_group" name, used in CSB API prefix, for example: /broker/acme-service-dev
+  # >>>> [IMPORTANT] Must set in the format as [serviceID]-[environment postfix], "serviceID" is same as in
+  #                  Product Registration
+  broker_path_element: "{{ Values.serviceID }}-{{ Values.envShortName }}"
+  default_callback:
+    mutual_tls:
+      {% if Values.serverCA | default('') | length > 0 %}
+      server_ca: >-
+        "{{ Values.serverCA }}"
+      {% endif %}
+      want_client_cert: true
+    timeout: 30s # default 30s, Golang Time Format
+    url_prefix: "https://{{ Values.urlPrefix }}"
+    want_enable_disable_calls: true
+  services:
+    - bindable: false # required, but not actually used for MSP CSB
+
+      # 60 char limit
+      # Allowed characters: lowercase unicode, digits, dashes, dot, underscores
+      # Validation Regex: ^[\p{Ll}\d_.-]{1,60}$
+      name: {{ Values.serviceName }}
+
+      # service_id used by CSB to lookup service configuration, must be globally unique
+      # >>>> [IMPORTANT] Must set your Service ID same as in `serviceID` field in Product Registration
+      # Allowed characters: alpha numerics, dashes, dot, underscores
+      id: {{ Values.serviceID }}
+
+      description: {{ Values.serviceDescription }}
+
+      # You can define an array item in the values.yaml and use here
+      plans:
+
+        # trial plan
+        - description: {{ Values.plans.trial.description }}
+
+          # Allowed characters: lowercase unicode, digits, dashes, dot, underscores
+          # Validation Regex: ^[\p{Ll}\d_.-]+$
+          name: "{{ Values.serviceName }}_{{ Values.plans.trial.id }}"
+
+          # plan_id used by CSB to lookup plan configuration, must be globally unique
+          #
+          # >>>> [IMPORTANT] Must set Plan ID here same as those in your service Product Registration
+          # Allowed characters: alpha numerics, dashes, dot, underscores
+          id: "{{ Values.serviceID }}_{{ Values.plans.trial.id }}"
+
+          # plan metadata for information purpose only, parts number in CSB is not critical.
+          # However, we recommend keep consistent with Product Registration
+          metadata:
+            costs:
+              - part_number: {{ Values.parts.trial.partNumber }}
+                unit: {{ Values.costs.trial.unit_name }}
+                unit_id: {{ Values.costs.trial.unit_id }}
+
+          free: true # plan is free
+
+          # "upgradeble_to" controls what Plan CSB allows PATCH OSB requests can be send to
+          # >>>> [IMPORTANT] You must add this plan itself to this list, for example, if current plan id is
+          #                  "abc-service-trial", upgradebale_to must start with:
+          #
+          #                  upgradeable_to:
+          #                    - abc-service-trial
+          #                    - abc-service-standard
+          #                    - xxxxx
+          # You can use values.yaml to customize settings here. For eg: Loop over the plans array may be
+          upgradeable_to:
+            - "{{ Values.serviceID }}_{{ Values.plans.trial.id }}"
+            - "{{ Values.serviceID }}_{{ Values.plans.paid.id }}"
+
+        # paid plan
+        - description: {{ Values.plans.paid.description }}
+
+          # Allowed characters: lowercase unicode, digits, dashes, dot, underscores
+          # Validation Regex: ^[\p{Ll}\d_.-]+$
+          name: "{{ Values.serviceName }}_{{ Values.plans.paid.id }}"
+
+          # plan_id used by CSB to lookup plan configuration, must be globally unique
+          #
+          # >>>> [IMPORTANT] Must set Plan ID here same as those in your service Product Registration
+          # Allowed characters: alpha numerics, dashes, dot, underscores
+          id: "{{ Values.serviceID }}_{{ Values.plans.paid.id }}"
+
+          # plan metadata for information purpose only, parts number in CSB is not critical.
+          # However, we recommend keep consistent with Product Registration
+          metadata:
+            costs:
+              - part_number: {{ Values.parts.paid.partNumber }}
+                unit: {{ Values.costs.paid.unit_name }}
+                unit_id: {{ Values.costs.paid.unit_id }}
+
+          free: false # plan is paid
+
+          # "upgradeble_to" controls what Plan CSB allows PATCH OSB requests can be send to
+          # >>>> [IMPORTANT] You must add this plan itself to this list, for example, if current plan id is
+          #                  "abc-service-trial", upgradebale_to must start with:
+          #
+          #                  upgradeable_to:
+          #                    - abc-service-trial
+          #                    - abc-service-standard
+          #                    - xxxxx
+          # You can use values.yaml to customize settings here. For eg: Loop over the plans array may be
+          upgradeable_to:
+            - "{{ Values.serviceID }}_{{ Values.plans.paid.id }}"

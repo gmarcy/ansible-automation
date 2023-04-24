@@ -1,0 +1,90 @@
+{
+  "TableBaseName": "TenantMgt.SSM",
+  "TableAttributes": [
+    {
+      "AttributeName": "instanceId",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "platformSubscriptionId",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "subscriptionGroupIdentifier",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "hyscAutoProvisionConfigurationTransactionId",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "partNumber",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "emailAddress",
+      "AttributeType": "S"
+    }
+  ],
+  "TableKeySchema": [
+    {
+      "AttributeName": "instanceId",
+      "KeyType": "HASH"
+    }
+  ],
+  "GlobalSecondaryIndexes": [
+    {
+      "IndexName": "ssm-part-email",
+      "KeySchema": [
+        {
+          "AttributeName": "partNumber",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "emailAddress",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "INCLUDE",
+        "NonKeyAttributes": [
+          "instanceId"
+        ]
+      }
+    },
+    {
+      "IndexName": "ssm-sub-tran",
+      "KeySchema": [
+        {
+          "AttributeName": "platformSubscriptionId",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "hyscAutoProvisionConfigurationTransactionId",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "INCLUDE",
+        "NonKeyAttributes": [
+          "instanceId"
+        ]
+      }
+    },
+    {
+      "IndexName": "ssm-sub-group",
+      "KeySchema": [
+        {
+          "AttributeName": "subscriptionGroupIdentifier",
+          "KeyType": "HASH"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "INCLUDE",
+        "NonKeyAttributes": [
+          "instanceId"
+        ]
+      }
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 - name: Load all playbook secrets
   include_vars:
-    dir: "{{ secrets_dir }}"
+    dir: "{{ secrets_vars_dir }}"
     ignore_unknown_extensions: true
   no_log: "{{ hide_playbook_secrets | default(true) }}"
   delegate_to: "{{ inventory_hostname }}"

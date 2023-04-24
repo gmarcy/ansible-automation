@@ -1,0 +1,89 @@
+application: tenantmgtms
+awsToken: <place-holder-aws-token>
+clusterRoleBinding: tenantmgtms-crb
+csbHostEuCentral1: <place-holder-csb-eu-central-1>
+csbHostEuWest2: <place-holder-csb-eu-west-2>
+deploymentPromoterSecret: tenantmgtms-dp-secret
+envShortName: dev
+environment: <place-holder-env>
+host: <place-holder-host>
+image: icr.io/automation-saas-platform/tenant-management/tenantmgt:20230309210609-development-42ff9ff215f6290f1dd9244a74e382c6aed8aa82
+imagePullSecrets: tenantmgtms-global-registry-secret
+namespace: <place-holder-ns>
+oldimagePullSecrets: tenantmgtms-registry-secret
+previousEnvAppSet: <place-holder-previousEnvAppSet>
+promotionEnv: <place-holder-promoenv>
+promotionEnvAppSet: <place-holder-promoenvappset>
+replicas: <place-holder-replicas>
+resourceLimits:
+  cpuLimit: 1500m
+  cpuReq: 500m
+  memLimit: 1500Mi
+  memReq: 1000Mi
+server: <place-holder-server>
+service:
+  portHttps: 9443
+  type: ClusterIP
+serviceAccount: tenantmgtms-sa
+serviceCertSecret: tenantmgt-cert-secret
+testRunnerRole: tenantmgtms-test-runner-role
+testRunnerRoleBinding: tenantmgtms-cb
+testRunnerSecret: tenantmgtms-tr-secret
+version: 1.0.1
+
+fyredeployment: true
+specificValues:
+  replicas: <place-holder-replicas>
+  AWS_DYNAMODB_TABLE_CUSTOM_UUID: TenantMgt.CustomUUID.Fyre
+  AWS_DYNAMODB_TABLE_TENANT: TenantMgt.Tenant.Fyre
+  AWS_DYNAMODB_TABLE_MC_RAW_DATA: TenantMgt.MCRawData.Fyre
+  AWS_DYNAMODB_TABLE_CSB_RAW_DATA: TenantMgt.CSBRawData.Fyre
+  csbEnabled: "'true'"
+  
+#authSecretsOpenLiberty.yaml
+CLIENT_ID: {{ CLIENT_ID }}
+CLIENT_SECRET: {{ CLIENT_SECRET }}
+DISCOVERY_ENDPOINT: {{ VERIFY_URL }}/.well-known/openid-configuration
+USER_VALIDATION_API: https://openshift.default.svc/apis/user.openshift.io/v1/users/~
+USER_VALIDATION_API_V2: https://openshift.default.svc/apis/user.openshift.io/v1/users/~
+
+#configMap.yaml
+# DynamoDB
+AWS_DYNAMODB_ENDPOINT: http://dynamodblocal-imagestream.<place-holder-ns>.svc.cluster.local:9446
+AWS_DYNAMODB_REGION: us-east-1
+
+
+#mpconfigSecrets.yaml
+AWS_ACCESS_KEY_ID: dXNlcm5hbWU=
+AWS_SECRET_ACCESS_KEY: cGFzc3dvcmQ=
+SA_TOKEN: <pull-from-server>
+SUBSCRIPTIONS_BEARER_TOKEN: <pull-from-server>
+SSM_DATA_BEARER_TOKEN: <pull-from-server>
+NOTIFICATION_SERVICE_BEARER_TOKEN: <pull-from-server>
+CSB_BASIC_AUTH_USERID: YnJva2VydXNlcg==
+CSB_BASIC_AUTH_PASSWORD: YnJva2VycGFzc3dvcmQ=
+
+# OAuth client id , secret values below are fake.
+OAUTH_CLIENT_ID: bb8af1cc-c2f8-11ed-afa1-0242ac120002
+OAUTH_CLIENT_SECRET: zx4Fz1hhB1
+
+#encoding section to specify which field values need to be encoded and how
+encoding:
+  - name: single-base64
+    times: 1
+    field_names:
+      CLIENT_ID
+      CLIENT_SECRET
+      DISCOVERY_ENDPOINT 
+      USER_VALIDATION_API
+      USER_VALIDATION_API_V2
+      SA_TOKEN
+      SUBSCRIPTIONS_BEARER_TOKEN
+      SSM_DATA_BEARER_TOKEN
+      NOTIFICATION_SERVICE_BEARER_TOKEN
+      AWS_ACCESS_KEY_ID
+      AWS_SECRET_ACCESS_KEY
+      CSB_BASIC_AUTH_USERID
+      CSB_BASIC_AUTH_PASSWORD
+      OAUTH_CLIENT_ID
+      OAUTH_CLIENT_SECRET

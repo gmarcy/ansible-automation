@@ -14,3 +14,4 @@
     src: "{{ cluster_client_tools[client_os].url }}"
     dest: "{{ cluster_bin_dir }}"
   register: _result
+  until: _result is defined

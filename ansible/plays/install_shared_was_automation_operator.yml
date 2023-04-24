@@ -1,0 +1,30 @@
+---
+
+- name: Install WebSphere Automation Operator into cluster
+  hosts: was_automation
+  gather_facts: false
+  tags: was_automation
+  roles:
+  - role: create_target_subscription
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_operator_name: ibm-common-service-operator
+    target_operator_namespace: "{{ was_automation_namespace }}"
+    target_catalog_source_name: cs-test-operators
+    target_catalog_source_namespace: "{{ was_automation_catalog_source_namespace }}"
+  - role: create_target_subscription
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_operator_name: "{{ was_automation_operator_name }}"
+    target_operator_namespace: "{{ was_automation_namespace }}"
+    target_catalog_source_name: "{{ was_automation_catalog_source_name }}"
+    target_catalog_source_namespace: "{{ was_automation_catalog_source_namespace }}"
+  - role: install_wsa_operands
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ was_automation_namespace }}"
+    registry_namespace: "{{ hostvars['common-services']['common_service_namespace'] }}"
+    install_healing: "{{ was_automation_install_healing }}"
+    airgap_install: "{{ was_automation_airgap_install }}"
+    install_individual_wsa_operands: true
+    wait_for_wsa_operands: false

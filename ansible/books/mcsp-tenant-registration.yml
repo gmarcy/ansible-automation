@@ -1,0 +1,7 @@
+---
+
+- import_playbook: ../plays/gather_playbook_facts.yml
+- import_playbook: ../plays/gather_cluster_facts.yml
+- import_playbook: ../plays/prepare_mcsp_services_group.yml
+- import_playbook: ../plays/prepare_cluster_operators_group.yml
+- import_playbook: ../plays/mcsp_tenant_registration.yml

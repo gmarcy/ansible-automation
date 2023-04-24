@@ -1,0 +1,68 @@
+---
+
+- name: Set facts for this role
+  set_fact:
+    mcsp_namespace: "{{ mcsp_target.namespace }}"
+    mcsp_cluster_name: "{{ hostvars['cluster-facts']['cluster_fqdn'] }}"
+
+- name: Check for existing MCSP Tenant
+  uri:
+    url: "{{ 'https://tenantmgtms-' + mcsp_namespace + '.apps.' + mcsp_cluster_name + '/tenantmgr/api/1.2/mgmt-console/tenants' }}"
+    method: "GET"
+    headers:
+      Authorization: "{{ 'Bearer ' + mcsp_rest_api_auth_token }}"
+    validate_certs: false
+  register: _result
+
+- debug:
+    msg:
+    - "{{ item['tenant_name'] }}"
+    - "{{ tenant.name }}"
+  loop: "{{ _result.json }}"
+
+- name: Set tenant_exists to false
+  set_fact:
+    tenant_exists: false
+
+- name: Set tenant_exists fact
+  set_fact:
+    tenant_exists: true
+  loop: "{{ _result.json }}"
+  when: item['tenant_name'] == tenant.name
+
+- when: not tenant_exists
+  block:
+
+    - name: Fetch our subscription_id
+      set_fact:
+        subscription_id: "{{ item.id }}"
+      loop: "{{ mcsp_current_subscriptions }}"
+      when: item['name'] == tenant.subscription
+
+    - name: Create MCSP Tenant
+      uri:
+        url: "{{ 'https://tenantmgtms-' + mcsp_namespace + '.apps.' + mcsp_cluster_name + '/tenantmgr/api/1.0/mgmt-console/tenants' }}"
+        method: "POST"
+        headers:
+          Authorization: "{{ 'Bearer ' + mcsp_rest_api_auth_token }}"
+        validate_certs: false
+        body_format: "json"
+        body:
+          tenant_name: "{{ tenant.name }}"
+          subscription_id: "{{ subscription_id }}"
+          tenant_deployment_region: us-east-1
+          tenant_owner_email: "{{ tenant.owner_email }}"
+          tenant_owner_ibmid: "{{ tenant.owner_ibmid }}"
+          tenant_owner_ibmuid: "{{ tenant.owner_ibmuid }}"
+          tenant_idp: aws
+          mgmt_console_url: "{{ 'https://am-console.apps.' + mcsp_cluster_name + '/' }}"
+      register: _result
+
+    - name: List the tenant
+      uri:
+        url: "{{ 'https://tenantmgtms-' + mcsp_namespace + '.apps.' + mcsp_cluster_name + '/tenantmgr/api/1.2/mgmt-console/tenants' }}"
+        method: "GET"
+        headers:
+          Authorization: "{{ 'Bearer ' + mcsp_rest_api_auth_token }}"
+        validate_certs: false
+      register: _result

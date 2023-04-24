@@ -1,0 +1,463 @@
+---
+
+- name: Set facts used in this role
+  set_fact:
+    target_service_name: "{{ broker_name }}"
+    mcsp_user: "{{ hostvars['playbook-secrets']['cloudrock_devops_user'] }}"
+    mcsp_apikey: "{{ hostvars['playbook-secrets']['cloudrock_devops_apikey'] }}"
+    cluster_fqdn: "{{ hostvars['cluster-facts']['cluster_fqdn'] }}"
+    cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"
+
+- name: Set facts for service deploy folder
+  set_fact:
+    mcsp_service_deploy_path: "{{ cluster_dir + '/tenantns/services/' + target_service_name }}"
+    mcsp_csb_deploy_path: "{{ lookup('env','HOME') + '/.kube/clusters/' + csb_cluster_name + '/tenantns/services/common-service-broker' }}"
+
+- name: Create the path for the service folder
+  file:
+    path: "{{ mcsp_service_deploy_path }}"
+    state: directory
+    mode: '0755'
+  register: _result
+
+- name: Set fact if directory already exists
+  set_fact:
+    service_folder_present: "{{ _result.changed == false }}"
+
+- name: Set image_pull_secret fact
+  set_fact:
+    image_pull_secret:
+      auths:
+        "icr.io":
+          auth: "{{ (mcsp_user + ':' + mcsp_apikey) | b64encode }}"
+
+- name: Check for existing certs
+  stat:
+    path: "{{ item }}"
+  register: _result
+  loop:
+  - "{{ mcsp_service_deploy_path + '/tls.key' }}"
+  - "{{ mcsp_service_deploy_path + '/tls.crt' }}"
+  - "{{ mcsp_service_deploy_path + '/ca.crt' }}"
+
+- name: Set all_certs_present fact
+  set_fact:
+    all_certs_present: "{{ _result.results | map(attribute='stat.exists') | unique | difference([true]) | length == 0 }}"
+
+- when: not all_certs_present
+  name: Only recreate certs if at least one of the certs is absent
+  block:
+
+    - name: Create tls.key
+      command: |
+        openssl req -x509 -nodes -new -sha256 -days 1024 -newkey rsa:2048 -keyout {{ mcsp_service_deploy_path + '/tls.key' }} -out {{ mcsp_service_deploy_path + '/tls.pem' }} -subj /CN=localhost/OU=apaas/O=IBM/C=US
+      register: _result
+
+    - name: Create tls.crt
+      command: |
+        openssl x509 -outform pem -in {{ mcsp_service_deploy_path + '/tls.pem' }} -out {{ mcsp_service_deploy_path + '/tls.crt' }}
+      register: _result
+
+    - name: Create ca.crt
+      command: |
+        openssl x509 -outform pem -in {{ mcsp_csb_deploy_path + '/scripts/fyre/csb-client-cert.pem' }} -out {{ mcsp_service_deploy_path + '/ca.crt' }}
+      register: _result
+
+- name: Set remaining facts
+  set_fact:
+    brokerName: "{{ broker_name }}"
+    brokerNamespace: "{{ service_broker['namespace'] }}"
+    serverTls:
+      crt: "{{ lookup('file', mcsp_service_deploy_path + '/tls.crt') | b64encode }}"
+      key: "{{ lookup('file', mcsp_service_deploy_path + '/tls.key') | b64encode }}"
+    csb_ca: "{{ lookup('file', mcsp_service_deploy_path + '/ca.crt') | b64encode }}"
+    imagePullSecret: "{{ image_pull_secret | to_json | b64encode }}"
+
+- name: Set facts used in this role
+  set_fact:
+    Values:
+      brokerName: "{{ brokerName }}"
+      brokerNamespace: "{{ brokerNamespace }}"
+      serverTls:
+        crt: "{{ serverTls.crt }}"
+        key: "{{ serverTls.key }}"
+      csb_ca: "{{ csb_ca }}"
+      imagePullSecret: "{{ imagePullSecret }}"
+      replicas: "{{ service_broker['replicas'] }}"
+      mtlsEnable: "{{ service_broker['mtls_enable'] | string }}"
+      crEnable: "{{ service_broker['cr_enable'] }}"
+      image: "{{ service_broker['image'] }}"
+      dashboardUrl: "{{ service_broker['dashboard_url'] }}"
+
+- name: "Create {{ brokerName }} ServiceAccount"
+  kubernetes.core.k8s:
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    api_version: v1
+    kind: ServiceAccount
+    name: "{{ Values.brokerName }}"
+    namespace: "{{ Values.brokerNamespace }}"
+  register: _result
+
+- name: "Create {{ brokerName }}-role Role"
+  kubernetes.core.k8s:
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    api_version: rbac.authorization.k8s.io/v1
+    kind: Role
+    name: "{{ Values.brokerName + '-role' }}"
+    namespace: "{{ Values.brokerNamespace }}"
+    definition:
+      rules:
+      - verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+        apiGroups:
+        - automation.cloud.ibm.com
+        resources:
+        - serviceinstances
+      - verbs:
+        - get
+        apiGroups:
+        - automation.cloud.ibm.com
+        resources:
+        - serviceinstances/status
+  register: _result
+
+- name: "Create {{ brokerName }}-rolebinding RoleBinding"
+  kubernetes.core.k8s:
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    api_version: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    name: "{{ Values.brokerName + '-rolebinding' }}"
+    namespace: "{{ Values.brokerNamespace }}"
+    definition:
+      subjects:
+      - kind: ServiceAccount
+        name: "{{ Values.brokerName }}"
+        namespace: "{{ Values.brokerNamespace }}"
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: Role
+        name: "{{ Values.brokerName + '-role' }}"
+  register: _result
+
+- name: "Create {{ brokerName }}-server-tls Secret"
+  kubernetes.core.k8s:
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    api_version: v1
+    kind: Secret
+    name: "{{ brokerName  + '-server-tls' }}"
+    namespace: "{{ Values.brokerNamespace }}"
+    definition:
+      data:
+        tls.crt: "{{ Values.serverTls.crt }}"
+        tls.key: "{{ Values.serverTls.key }}"
+      type: kubernetes.io/tls
+  register: _result
+
+- name: Create csb-ca Secret
+  kubernetes.core.k8s:
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    api_version: v1
+    kind: Secret
+    name: csb-ca
+    namespace: "{{ Values.brokerNamespace }}"
+    definition:
+      data:
+        ca.crt: "{{ Values.csb_ca }}"
+      type: Opaque
+  register: _result
+
+- name: Create ap-global-registry Secret
+  kubernetes.core.k8s:
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    api_version: v1
+    kind: Secret
+    name: ap-global-registry
+    namespace: "{{ Values.brokerNamespace }}"
+    definition:
+      data: 
+        .dockerconfigjson: "{{ Values.imagePullSecret }}"
+      type: kubernetes.io/dockerconfigjson
+  register: _result
+
+- name: Create the ServiceInstance CustomResourceDefinition
+  kubernetes.core.k8s:
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    api_version: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    name: serviceinstances.automation.cloud.ibm.com
+    definition:
+      spec:
+        group: automation.cloud.ibm.com
+        names:
+          kind: ServiceInstance
+          listKind: ServiceInstanceList
+          plural: serviceinstances
+          shortNames:
+          - si
+          singular: serviceinstance
+        scope: Namespaced
+        versions:
+        - additionalPrinterColumns:
+          - jsonPath: .status.state
+            name: State
+            type: string
+          - jsonPath: .spec.planID
+            name: PlanID
+            type: string
+          - jsonPath: .metadata.creationTimestamp
+            name: Age
+            type: date
+          name: v1
+          schema:
+            openAPIV3Schema:
+              description: ServiceInstance is the Schema for the serviceinstances API
+              properties:
+                apiVersion:
+                  description: 'APIVersion defines the versioned schema of this representation
+                    of an object. Servers should convert recognized schemas to the latest
+                    internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+                  type: string
+                kind:
+                  description: 'Kind is a string value representing the REST resource this
+                    object represents. Servers may infer this from the endpoint the client
+                    submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                  type: string
+                metadata:
+                  type: object
+                spec:
+                  description: ServiceInstanceSpec defines the desired state of ServiceInstance
+                  properties:
+                    accountID:
+                      type: string
+                    creatorID:
+                      type: string
+                    crn:
+                      type: string
+                    deprovision:
+                      type: boolean
+                    displayName:
+                      type: string
+                    enabled:
+                      type: boolean
+                    planID:
+                      type: string
+                    previousValues:
+                      items:
+                        properties:
+                          key:
+                            type: string
+                          value:
+                            type: string
+                        required:
+                        - key
+                        - value
+                        type: object
+                      type: array
+                    provisionContext:
+                      items:
+                        properties:
+                          key:
+                            type: string
+                          value:
+                            type: string
+                        required:
+                        - key
+                        - value
+                        type: object
+                      type: array
+                    provisionParameters:
+                      items:
+                        properties:
+                          key:
+                            type: string
+                          value:
+                            type: string
+                        required:
+                        - key
+                        - value
+                        type: object
+                      type: array
+                    resourceGroupCRN:
+                      type: string
+                    serviceID:
+                      type: string
+                  required:
+                  - crn
+                  - planID
+                  - serviceID
+                  type: object
+                status:
+                  description: ServiceInstanceStatus defines the observed state of ServiceInstance
+                  properties:
+                    instanceMetadata:
+                      type: string
+                    operations:
+                      items:
+                        properties:
+                          ID:
+                            type: string
+                          description:
+                            type: string
+                          state:
+                            enum:
+                            - in_progress
+                            - succeeded
+                            - failed
+                            type: string
+                        required:
+                        - ID
+                        - state
+                        type: object
+                      type: array
+                    state:
+                      enum:
+                      - provisioning
+                      - ready
+                      - updating
+                      - deprovisioning
+                      - deprovisioned
+                      - disabled
+                      - failed
+                      type: string
+                  required:
+                  - state
+                  type: object
+              type: object
+          served: true
+          storage: true
+          subresources:
+            status: {}
+  register: _result
+
+- name: "Create {{ brokerName }} Deployment"
+  kubernetes.core.k8s:
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    api_version: apps/v1
+    kind: Deployment
+    name: "{{ Values.brokerName }}"
+    namespace: "{{ Values.brokerNamespace }}"
+    definition:
+      metadata:
+        labels:
+          app: "{{ Values.brokerName }}"
+      spec:
+        replicas: "{{ Values.replicas }}"
+        selector:
+          matchLabels:
+            app: "{{ Values.brokerName }}"
+        template:
+          metadata:
+            labels:
+              app: "{{ Values.brokerName }}"
+          spec:
+            serviceAccountName: "{{ Values.brokerName }}"
+            serviceAccount: "{{ Values.brokerName }}"
+            imagePullSecrets:
+            - name: ap-global-registry
+            securityContext:
+              runAsNonRoot: true
+            containers:
+            - resources:
+                limits:
+                  cpu: 500m
+                  memory: 400Mi
+                requests:
+                  cpu: 200m
+                  memory: 128Mi
+              name: manager
+              env:
+              - name: TLS_CERT
+                value: "{{ '/opt/automation/' + Values.brokerName + '/tls/tls.crt' }}"
+              - name: TLS_KEY
+                value: "{{ '/opt/automation/' + Values.brokerName + '/tls/tls.key' }}"
+              - name: CLIENT_CA
+                value: "{{ '/opt/automation/' + Values.brokerName + '/client-ca' }}"
+              - name: MTLS_ENABLED
+                value: "{{ Values.mtlsEnable }}"
+              - name: CR_ENABLED
+                value: "{{ Values.crEnable }}"
+              - name: DASHBOARD_URL
+                value: "{{ Values.dashboardUrl }}"
+              - name: NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: metadata.namespace
+              ports:
+              - name: https
+                containerPort: 7329
+                protocol: TCP
+              imagePullPolicy: Always
+              volumeMounts:
+              - name: tls-certs
+                readOnly: true
+                mountPath: "{{ '/opt/automation/' + Values.brokerName + '/tls' }}"
+              - name: csb-ca
+                readOnly: true
+                mountPath: "{{ '/opt/automation/' + Values.brokerName + '/client-ca/csb-ca' }}"
+              terminationMessagePolicy: File
+              image: "{{ Values.image }}"
+            volumes:
+            - name: tls-certs
+              secret:
+                secretName: "{{ Values.brokerName + '-server-tls' }}"
+                defaultMode: 420
+            - name: csb-ca
+              secret:
+                secretName: csb-ca
+                defaultMode: 420
+  register: _result
+
+- name: "Create {{ brokerName }} Service"
+  kubernetes.core.k8s:
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    api_version: v1
+    kind: Service
+    name: "{{ Values.brokerName }}"
+    namespace: "{{ Values.brokerNamespace }}"
+    definition:
+      spec:
+        ports:
+        - name: https
+          port: 7329
+          targetPort: https
+        selector:
+          app: "{{ Values.brokerName }}"
+  register: _result
+
+- name: "Create {{ brokerName }} Route"
+  kubernetes.core.k8s:
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    api_version: route.openshift.io/v1
+    kind: Route
+    name: "{{ Values.brokerName }}"
+    namespace: "{{ Values.brokerNamespace }}"
+    definition:
+      spec:
+        port:
+          targetPort: https
+        tls:
+          insecureEdgeTerminationPolicy: Redirect
+          termination: passthrough
+        to:
+          kind: Service
+          name: "{{ Values.brokerName }}"
+          weight: 100
+        wildcardPolicy: None
+  register: _result

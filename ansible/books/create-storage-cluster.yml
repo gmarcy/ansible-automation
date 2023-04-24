@@ -1,8 +1,0 @@
----
-
-- import_playbook: ../plays/gather_playbook_facts.yml
-- import_playbook: ../plays/request_cluster.yml
-- import_playbook: ../plays/gather_cluster_facts.yml
-- import_playbook: ../plays/prepare_cluster_storage_group.yml
-- import_playbook: ../plays/deploy_storage.yml
-- import_playbook: ../plays/print_cluster_info.yml

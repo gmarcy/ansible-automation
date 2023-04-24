@@ -1,0 +1,15 @@
+{
+  "TableBaseName": "TenantMgt.User",
+  "TableAttributes": [
+    {
+      "AttributeName": "ibmid",
+      "AttributeType": "S"
+    }
+  ],
+  "TableKeySchema": [
+    {
+      "AttributeName": "ibmid",
+      "KeyType": "HASH"
+    }
+  ]
+}

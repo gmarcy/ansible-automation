@@ -1,0 +1,15 @@
+{
+    "TableBaseName": "TenantMgt.MCRawData",
+    "TableAttributes": [
+      {
+        "AttributeName": "id",
+        "AttributeType": "S"
+      }
+    ],
+    "TableKeySchema": [
+      {
+        "AttributeName": "id",
+        "KeyType": "HASH"
+      }
+    ]
+  }

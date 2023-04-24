@@ -1,0 +1,10 @@
+---
+
+- name: Confirm that we have a default storage class
+  hosts: cluster_storage
+  gather_facts: false
+  tags: cluster_storage
+  roles:
+  - role: assert_default_storage_class
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"

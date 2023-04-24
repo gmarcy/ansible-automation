@@ -19,7 +19,7 @@ common_service_operator_name: "{{ inv_common_service_operator_name | default('ib
 common_service_operator_namespace: "{{ inv_common_service_operator_namespace | default(common_service_namespace) }}"
 common_service_operator_group: "{{ inv_common_service_operator_group | default('ibm-common-services-operators') }}"
 
-common_service_operand_name: 'common-service'
+common_service_operand_name: "{{ inv_common_service_operand_name | default('common-service') }}"
 common_service_operand_namespace: "{{ inv_common_service_operand_namespace | default(common_service_namespace) }}"
 
 common_service_opreq_labels_keyvaluepairs:
@@ -29,3 +29,7 @@ common_service_opreq_labels_keyvaluepairs:
     value: 'true'
   - key: operator.ibm.com/opreq-control
     value: 'true'
+
+common_service_opreq_labels: "{{ common_service_opreq_labels_keyvaluepairs | items2dict }}"
+
+common_service_operand_requests: "{{ inv_common_service_operand_requests | default([]) }}"

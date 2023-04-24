@@ -1,7 +1,7 @@
 ---
 
-- name: "Gather cluster facts from {{ hostvars['cluster-facts']['cluster_provisioner'] }}"
-  hosts: "{{ hostvars['cluster-facts']['cluster_provisioner'] }}"
+- name: "Gather cluster facts from {{ hostvars['cluster-facts']['cluster_provisioner'] | default('cluster_provisioner') }}"
+  hosts: "{{ hostvars['cluster-facts']['cluster_provisioner'] | default('cluster_provisioner') }}"
   gather_facts: false
   tags: cluster_facts
   roles:
@@ -11,13 +11,22 @@
     include_role:
       name: "{{ cluster_facts_role }}"
 
+- name: Generate artifactory token when required
+  hosts: playbook_secrets
+  gather_facts: false
+  pre_tasks:
+  - name: Set need_artifactory_token fact
+    set_fact:
+      need_artifactory_token: "{{ artifactory_identity_token is defined and artifactory_token is not defined }}"
+  roles:
+  - role: generate_artifactory_token
+    when: need_artifactory_token and artifactory_generate_access_token is defined
+
 - name: Gather host facts from all nodes
   hosts: all_nodes
   gather_facts: false
   tags: cluster_facts
   roles:
   - role: gather_host_facts
-    ansible_ssh_user: "{{ hostvars['playbook-facts']['remote_user'] }}"
-    remote_user: "{{ hostvars['playbook-facts']['remote_user'] }}"
     gather_packages_info: false
     gather_services_info: false

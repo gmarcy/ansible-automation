@@ -1,0 +1,183 @@
+---
+
+- name: Create MCSP Dynamo database
+  hosts: mcsp_services
+  gather_facts: false
+  tags: mcsp_create_dynamodb
+  tasks:
+  - name: Create the dynamodblocal-imagestream
+    kubernetes.core.k8s:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      api_version: image.openshift.io/v1
+      kind: ImageStream
+      name: dynamodblocal-imagestream
+      namespace: "{{ mcsp_target['namespace'] }}"
+      definition:
+        metadata:
+          labels:
+            name: "dynamodblocal"
+      wait: true
+    register: _result
+  - name: Create the dynamodblocal-buildconfig
+    kubernetes.core.k8s:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      api_version: build.openshift.io/v1
+      kind: BuildConfig
+      name: dynamodblocal-buildconfig
+      namespace: "{{ mcsp_target['namespace'] }}"
+      definition:
+        metadata:
+          labels:
+            name: "dynamodblocal"
+        spec:
+          source:
+            dockerfile: |
+              FROM registry.access.redhat.com/ubi8/openjdk-11
+              USER root
+              RUN microdnf -y install wget gzip
+              WORKDIR /home/dynamodblocal
+              RUN wget -c "https://s3.us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_latest.tar.gz"
+              RUN tar -xzf "dynamodb_local_latest.tar.gz"
+              RUN mkdir data
+              RUN chmod -R 777 /home/dynamodblocal
+              EXPOSE 9446/tcp
+              ENTRYPOINT ["java"]
+              CMD ["-jar","DynamoDBLocal.jar","-sharedDb", "-dbPath", "./data", "-port", "9446"]
+            type: Dockerfile
+          strategy:
+            type: Docker
+          output:
+            to:
+              kind: ImageStreamTag
+              name: "dynamodblocal-imagestream:dev"
+      wait: true
+    register: _result
+  - when: _result.changed
+    name: Start a build of the dynamodblocal-buildconfig
+    community.okd.openshift_build:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      build_config_name: dynamodblocal-buildconfig
+      namespace: "{{ mcsp_target['namespace'] }}"
+      wait: true
+    register: _result
+  - name: Create the dynamodblocal-imagestream Service
+    kubernetes.core.k8s:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      api_version: v1
+      kind: Service
+      name: dynamodblocal-imagestream
+      namespace: "{{ mcsp_target['namespace'] }}"
+      definition:
+        metadata:
+          labels:
+            app: dynamodblocal-imagestream
+            app.kubernetes.io/component: dynamodblocal-imagestream
+            app.kubernetes.io/instance: dynamodblocal-imagestream
+            app.kubernetes.io/name: dynamodblocal-imagestream
+            app.kubernetes.io/part-of: tenantmgr-imagestream-app
+            app.openshift.io/runtime: dynamodblocal-imagestream
+            app.openshift.io/runtime-version: dev
+        spec:
+          ports:
+          - name: 8000-tcp
+            protocol: TCP
+            port: 9446
+            targetPort: 9446
+          internalTrafficPolicy: Cluster
+          type: ClusterIP
+          ipFamilyPolicy: SingleStack
+          sessionAffinity: None
+          selector:
+            app: dynamodblocal
+      wait: true
+    register: _result
+  - name: Create the dynamodblocal Route
+    kubernetes.core.k8s:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      api_version: route.openshift.io/v1
+      kind: Route
+      name: dynamodblocal
+      namespace: "{{ mcsp_target['namespace'] }}"
+      definition:
+        metadata:
+          labels:
+            app: dynamodblocal
+            app.kubernetes.io/component: dynamodblocal
+            app.kubernetes.io/instance: dynamodblocal
+            app.kubernetes.io/name: dynamodblocal
+            app.kubernetes.io/part-of: tenantmgr-imagestream-app
+            app.openshift.io/runtime: dynamodblocal
+            app.openshift.io/runtime-version: dev
+        spec:
+          to:
+            kind: Service
+            name: dynamodblocal-imagestream
+            weight: 100
+          port:
+            targetPort: 8000-tcp
+          wildcardPolicy: None
+      wait: true
+    register: _result
+  - name: Create the dynamodblocal Deployment
+    kubernetes.core.k8s:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      api_version: apps/v1
+      kind: Deployment
+      name: dynamodblocal
+      namespace: "{{ mcsp_target['namespace'] }}"
+      definition:
+        metadata:
+          labels:
+            app: dynamodblocal
+            app.kubernetes.io/component: dynamodblocal
+            app.kubernetes.io/instance: dynamodblocal
+            app.kubernetes.io/name: dynamodblocal
+            app.kubernetes.io/part-of: tenantmgr-imagestream-app
+            app.openshift.io/runtime: dynamodblocal
+            app.openshift.io/runtime-version: dev
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: dynamodblocal
+          template:
+            metadata:
+              labels:
+                app: dynamodblocal
+            spec:
+              containers:
+              - name: dynamodblocal-imagestream
+                image: "{{ 'image-registry.openshift-image-registry.svc:5000/' + mcsp_target['namespace'] + '/dynamodblocal-imagestream:dev' }}"
+                ports:
+                - containerPort: 8000
+                  protocol: TCP
+                resources:
+                  requests:
+                    memory: "256Mi"
+                    cpu: "250m"
+                  limits:
+                    memory: "512Mi"
+                    cpu: "500m"
+                terminationMessagePath: /dev/termination-log
+                terminationMessagePolicy: File
+                imagePullPolicy: Always
+              restartPolicy: Always
+              terminationGracePeriodSeconds: 30
+              dnsPolicy: ClusterFirst
+              securityContext: {}
+              schedulerName: default-scheduler
+          strategy:
+            type: RollingUpdate
+            rollingUpdate:
+              maxUnavailable: 25%
+              maxSurge: 25%
+          revisionHistoryLimit: 10
+          progressDeadlineSeconds: 600
+      wait: true
+    register: _result

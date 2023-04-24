@@ -1,0 +1,19 @@
+---
+
+- name: Deploy MCSP argo services
+  hosts: mcsp_services
+  gather_facts: false
+  tags: mcsp_argo_services
+  tasks:
+  - name: Deploy the argo services
+    include_role:
+      name: mcsp_deploy_argo_service
+    loop: "{{ mcsp_argo_services.keys() | default([]) }}"
+    loop_control:
+      loop_var: target_service_name
+    vars:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      target_service_repo: "{{ mcsp_argo_services[target_service_name]['repo'] }}"
+      target_service_branch: "{{ mcsp_argo_services[target_service_name]['branch'] }}"
+      target_service_local_properties: "{{ mcsp_argo_services[target_service_name]['local_properties'] }}"

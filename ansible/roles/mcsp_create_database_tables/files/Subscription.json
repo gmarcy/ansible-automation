@@ -1,0 +1,132 @@
+{
+  "TableBaseName": "TenantMgt.Subscription",
+  "TableAttributes": [
+    {
+      "AttributeName": "id",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "trialId",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "subscriptionGroupIdentifier",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "hyscAutoProvisionConfigurationTransactionId",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "endCustomerEmail",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "marketplaceProductCode",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "gpk",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "tsCreatedId",
+      "AttributeType": "S"
+    }
+  ],
+  "TableKeySchema": [
+    {
+      "AttributeName": "id",
+      "KeyType": "HASH"
+    }
+  ],
+  "GlobalSecondaryIndexes": [
+    {
+      "IndexName": "subscription-trialId",
+      "KeySchema": [
+        {
+          "AttributeName": "trialId",
+          "KeyType": "HASH"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "INCLUDE",
+        "NonKeyAttributes": [
+          "id"
+        ]
+      }
+    },
+    {
+      "IndexName": "subscription-tranId",
+      "KeySchema": [
+        {
+          "AttributeName": "hyscAutoProvisionConfigurationTransactionId",
+          "KeyType": "HASH"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "INCLUDE",
+        "NonKeyAttributes": [
+          "id"
+        ]
+      }
+    },
+    {
+      "IndexName": "subscription-groupId",
+      "KeySchema": [
+        {
+          "AttributeName": "subscriptionGroupIdentifier",
+          "KeyType": "HASH"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "INCLUDE",
+        "NonKeyAttributes": [
+          "id"
+        ]
+      }
+    },
+    {
+      "IndexName": "sub-email-mp-productcode",
+      "KeySchema": [
+        {
+          "AttributeName": "endCustomerEmail",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "marketplaceProductCode",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "INCLUDE",
+        "NonKeyAttributes": [
+          "id",
+          "type",
+          "mgmtDataSource"
+        ]
+      }
+    },
+    {
+      "IndexName": "sub-tsCreatedId-with-state",
+      "KeySchema": [
+        {
+          "AttributeName": "gpk",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "tsCreatedId",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "INCLUDE",
+        "NonKeyAttributes": [
+          "id",
+          "state",
+          "tsDeleted"
+        ]
+      }
+    }
+  ]
+}

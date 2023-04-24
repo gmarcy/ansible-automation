@@ -73,15 +73,15 @@
 
     - name: Set facts for credentials
       set_fact:
-        artifactory_creds: "{{ hostvars['playbook-secrets']['na_artifactory']['user'] + ':' + hostvars['playbook-secrets']['na_artifactory']['token'] }}"
+        artifactory_creds: "{{ hostvars['playbook-secrets']['artifactory_user'] + ':' + hostvars['playbook-secrets']['artifactory_token'] }}"
 
     - name: Set facts for registries
       set_fact:
         proxy_registries:
-        - "hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com"
+        - "{{ hostvars['playbook-secrets']['artifactory_fqdn'] }}"
         proxy_auth_registries:
         - "{{ 'auth.docker.io:' + hostvars['playbook-secrets']['docker_io_user'] + ':' + hostvars['playbook-secrets']['docker_io_password'] }}"
-        - "{{ 'hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com:' + artifactory_creds }}"
+        - "{{ hostvars['playbook-secrets']['artifactory_fqdn'] + ':' + artifactory_creds }}"
 
     - name: Run the container with podman
       containers.podman.podman_container:

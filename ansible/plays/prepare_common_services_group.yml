@@ -2,15 +2,13 @@
 
 - import_playbook: ../plays/add_pull_secrets.yml
 - import_playbook: ../plays/add_repository_mirror_config.yml
+- import_playbook: ../plays/assert_default_storage_class.yml
 
 - name: Install Common Service Catalog
   hosts: common_services
   gather_facts: false
   tags: common_services
   roles:
-  - role: assert_default_storage_class
-    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
-    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
   - role: create_target_catalog_source
     api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
     kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
@@ -21,23 +19,5 @@
     target_catalog_source_image_tag: "{{ common_service_catalog_source_image_tag }}"
     target_catalog_source_publisher: "{{ common_service_catalog_source_publisher }}"
     target_catalog_source_poll_interval: "{{ common_service_catalog_source_poll_interval }}"
-  - role: create_target_namespace
-    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
-    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
-    target_namespace: "{{ common_service_operator_namespace }}"
-  - role: create_target_namespace
-    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
-    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
-    target_namespace: "{{ common_service_operand_namespace }}"
-  - role: create_target_operator_group
-    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
-    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
-    target_namespace: "{{ common_service_operator_namespace }}"
-    target_operator_group: "{{ common_service_operator_group }}"
-    target_namespaces:
-    - "{{ common_service_operator_namespace }}"
-    - "{{ common_service_operand_namespace }}"
-  tasks:
-  - name: Create fact for common service operand request labels
-    set_fact:
-      common_service_opreq_labels: "{{ common_service_opreq_labels_keyvaluepairs | items2dict }}"
+
+- import_playbook: ../plays/request_single_tenant_namespace.yml

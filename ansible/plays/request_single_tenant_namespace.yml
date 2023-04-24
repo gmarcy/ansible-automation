@@ -1,0 +1,21 @@
+---
+
+- name: Create single tenant namespaces
+  hosts: common_services
+  gather_facts: false
+  tags: common_services
+  roles:
+  - role: create_target_namespace
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespaces: "{{ [common_service_operator_namespace, common_service_operand_namespace] | unique }}"
+  - role: create_target_operator_group
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+    target_namespace: "{{ common_service_operator_namespace }}"
+    target_operator_group: "{{ common_service_operator_group }}"
+    target_namespaces: "{{ [common_service_operator_namespace, common_service_operand_namespace] | unique }}"
+  tasks:
+  - name: Create fact for common service operand request labels
+    set_fact:
+      common_service_opreq_labels: "{{ common_service_opreq_labels_keyvaluepairs | items2dict }}"

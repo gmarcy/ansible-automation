@@ -1,0 +1,4 @@
+---
+
+host_hypervisor: 192.168.222.202
+host_virtual: true

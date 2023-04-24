@@ -1,0 +1,71 @@
+application: usermgtms
+awsToken: <place-holder-aws-token>
+clusterRoleBinding: usermgtms-crb
+deploymentPromoterSecret: usermgtms-dp-secret
+environment: dev
+host: <place-holder-host>
+image: icr.io/automation-saas-platform/tenant-management/usermgt:20230215111244-main-4f99e0156827decd731e863625f1b6ebdef9fc20
+imagePullSecrets: usermgtms-global-registry-secret
+namespace: <place-holder-ns>
+oldimagePullSecrets: usermgtms-registry-secret
+previousEnvAppSet: <place-holder-previousEnvAppSet>
+promotionEnv: <place-holder-promoenv>
+promotionEnvAppSet: <place-holder-promoenvappset>
+replicas: <place-holder-replicas>
+resourceLimits:
+  cpuLimit: '''1'''
+  cpuReq: 100m
+  memLimit: 600Mi
+  memReq: 400Mi
+server: <place-holder-server>
+service:
+  portHttps: 9445
+  type: ClusterIP
+serviceAccount: usermgtms-sa
+serviceCertSecret: usermgt-cert-secret
+testRunnerRole: usermgtms-test-runner-role
+testRunnerRoleBinding: usermgtms-cb
+testRunnerSecret: usermgtms-tr-secret
+version: 1.0.0
+fyredeployment: true
+specificValues:
+  tenantNamespace: <place-holder-ns>
+  replicas: <place-holder-replicas>
+  AWS_DYNAMODB_TABLE_USERMGT_USER: TenantMgt.User.Fyre
+  AWS_DYNAMODB_TABLE_USERMGT_GROUP: TenantMgt.Group.Fyre
+  AWS_DYNAMODB_TABLE_USERMGT_ROLE_BINDING: TenantMgt.RoleBinding.Fyre
+
+
+#imagePullSecret.yaml
+#dockerconfigjson: <value for this field will be created on-the-fly using apikey>
+
+#authSecretsOpenLiberty.yaml
+
+CLIENT_ID: {{ CLIENT_ID }}
+CLIENT_SECRET: {{ CLIENT_SECRET }}
+DISCOVERY_ENDPOINT: {{ VERIFY_URL }}/.well-known/openid-configuration
+USER_VALIDATION_API: https://openshift.default.svc/apis/user.openshift.io/v1/users/~
+USER_VALIDATION_API_V2: https://openshift.default.svc/apis/user.openshift.io/v1/users/~
+
+#configMap.yaml
+AWS_DYNAMODB_ENDPOINT: http://dynamodblocal-imagestream.<place-holder-ns>.svc.cluster.local:9446
+AWS_DYNAMODB_REGION: us-east-1
+  
+#mpconfigSecrets.yaml
+AWS_ACCESS_KEY_ID: dXNlcm5hbWU=
+AWS_SECRET_ACCESS_KEY: cGFzc3dvcmQ=
+SA_TOKEN: <pull-from-server>
+
+#encoding section to specify which field values need to be encoded and how.
+encoding:
+  - name: single-base64
+    times: 1
+    field_names:
+      CLIENT_ID
+      CLIENT_SECRET
+      DISCOVERY_ENDPOINT 
+      USER_VALIDATION_API
+      USER_VALIDATION_API_V2
+      SA_TOKEN
+      AWS_ACCESS_KEY_ID
+      AWS_SECRET_ACCESS_KEY

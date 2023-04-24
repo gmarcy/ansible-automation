@@ -1,0 +1,6 @@
+---
+
+- import_playbook: ../plays/gather_playbook_facts.yml
+- import_playbook: ../plays/gather_cluster_facts.yml
+- import_playbook: ../plays/install_w3id_oauth_issuer.yml
+- import_playbook: ../plays/print_cluster_info.yml

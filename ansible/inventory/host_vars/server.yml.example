@@ -1,0 +1,9 @@
+---
+
+host_address: 192.168.1.100
+install_disk: sda
+ipmi_info:
+  address: 192.168.2.100
+  interface: lanplus
+ipxe_mac_address: xx-xx-xx-xx-xx-xx
+cephfs_device_filter: sdb

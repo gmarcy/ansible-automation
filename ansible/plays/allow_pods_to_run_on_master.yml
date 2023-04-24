@@ -4,7 +4,16 @@
   hosts: cluster_facts
   gather_facts: false
   tags: pods_on_master
-  roles:
-  - role: allow_pods_to_run_on_master
-    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
-    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+  tasks:
+  - name: Allow pods to run on master nodes
+    kubernetes.core.k8s:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      api_version: config.openshift.io/v1
+      kind: Scheduler
+      name: cluster
+      definition:
+        spec:
+          mastersSchedulable: true
+      state: patched
+    register: _result

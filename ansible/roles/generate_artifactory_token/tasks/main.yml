@@ -1,0 +1,58 @@
+---
+
+- name: Set facts used in this role
+  set_fact:
+    cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"
+
+- name: See if we already have an existing access token
+  stat:
+    path: "{{ cluster_dir + '/.artifactory_access_token' }}"
+  register: _result
+
+- name: Set fact for existing access token
+  set_fact:
+    access_token_exists: "{{ _result.stat.exists }}"
+
+- when: access_token_exists
+  block:
+
+    - name: Slurp in the file
+      slurp:
+        src: "{{ cluster_dir + '/.artifactory_access_token' }}"
+      register: _result  
+
+    - name: Set fact with the reference_token
+      set_fact:
+        artifactory_token: "{{ _result.content | b64decode | trim }}"
+
+- when: not access_token_exists
+  block:
+
+    - name: Create access_token for this cluster
+      uri:
+        url: "{{ artifactory_generate_access_token.url }}"
+        method: "POST"
+        headers:
+          Authorization: "{{ 'Bearer ' + artifactory_identity_token }}"
+        body_format: "form-urlencoded"
+        body: "{{ artifactory_generate_access_token.body }}"
+      register: _result
+      until: _result['json'] is defined
+
+    - name: Set fact with the reference_token
+      set_fact:
+        artifactory_token: "{{ _result.json.reference_token }}"
+
+    - name: Make sure the cluster dir exists
+      file:
+        path: "{{ cluster_dir }}"
+        state: directory
+        mode: '0755'
+      register: _result
+
+    - name: Copy reference token to cluster_dir
+      copy:
+        content: |
+          {{ artifactory_token }}
+        dest: "{{ cluster_dir + '/.artifactory_access_token' }}"
+        mode: '0600'

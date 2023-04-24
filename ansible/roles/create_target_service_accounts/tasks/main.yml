@@ -1,0 +1,39 @@
+---
+
+- name: Ensure target_service_account_names service accounts exist
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: v1
+    kind: ServiceAccount
+    name: "{{ item }}"
+    namespace: "{{ target_namespace }}"
+    wait: true
+  loop: "{{ target_service_account_names }}"
+  register: _result
+
+- name: Create corresponding service-account-token secrets
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: v1
+    kind: Secret
+    name: "{{ item + '-token-' + target_version }}"
+    namespace: "{{ target_namespace }}"
+    definition:
+      metadata:
+        annotations:
+          kubernetes.io/service-account.name: "{{ item }}"
+      type: kubernetes.io/service-account-token
+    wait: true
+  loop: "{{ target_service_account_names }}"
+  register: _result
+ 
+- name: Link service accounts to secrets
+  command: |
+    oc secrets link {{ item }} {{ item + '-token-' + target_version }} -n {{ target_namespace }}
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  loop: "{{ target_service_account_names }}"
+  register: _result
+  changed_when: _result is not defined

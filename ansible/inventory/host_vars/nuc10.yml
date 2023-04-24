@@ -1,0 +1,7 @@
+---
+
+host_address: 192.168.222.214
+install_disk: nvme0n1
+ipmi_info:
+  interface: none
+ipxe_mac_address: 1c-69-7a-6d-29-43

@@ -1,0 +1,81 @@
+application: siusermgtms
+awsToken: <place-holder-aws-token>
+clusterRoleBinding: siusermgtms-crb
+containerPortHttp: 9082
+containerPortHttps: 9445
+deploymentPromoterSecret: siusermgtms-dp-secret
+environment: <place-holder-env>
+host: <place-holder-host>
+image: icr.io/automation-saas-platform/tenant-management/siusermgt:20230215111641-main-c3b25a507612b294a7e1df6afaebb3d8af721762
+imagePullSecrets: siusermgtms-global-registry-secret
+namespace: <place-holder-ns>
+oldimagePullSecrets: siusermgtms-registry-secret
+previousEnvAppSet: <place-holder-previousEnvAppSet>
+promotionEnv: <place-holder-promoenv>
+promotionEnvAppSet: <place-holder-promoenvappset>
+replicaCount: 1
+replicas: <place-holder-replicas>
+resourceLimits:
+  cpuLimit: 200m
+  cpuReq: 100m
+  memLimit: 600Mi
+  memReq: 400Mi
+server: <place-holder-server>
+service:
+  portHttp: 9082
+  portHttps: 9445
+  type: ClusterIP
+serviceAccount: siusermgtms-sa
+serviceCertSecret: siusermgt-cert-secret
+testRunnerRole: siusermgtms-test-runner-role
+testRunnerRoleBinding: siusermgtms-cb
+testRunnerSecret: siusermgtms-tr-secret
+version: 1.0.0
+
+fyredeployment: true
+specificValues:
+  replicas: <place-holder-replicas>
+  AWS_DYNAMODB_TABLE_SIUSERMGT_SIUSER: TenantMgt.SiUser.Fyre
+  AWS_DYNAMODB_TABLE_SIUSERMGT_SI_GROUP: TenantMgt.SiGroup.Fyre
+  AWS_DYNAMODB_TABLE_SIUSERMGT_SI_ROLE_BINDING: TenantMgt.SiRoleBinding.Fyre
+  AWS_DYNAMODB_TABLE_SIUSERMGT_SI_ROLE: TenantMgt.SiRole.Fyre
+
+
+CLIENT_ID: {{ CLIENT_ID }}
+CLIENT_SECRET: {{ CLIENT_SECRET }}
+DISCOVERY_ENDPOINT: {{ VERIFY_URL }}/.well-known/openid-configuration
+USER_VALIDATION_API: https://openshift.default.svc/apis/user.openshift.io/v1/users/~
+USER_VALIDATION_API_V2: https://openshift.default.svc/apis/user.openshift.io/v1/users/~
+
+AWS_DYNAMODB_ENDPOINT: http://dynamodblocal-imagestream.test-tenantmgt.svc.cluster.local:9446
+AWS_DYNAMODB_REGION: us-west-2  
+
+AWS_ACCESS_KEY_ID: dXNlcm5hbWU=
+AWS_SECRET_ACCESS_KEY: cGFzc3dvcmQ=
+
+JWT_TOKEN_PATH: NA
+AWS_USE_STS: false
+
+NOTIFICATION_SERVICE_ENABLED: true
+NotificationServiceClient_API_HOST: 
+NOTIFICATION_SA_TOKEN: <pull-from-server>
+
+# OAuth client id , secret values below are fake.
+AUTHZ_CLIENT_ID: bb8af1cc-c2f8-11ed-afa1-0242ac120002
+AUTHZ_CLIENT_SECRET : zx4Fz1hhB1
+
+#encoding section to specify which field values need to be encoded and how
+encoding:
+  - name: single-base64
+    times: 1
+    field_names:
+      CLIENT_ID
+      CLIENT_SECRET
+      DISCOVERY_ENDPOINT 
+      USER_VALIDATION_API
+      USER_VALIDATION_API_V2
+      NOTIFICATION_SA_TOKEN
+      AWS_ACCESS_KEY_ID
+      AWS_SECRET_ACCESS_KEY
+      AUTHZ_CLIENT_ID
+      AUTHZ_CLIENT_SECRET

@@ -10,7 +10,7 @@
     kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
     target_operand_request_name: 'operand-request-zen'
     target_operand_request_namespace: "{{ was_automation_namespace }}"
-    target_operand_name: 'ibm-zen-operator'
+    target_operand_name: 'ibm-platformui-operator'
     common_service_operand_name: "{{ hostvars['common-services']['common_service_operand_name'] }}"
     common_service_operand_namespace: "{{ hostvars['common-services']['common_service_operand_namespace'] }}"
     common_service_opreq_labels: "{{ hostvars['common-services']['common_service_opreq_labels'] }}"

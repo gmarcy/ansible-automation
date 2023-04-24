@@ -1,0 +1,45 @@
+apikeySecret: product-registration-apikey
+application: product-reg-backend
+certManager:
+  caIssuer: product-reg-ca-issuer
+  cmmCASecret: cmm-ca-cert
+  mgmtConsoleCASecret: mgmt-console-ca-cert
+  rootCACertSecret: root-ca-cert
+  selfsignedCACert: selfsigned-ca-cert
+  selfsignedIssuer: selfsigned-issuer
+  serverCert: server-cert
+  serverCertSecret: server-cert
+  sreConsoleCASecret: sre-console-ca-cert
+  tenantMgmtCASecret: tenant-mgmt-ca-cert
+clusterRoleBinding: product-registration-crd
+editorRole: product-registration-editor-role
+image: icr.io/automation-saas-platform/product-registration-backend:20230302222457-main-257479e8356931aa70af0da53e52b8bf9ab1f2e0
+imagePullSecret: product-registration-pull-secret
+namespace: product-registration
+serviceAccount: product-registration-sa
+sreApiKeySecret: product-registration-sre-console-apikey
+testRunnerRole: test-runner-role
+testRunnerSecret: test-runner-secret
+
+replicas: <place-holder-replicas>
+environment: <place-holder-env>
+host: <place-holder-host>
+routeSuffix: product-registration.svc.cluster.local
+
+fyredeployment: true
+
+#00-secret-apikey.yaml
+username_PR: username
+password_PR: password
+
+#00-cmm-ca.yaml
+cmm_CA_CRT: dummy
+
+#00-sre-console-ca.yaml
+sreConsole_CA_CRT: not-known
+
+#00-tenant-mgmt-ca.yaml
+tenantMgmt_CA_CRT: not-known
+
+#00-secret-sre-console-apikey.yaml
+sreConsole_APIKEY: not-known

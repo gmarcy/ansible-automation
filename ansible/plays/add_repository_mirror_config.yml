@@ -8,27 +8,4 @@
   - role: add_repository_mirror_config
     api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
     kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
-    mirror_configs:
-    - mirrors:
-      - cp.stg.icr.io/cp
-      - wasliberty-intops-docker-local.artifactory.swg-devops.com/cp
-      source: cp.icr.io/cp
-    - mirrors:
-      - cp.stg.icr.io/cp
-      - wasliberty-intops-docker-local.artifactory.swg-devops.com/cp
-      - hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com/ibmcom
-      source: icr.io/cpopen
-    - mirrors:
-      - cp.stg.icr.io/cp
-      - wasliberty-intops-docker-local.artifactory.swg-devops.com/cp
-      source: docker.io/ibmcom
-    - mirrors:
-      - hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com/ibmcom
-      source: quay.io/opencloudio
-    - mirrors:
-      - hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com/ibmcom
-      source: cp.icr.io/cp/cpd
-    - mirrors:
-      - hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com/ibmcom
-      source: icr.io/cpopen/cpfs
     when: kubernetes_distro == 'openshift'

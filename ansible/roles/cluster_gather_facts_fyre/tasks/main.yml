@@ -58,6 +58,10 @@
   set_fact:
     fyre_inf_hostname: "{{ cluster_status.vms | selectattr('ip_address','defined') | selectattr('ip_address','equalto',fyre_inf_public_ip) | map(attribute='hostname') | list | first }}"
 
+- name: Set fact for cluster api host and port
+  set_fact:
+    cluster_api_host_port: "{{ fyre_inf_hostname + ':6443' }}"
+
 - name: Add host entries for each vm node
   add_host:
     name: "{{ item['hostname'] }}"
@@ -74,6 +78,13 @@
 - name: Clear facts
   set_fact:
     cluster_status: "{{ cluster_status | combine({'vms': ''}) }}"
+
+- name: Wait until we can resolve the hostname using DNS
+  set_fact:
+    infra_publicip: "{{ lookup('community.general.dig', fyre_inf_hostname) }}"
+  delay: 15
+  retries: 40
+  until: lookup('community.general.dig', fyre_inf_hostname) == fyre_inf_public_ip
 
 - name: Update remaining Fyre OCP Facts
   set_fact:
@@ -95,6 +106,7 @@
     src: auth/kubeconfig
     dest: "{{ cluster_dir + '/kubeconfig' }}"
     flat: true
+    mode: '0600'
   changed_when: false
   delegate_to: "{{ groups['infra_node'] | first }}"
   delegate_facts: true
@@ -110,7 +122,7 @@
 
 - name: Set our cluster facts
   set_fact:
-    cluster_api_url: "{{ 'https://' + fyre_inf_hostname + ':6443' }}"
+    cluster_api_url: "{{ 'https://' + cluster_api_host_port }}"
     cluster_domain: "{{ fyre_inf_hostname | regex_replace('api\\.' + cluster_name + '\\.([^:]*)', '\\1') }}"
     kubeconfig_path: "{{ hostvars['cluster-facts']['cluster_dir'] + '/kubeconfig' }}"
   delegate_to: 'cluster-facts'
@@ -135,3 +147,39 @@
         cluster_api_url: "{{ hostvars['cluster-facts']['cluster_api_url'] }}"
         console_username: "{{ hostvars['cluster-facts']['console_username'] }}"
         console_password: "{{ hostvars['cluster-facts']['console_password'] }}"
+
+    - name: Load kubeconfig from yaml file
+      set_fact:
+        kubeconfig_yaml: "{{ lookup('file', hostvars['cluster-facts']['kubeconfig_path']) | from_yaml }}"
+        kc_cluster_name: "{{ cluster_api_host_port }}"
+        kc_user_name: 'kube:admin'
+        kc_context_ns: 'default'
+      no_log: "{{ noLog }}"
+
+    - name: Create new values for openshift api token
+      set_fact:
+        kubeconfig_additions:
+          clusters:
+          - cluster: "{{ kubeconfig_yaml['clusters'][0]['cluster'] }}"
+            name: "{{ kc_cluster_name }}"
+          contexts:
+          - context:
+              cluster: "{{ kc_cluster_name }}"
+              namespace: "{{ kc_context_ns }}"
+              user: "{{ kc_user_name + '/' + kc_cluster_name }}"
+            name: "{{ kc_context_ns + '/' + kc_cluster_name + '/' + kc_user_name }}"
+          current-context: "{{ kc_context_ns + '/' + kc_cluster_name + '/' + kc_user_name }}"
+          users:
+          - name: "{{ kc_user_name + '/' + kc_cluster_name }}"
+            user:
+              token: "{{ hostvars['cluster-facts']['api_key'] }}"
+      no_log: "{{ noLog }}"
+
+    - name: Copy updated kubeconfig to kubeconfig_path
+      copy:
+        content: |
+          {{ kubeconfig_yaml | combine(kubeconfig_additions, recursive=true) | to_nice_yaml(indent=2) }}
+        dest: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+        mode: '0600'
+      changed_when: false
+      no_log: "{{ noLog }}"

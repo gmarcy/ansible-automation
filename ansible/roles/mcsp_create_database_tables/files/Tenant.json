@@ -1,0 +1,91 @@
+{
+  "TableBaseName": "TenantMgt.Tenant",
+  "TableAttributes": [
+    {
+      "AttributeName": "id",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "subscription_id",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "gpk",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "ts_created",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "ts_created_id",
+      "AttributeType": "S"
+    }
+  ],
+  "TableKeySchema": [
+    {
+      "AttributeName": "id",
+      "KeyType": "HASH"
+    }
+  ],
+  "GlobalSecondaryIndexes": [
+    {
+      "IndexName": "subscription_id",
+      "KeySchema": [
+        {
+          "AttributeName": "subscription_id",
+          "KeyType": "HASH"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "INCLUDE",
+        "NonKeyAttributes": [
+          "id",
+          "ts_deleted"
+        ]
+      }
+    },
+    {
+      "IndexName": "ts_created",
+      "KeySchema": [
+        {
+          "AttributeName": "gpk",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "ts_created",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "INCLUDE",
+        "NonKeyAttributes": [
+          "id",
+          "ts_deleted"
+        ]
+      }
+    },
+    {
+      "IndexName": "ts_created_id-with-product_service_id",
+      "KeySchema": [
+        {
+          "AttributeName": "gpk",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "ts_created_id",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "INCLUDE",
+        "NonKeyAttributes": [
+          "id",
+          "product_service_id",
+          "state",
+          "ts_deleted"
+        ]
+      }
+    }
+  ]
+}

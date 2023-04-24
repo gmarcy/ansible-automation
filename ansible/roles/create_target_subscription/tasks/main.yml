@@ -1,0 +1,79 @@
+---
+
+- when: target_operator_name != 'ibm-common-service-operator'
+  # this is not working when two catalog sources provide the same operator
+  name: Fetch target_operator_name PackageManifest
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: packages.operators.coreos.com/v1
+    kind: PackageManifest
+    name: "{{ target_operator_name }}"
+    namespace: "{{ target_catalog_source_namespace | default('openshift-marketplace') }}"
+  register: _result_fast
+
+- when: target_operator_name == 'ibm-common-service-operator'
+  name: Fetch target_operator_name PackageManifest
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: packages.operators.coreos.com/v1
+    kind: PackageManifest
+    label_selectors:
+    - catalog={{ target_catalog_source_name }}
+    namespace: "{{ target_catalog_source_namespace | default('openshift-marketplace') }}"
+  register: _result_slow
+  until: _result_slow['resources'] | length > 0
+
+- name: Set fact for status of the matching package manifest
+  set_fact:
+    manifest_status: "{{ item['status'] }}"
+  loop: "{{ _result_fast['resources'] | default(_result_slow['resources']) }}"
+  when: item['metadata']['name'] == target_operator_name and item['status']['catalogSource'] == target_catalog_source_name
+
+- name: Set default channel and catalog source facts
+  set_fact:
+    default_channel: "{{ target_operator_channel | default(manifest_status.defaultChannel) }}"
+    catalog_source_name: "{{ manifest_status.catalogSource }}"
+    catalog_source_namespace: "{{ manifest_status.catalogSourceNamespace }}"
+
+- name: Set current_csv fact
+  set_fact:
+    current_csv: "{{ target_operator_csv | default(manifest_status.channels | selectattr('name','==',default_channel) | map(attribute='currentCSV') | first) }}"
+
+- name: Create Subscription
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: Subscription
+    name: "{{ target_operator_name }}"
+    namespace: "{{ target_operator_namespace }}"
+    definition:
+      spec:
+        channel: "{{ default_channel }}"
+        config: "{{ subscription_config | default(omit) }}"
+        installPlanApproval: "{{ target_install_plan_approval | default('Automatic') }}"
+        name: "{{ target_operator_name }}"
+        source: "{{ catalog_source_name }}"
+        sourceNamespace: "{{ catalog_source_namespace }}"
+        startingCSV: "{{ current_csv }}"
+    wait: true
+    wait_condition:
+      type: CatalogSourcesUnhealthy
+      status: false
+  register: _result
+
+- name: Wait until the ClusterServiceVersion is ready
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: ClusterServiceVersion
+    name: "{{ current_csv }}"
+    namespace: "{{ target_operator_namespace }}"
+    wait: true
+  register: _result
+  delay: 10
+  retries: 24
+  until: (_result.resources | length > 0) and (_result.resources | map(attribute='status.phase') | unique == ['Succeeded'])

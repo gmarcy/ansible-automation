@@ -1,0 +1,82 @@
+---
+
+- debug:
+    msg:
+    - "target_service_name: {{ target_service_name }}"
+    - "target_service_repo: {{ target_service_repo }}"
+    - "target_service_branch: {{ target_service_branch }}"
+    - "target_service_local_properties: {{ target_service_local_properties }}"
+
+- name: Set facts used in this role
+  set_fact:
+    mcsp_apikey: "{{ hostvars['playbook-secrets']['cloudrock_devops_apikey'] }}"
+    cluster_fqdn: "{{ hostvars['cluster-facts']['cluster_fqdn'] }}"
+    cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"
+    mcsp_tenantmgt_deploy_path: "{{ hostvars['localhost-facts']['local_home'] + '/dev/tenantmgt-deploy' }}"
+
+- name: Set facts for service deploy folder
+  set_fact:
+    mcsp_service_deploy_path: "{{ cluster_dir + '/tenantns/services/' + target_service_name }}"
+
+- name: Create the path for the service folder
+  file:
+    path: "{{ mcsp_service_deploy_path }}"
+    state: directory
+    mode: '0755'
+  register: _result
+
+- name: Set fact if directory already exists
+  set_fact:
+    service_folder_present: "{{ _result.changed == false }}"
+
+- name: Create copy of service subtree
+  command: |
+    cp -r {{ mcsp_tenantmgt_deploy_path + '/services/' + target_service_name + '/.' }} {{ mcsp_service_deploy_path }}
+  register: _result
+  when: not service_folder_present
+
+- name: Create deploy-values.yaml from template
+  template:
+    src: "{{ target_service_name + '/deploy-values.yaml.j2' }}"
+    dest: "{{ mcsp_service_deploy_path + '/scripts/fyre/deploy-values.yaml' }}"
+    mode: '0644'
+  vars:
+    CLIENT_ID: "{{ hostvars['playbook-secrets']['w3id_oauth_issuer_client_id'] }}"
+    CLIENT_SECRET: "{{ hostvars['playbook-secrets']['w3id_oauth_issuer_client_secret'] }}"
+    VERIFY_URL: "{{ hostvars['playbook-secrets']['w3id_oauth_issuer_url'] }}"
+  register: _result
+
+- name: Set facts for local.properties
+  set_fact:
+    namespace_value: "{{ mcsp_target['namespace'] }}"
+    env_value: "{{ mcsp_target['environment'] }}"
+    host_value: "{{ cluster_fqdn }}"
+
+- name: Create local.properties file
+  copy:
+    content: |
+      PLACE_HOLDER_NS={{ namespace_value }}
+      PLACE_HOLDER_ENV={{ env_value }}
+      PLACE_HOLDER_HOST={{ host_value }}
+      {% if target_service_name == 'subscriptmgt' %}
+      PLACE_HOLDER_AM_CONSOLE_URL={{ 'https://am-console.apps.' + host_value }}
+      {% endif %}
+      {% for local in target_service_local_properties.keys() %}
+      {{ local + '=' + target_service_local_properties[local] }}
+      {% endfor %}
+    dest: "{{ mcsp_service_deploy_path + '/scripts/fyre/local.properties' }}"
+    mode: '0644'
+  register: _result
+
+- name: Set the script arguments
+  set_fact:
+    promotion: "{{ mcsp_argo_services[target_service_name]['promotion'] | default('false') }}"
+    validations: "{{ mcsp_argo_services[target_service_name]['validations'] | default('false') }}"
+    script_args: "{{ mcsp_apikey if (target_service_name == 'common-service-broker') else ('-i ' + mcsp_apikey) }}"
+
+- name: Run the run-deploy.sh command
+  command: |
+    bash {{ mcsp_service_deploy_path + '/scripts/fyre/run-deploy.sh ' + script_args }} 
+  environment:
+  - KUBECONFIG: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+  register: _result

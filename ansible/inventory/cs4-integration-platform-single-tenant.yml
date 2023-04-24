@@ -1,0 +1,37 @@
+---
+
+all:
+  children:
+    cluster_operators:
+      hosts:
+        cluster-operators:
+      vars:
+        operators_to_deploy:
+        - name: cert-manager
+          namespace: community-cert-manager
+          catalog: community-operators
+    common_services:
+      hosts:
+        common-services:
+      vars:
+        inv_common_service_catalog_source_name: 'opencloud-operators'
+        inv_common_service_catalog_source_display_name: 'IBMCS Test Operators'
+        inv_common_service_catalog_source_image: "{{ inv_common_service_catalog_source_image_cs4 }}"
+        inv_common_service_catalog_source_image_tag: "{{ inv_common_service_catalog_source_image_tag_cs4 }}"
+        inv_common_service_namespace: 'cp4i'
+        inv_common_service_operand_namespace: 'cp4i'
+        inv_common_service_operator_group: 'cp4i-operators'
+        inv_common_service_operator_namespace: 'cp4i'
+        inv_common_service_operator_channel: 'v4.0'
+        inv_common_service_operator_version: 'v4.0.0'
+    integration_platform:
+      hosts:
+        integration-platform:
+      vars:
+        inv_cp4i_operator_channel: 'v7.0'
+        inv_cp4i_operator_version: 'v7.0.3'
+        inv_cp4i_catalog_source_name: 'ibm-integration-platform-navigator-aas-catalog'
+        inv_cp4i_catalog_source_display_name: 'IBM Integration Platform Navigator-aaS Catalog'
+        inv_cp4i_catalog_source_image: "{{ inv_cp4i_catalog_source_image_cs4 }}"
+        inv_cp4i_catalog_source_image_tag: "{{ inv_cp4i_catalog_source_image_tag_cs4 }}"
+        inv_cp4i_operator_namespace: 'cp4i'

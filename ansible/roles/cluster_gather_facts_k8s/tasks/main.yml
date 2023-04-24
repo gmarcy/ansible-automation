@@ -27,7 +27,7 @@
     - name: Set cluster_status_json fact
       set_fact:
         cluster_status_json: "{{ item }}"
-      loop: "{{ (cluster_status_response.content | from_yaml)['clusters'] }}"
+      loop: "{{ (cluster_status_response.content | from_json)['clusters'] }}"
       when: item.name == cluster_name
 
     - name: Set fact for check that cluster already exists

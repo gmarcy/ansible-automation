@@ -1,5 +1,27 @@
 ---
 
+- name: Get CommonService status
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    api_version: operator.ibm.com/v3
+    kind: CommonService
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ common_service_operand_name }}"
+    namespace: "{{ common_service_operator_namespace }}"
+  register: _result
+
+- when: (_result.resources | length > 0) and (_result.resources | map(attribute='status.phase', default='UNKNOWN') | difference(['Failed']) | length == 0)
+  name: Deleted the instance if it has failed
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: operator.ibm.com/v3
+    kind: CommonService
+    name: "{{ common_service_operand_name }}"
+    namespace: "{{ common_service_operator_namespace }}"
+    state: absent
+  register: _result
+
 - name: Create CommonService instance
   kubernetes.core.k8s:
     api_key: "{{ api_key | default(omit) }}"
@@ -9,9 +31,6 @@
     name: "{{ common_service_operand_name }}"
     namespace: "{{ common_service_operator_namespace }}"
     definition:
-      metadata:
-        annotations:
-          version: '-1'
       spec:
         catalogName: "{{ common_service_catalog_source_name }}"
         catalogNamespace: "{{ common_service_catalog_source_namespace }}"
@@ -31,7 +50,7 @@
   register: _result
   delay: 30
   retries: 120
-  until: _result.resources | length > 0
+  until: (_result.resources | length > 0) and (_result.resources[0]['status'] is defined)
 
 - name: Wait for CommonService to reach Updating or Succeeded phase
   kubernetes.core.k8s_info:

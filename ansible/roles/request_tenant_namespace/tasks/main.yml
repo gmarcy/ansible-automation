@@ -1,0 +1,102 @@
+---
+
+- name: Create tenant namespace
+  include_role:
+    name: create_target_namespace
+  vars:
+    target_namespace: "{{ tenant_namespace }}"
+
+- name: Create tenant operator group
+  include_role:
+    name: create_target_operator_group
+  vars:
+    target_namespace: "{{ tenant_namespace }}"
+    target_operator_group: "{{ tenant_operator_group }}"
+    target_namespaces:
+    - "{{ tenant_namespace }}"
+
+- name: Define a role for NSS operator to project resources into tenant_namespace 
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: rbac.authorization.k8s.io/v1
+    kind: Role
+    name: "{{ 'nss-managed-role-from-' + service_nss_operand_namespace }}"
+    namespace: "{{ tenant_namespace }}"
+    definition:
+      rules:
+      - apiGroups:
+        - "*"
+        resources:
+        - "*"
+        verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+        - deletecollection
+  register: _result
+
+- name: Bind the service account in the service_nss_operand_namespace to the Role in tenant_namespace
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    name: "{{ 'nss-managed-role-from-' + common_service_operator_namespace }}"
+    namespace: "{{ tenant_namespace }}"
+    definition:
+      subjects:
+      - kind: ServiceAccount
+        name: ibm-namespace-scope-operator
+        namespace: "{{ service_nss_operand_namespace }}"
+      roleRef:
+        kind: Role
+        name: "{{ 'nss-managed-role-from-' + service_nss_operand_namespace }}"
+        apiGroup: rbac.authorization.k8s.io
+  register: _result
+
+- name: Fetch NamespaceScope operand
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: operator.ibm.com/v1
+    kind: NamespaceScope
+    name: "{{ service_nss_operand_name }}"
+    namespace: "{{ service_nss_operand_namespace }}"
+  register: _result
+
+- name: Set tenant_ns_in_nss_namespaces fact
+  set_fact:
+    tenant_ns_in_nss_namespaces: "{{ tenant_namespace in _result.resources[0].spec.namespaceMembers }}"
+
+- name: Update NamespaceScope operand
+  kubernetes.core.k8s_json_patch:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: operator.ibm.com/v1
+    kind: NamespaceScope
+    name: "{{ service_nss_operand_name }}"
+    namespace: "{{ service_nss_operand_namespace }}"
+    patch:
+    - op: add
+      path: '/spec/namespaceMembers/-'
+      value: "{{ tenant_namespace }}"
+  register: _result
+  when: not tenant_ns_in_nss_namespaces
+
+- name: Get CommonService status
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: operator.ibm.com/v3
+    kind: CommonService
+    name: "{{ common_service_operand_name }}"
+    namespace: "{{ tenant_namespace }}"
+  register: _result
+  delay: 30
+  retries: 120
+  until: (_result.resources | length > 0) and (_result.resources[0]['status'] is defined)

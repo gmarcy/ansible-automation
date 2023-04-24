@@ -1,0 +1,118 @@
+application: subscriptmgtms
+awsToken: <place-holder-aws-token>
+clusterRoleBinding: subscriptmgtms-crb
+deploymentPromoterSecret: subscriptmgtms-dp-secret
+envShortName: dev
+environment: <place-holder-env>
+host: <place-holder-host>
+image: icr.io/automation-saas-platform/tenant-management/subscriptmgt:20230310033902-development-3cbf41b00c7a9987cb5dbb79214d856956326911
+imagePullSecrets: subscriptmgtms-global-registry-secret
+letsencryptCertSecret: le-ssm-broker
+namespace: <place-holder-ns>
+oldimagePullSecrets: subscriptmgtms-registry-secret
+previousEnvAppSet: <place-holder-previousEnvAppSet>
+productRegCASecret: product-reg-ca-cert
+promotionEnv: <place-holder-promoenv>
+promotionEnvAppSet: <place-holder-promoenvappset>
+replicas: <place-holder-replicas>
+resourceLimits:
+  cpuLimit: 1500m
+  cpuReq: 500m
+  memLimit: 1500Mi
+  memReq: 1000Mi
+routeCertIssuer: letsencrypt
+routeCertSecret: ssm-broker-cert-secret
+server: <place-holder-server>
+service:
+  portHttps: 9444
+  type: ClusterIP
+serviceAccount: subscriptmgtms-sa
+serviceCertSecret: subscriptmgt-cert-secret
+ssmbrokerName: ssm-broker
+testRunnerImage: icr.io/automation-saas-platform/cicd/test-runner:stable
+testRunnerRole: subscriptmgtms-test-runner-role
+testRunnerRoleBinding: subscriptmgtms-cb
+testRunnerSecret: subscriptmgtms-tr-secret
+version: 1.0.0
+fyredeployment: true
+specificValues:  
+  skipPromotion: 'false'
+  skipValidation: 'true'
+  ssmApicRouteEnabled: 'true'
+  ssmCsRouteEnabled: 'false'
+  notificationServiceEnabled: "'false'"
+  routeSuffix: <place-holder-ns>.svc.cluster.local
+  usermgtHostname: usermgtms.<place-holder-ns>.svc.cluster.local
+  replicas: <place-holder-replicas>
+  mgmtConsoleURL: <place-holder-am-console-url>
+  AWS_DYNAMODB_TABLE_CUSTOM_UUID: TenantMgt.CustomUUID.Fyre
+  AWS_DYNAMODB_TABLE_MC_RAW_DATA: TenantMgt.MCRawData.Fyre
+  AWS_DYNAMODB_TABLE_SSM_RAW_DATA: TenantMgt.SSMRawData.Fyre
+  AWS_DYNAMODB_TABLE_SUBSCRIPT: TenantMgt.Subscription.Fyre
+  AWS_DYNAMODB_TABLE_SSM: TenantMgt.SSM.Fyre
+  AWS_DYNAMODB_TABLE_SSM_USER: TenantMgt.SSMUser.Fyre
+  AWS_DYNAMODB_TABLE_SUBSCRIPT_AUDIT: TenantMgt.SubscriptionAudit.Fyre
+  AWS_DYNAMODB_TABLE_SSM_AUDIT: TenantMgt.SSMAudit.Fyre
+  AWS_DYNAMODB_TABLE_SUBSCRIPT_CREATE_RACE: TenantMgt.SubscriptionCreateRace.Fyre
+  AWS_DYNAMODB_TABLE_SSM_REQUEST_RACE: TenantMgt.SSMRequestRace.Fyre
+  AWS_DYNAMODB_TABLE_SSM_REQUEST_RACE_HISTORY: TenantMgt.SSMRequestRaceHistory.Fyre
+  
+#authSecretsOpenLiberty.yaml
+CLIENT_ID: {{ CLIENT_ID }}
+CLIENT_SECRET: {{ CLIENT_SECRET }}
+DISCOVERY_ENDPOINT: {{ VERIFY_URL }}/.well-known/openid-configuration
+USER_VALIDATION_API: https://openshift.default.svc/apis/user.openshift.io/v1/users/~
+USER_VALIDATION_API_V2: https://openshift.default.svc/apis/user.openshift.io/v1/users/~
+
+#configMap.yaml
+# DynamoDB
+AWS_DYNAMODB_ENDPOINT: http://dynamodblocal-imagestream.<place-holder-ns>.svc.cluster.local:9446
+AWS_DYNAMODB_REGION: us-east-1
+
+#mpconfigSecrets.yaml
+AWS_ACCESS_KEY_ID: dXNlcm5hbWU=
+AWS_SECRET_ACCESS_KEY: cGFzc3dvcmQ=
+SA_TOKEN: <pull-from-server>
+ProductRegistrationClient_API_USERNAME: username
+ProductRegistrationClient_API_PASSWORD: cGFzc3dvcmQ=
+
+#ssmSecrets.yaml
+SSM_PASSWORD: 8brerUfmHCeJDKNxQdC2*3bWVm
+SSM_USERNAME: ssm-admin
+
+
+#product-reg-ca-secret.yaml
+PR_CA_CRT: dummy
+
+#subscriptmgr-root-ca-secret.yaml
+ROOT_CA_CRT: not-known
+ROOT_TLS_CRT: not-known
+ROOT_TLS_KEY: not-known
+
+#configMap.yaml
+OAUTH_CLIENT_SCOPE: Dummy
+
+#mpconfigSecrets.yaml
+# OAuth client id , secret values below are fake. 
+OAUTH_CLIENT_ID: bb8af1cc-c2f8-11ed-afa1-0242ac120002
+OAUTH_CLIENT_SECRET: zx4Fz1hhB1
+
+#encoding section to specify which field values need to be encoded and how
+encoding:
+  - name: single-base64
+    times: 1
+    field_names:
+      CLIENT_ID
+      CLIENT_SECRET
+      DISCOVERY_ENDPOINT 
+      USER_VALIDATION_API
+      USER_VALIDATION_API_V2
+      SSM_USERNAME
+      SSM_PASSWORD
+      ProductRegistrationClient_API_USERNAME
+      ProductRegistrationClient_API_PASSWORD
+      SA_TOKEN
+      AWS_ACCESS_KEY_ID
+      AWS_SECRET_ACCESS_KEY
+      OAUTH_CLIENT_ID
+      OAUTH_CLIENT_SECRET

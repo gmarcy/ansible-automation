@@ -1,0 +1,96 @@
+PRODUCT_REGISTRATION_CA:  na
+
+CLIENT_ID: {{ CLIENT_ID }}
+CLIENT_SECRET: {{ CLIENT_SECRET }}
+AUTOMATION_CONSOLE_SA_TOKEN: <pull-from-server>
+
+fyredeployment: true
+image: us.icr.io/management_console_dev/automation-management-console:20230216135056-main-3bc2c713a31f21b514b1e6aa4c6a90cd3f41faae
+version: 1.2.0
+
+PRODUCT_REGISTRATION_USERNAME : username
+PRODUCT_REGISTRATION_PASSWORD: password
+
+METERING_API: not-known
+
+replicas: <place-holder-replicas>
+configEnv: dev
+nodeEnv: production
+environment: development
+hostname: am-console.apps.{CLUSTER_HOSTNAME_ID}
+application: automation-management-console
+NODE_TLS_REJECT_UNAUTHORIZED: 0
+
+namespace: automation-management-console
+serviceAccount: automation-management-console-sa
+imagePullSecret: automation-management-console-pull-secret
+deploymentPromoterSecret: automation-management-console-dp-secret
+clusterRoleBinding: automation-management-console-clusterRoleBinding
+
+SECRET: gjagdzgmicnkfmfaugfhmemxpfilabzf
+USER_MANAGEMENT_API: https://usermgtms.<place-holder-ns>.svc.cluster.local:9445/usermgr/api/1.0
+SUBSCRIPTION_MANAGER_API: https://subscriptmgtms.<place-holder-ns>.svc.cluster.local:9444/subscriptmgr/api/1.0
+TENANT_MANAGER_API: https://tenantmgtms.<place-holder-ns>.svc.cluster.local:9443/tenantmgr/api/1.0/mgmt-console
+PRODUCT_REGISTRATION_BACKEND: https://product-reg-backend.product-registration.svc.cluster.local/v2
+ENABLED_USER_MANAGEMENT: true
+USER_MANAGEMENT_MICRO_FRONTEND: https://automation-subscription-user-management-ui-service-development.automation-subscription-user-management-ui.svc.cluster.local:3156
+
+certManager:
+    caIssuer: product-reg-ca-issuer
+    rootCACertSecret: root-ca-cert
+    selfsignedCACert: selfsigned-ca-cert
+    selfsignedIssuer: selfsigned-issuer
+    serverCert: server-cert
+    serverCertSecret: server-cert
+envJson: 
+        ' 
+        {
+        "AUTH": {
+            "CLIENT_AUTH_METHOD": "client_secret_post",
+            "ISSUER_BASE_URL": "{{ VERIFY_URL }}",
+            "OPEN_ID_CONFIGS": "{{ VERIFY_URL }}/.well-known/openid-configuration",
+            "AUTHORIZATION_PARAMS": {
+                "response_type": "code",
+                "response_mode": "query"
+            },
+            "ROUTES": {
+                "LOGIN": "/auth/login",
+                "CALLBACK_URI": "/auth/callback"
+            }
+        },
+        "APP": {
+            "PORT": 3001,
+            "DEBUG_API": true,
+            "IS_DEV_MODE": false,
+            "BASE_URL": "https://am-console.apps.{CLUSTER_HOSTNAME_ID}",
+            "CORS_DOMAIN_ALLOWLIST": [
+                "https://www.ibm.com",
+                "https://localhost:3156",
+                "https://wwwstage.ibm.com",
+                "https://studio.apollographql.com",
+                "https://register.dev.automation.ibm.com",
+                "https://status.platform.dev.automation.ibm.com",
+                "http://instana-ap.platform.dev.automation.ibm.com"
+            ]
+        },
+        "REDIS": {
+            "TLS": false,
+            "PORT": "6379",
+            "ENABLED": false,
+            "HOST": "localhost"
+        },
+        "API": {
+            "SRE_STATUS_UI": "https://status.platform.dev.automation.ibm.com"
+        }
+        }
+        '
+#encoding section to specify which field values need to be encoded and how
+encoding:
+  - name: no-base64
+    times: 0
+    field_names:
+      AUTOMATION_CONSOLE_SA_TOKEN 
+  - name: single-base64
+    times: 1
+    field_names:
+      PRODUCT_REGISTRATION_CA     

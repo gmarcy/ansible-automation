@@ -1,79 +1,93 @@
 ---
 
-- name: Install WebSphere Automation Operator
-  block:
+- when: hostvars['common-services']['common_service_operator_channel'] == 'v4.0'
+  name: Enable all ingress access within namespace through NetworkPolicy
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: networking.k8s.io/v1
+    kind: NetworkPolicy
+    name: allow-all-ingress-policy
+    namespace: "{{ target_namespace }}"
+    definition:
+      spec:
+        podSelector: {}
+        ingress:
+          - {}
+        policyTypes:
+          - Ingress
 
-    - name: Create Subscription for singlenamespace operator
-      kubernetes.core.k8s:
-        api_key: "{{ api_key | default(omit) }}"
-        api_version: operators.coreos.com/v1alpha1
-        kind: Subscription
-        kubeconfig: "{{ kubeconfig_path }}"
+- name: Create Subscription for singlenamespace operator
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: Subscription
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ was_automation_operator_name }}"
+    namespace: "{{ target_namespace }}"
+    definition:
+      metadata:
+        labels: "{{ labels }}"
+      spec:
+        channel: "{{ operator_channel }}"
+        installPlanApproval: Automatic
         name: "{{ was_automation_operator_name }}"
-        namespace: "{{ target_namespace }}"
-        definition:
-          metadata:
-            labels: "{{ labels }}"
-          spec:
-            channel: "{{ operator_channel }}"
-            installPlanApproval: Automatic
-            name: "{{ was_automation_operator_name }}"
-            source: "{{ was_automation_catalog_source_name }}"
-            sourceNamespace: "{{ was_automation_catalog_source_namespace }}"
-        wait: true
-        wait_condition:
-          type: CatalogSourcesUnhealthy
-          status: false
-      vars:
-        key: "{{ 'operators.coreos.com/' + was_automation_operator_name + '.' + target_namespace }}"
-        labels: "{{ [{'key': key, 'value': '' }] | items2dict }}"
-      register: _result
-      when: operator_singlenamespace == true
+        source: "{{ was_automation_catalog_source_name }}"
+        sourceNamespace: "{{ was_automation_catalog_source_namespace }}"
+    wait: true
+    wait_condition:
+      type: CatalogSourcesUnhealthy
+      status: false
+  vars:
+    key: "{{ 'operators.coreos.com/' + was_automation_operator_name + '.' + target_namespace }}"
+    labels: "{{ [{'key': key, 'value': '' }] | items2dict }}"
+  register: _result
+  when: operator_singlenamespace == true
 
-    - name: Create Subscription for all namespaces operator
-      kubernetes.core.k8s:
-        api_key: "{{ api_key | default(omit) }}"
-        api_version: operators.coreos.com/v1alpha1
-        kind: Subscription
-        kubeconfig: "{{ kubeconfig_path }}"
+- name: Create Subscription for all namespaces operator
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: Subscription
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: "{{ was_automation_operator_name }}"
+    namespace: "{{ was_automation_operator_namespace }}"
+    definition:
+      spec:
+        channel: "{{ operator_channel }}"
+        installPlanApproval: Automatic
         name: "{{ was_automation_operator_name }}"
-        namespace: "{{ was_automation_operator_namespace }}"
-        definition:
-          spec:
-            channel: "{{ operator_channel }}"
-            installPlanApproval: Automatic
-            name: "{{ was_automation_operator_name }}"
-            source: "{{ was_automation_catalog_source_name }}"
-            sourceNamespace: "{{ was_automation_catalog_source_namespace }}"
-        wait: true
-        wait_condition:
-          type: CatalogSourcesUnhealthy
-          status: false
-      register: _result
-      when: operator_singlenamespace == false
+        source: "{{ was_automation_catalog_source_name }}"
+        sourceNamespace: "{{ was_automation_catalog_source_namespace }}"
+    wait: true
+    wait_condition:
+      type: CatalogSourcesUnhealthy
+      status: false
+  register: _result
+  when: operator_singlenamespace == false
 
-    - name: Wait for WSA operator controller manager
-      kubernetes.core.k8s_info:
-        api_key: "{{ api_key | default(omit) }}"
-        kind: Deployment
-        kubeconfig: "{{ kubeconfig_path }}"
-        name: websphere-automation-operator-controller-manager
-        namespace: "{{ target_namespace if operator_singlenamespace else was_automation_operator_namespace }}"
-        wait: true
-        wait_condition:
-          type: Available
-        wait_sleep: 20
-        wait_timeout: 300
-      register: _result
+- name: Wait for WSA operator controller manager
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kind: Deployment
+    kubeconfig: "{{ kubeconfig_path }}"
+    name: websphere-automation-operator-controller-manager
+    namespace: "{{ target_namespace if operator_singlenamespace else was_automation_operator_namespace }}"
+    wait: true
+    wait_condition:
+      type: Available
+    wait_sleep: 20
+    wait_timeout: 300
+  register: _result
 
-    - name: Wait until all the WSA CSV succeed
-      kubernetes.core.k8s_info:
-        api_key: "{{ api_key | default(omit) }}"
-        api_version: operators.coreos.com/v1alpha1
-        kind: ClusterServiceVersion
-        kubeconfig: "{{ kubeconfig_path }}"
-        namespace: "{{ target_namespace if operator_singlenamespace else was_automation_operator_namespace }}"
-      register: _result
-      delay: 30
-      retries: 120
-      until: (_result.resources | length > 0) and (_result.resources | map(attribute='status.phase') | unique == ['Succeeded'])
+- name: Wait until all the WSA CSV succeed
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    api_version: operators.coreos.com/v1alpha1
+    kind: ClusterServiceVersion
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: "{{ target_namespace if operator_singlenamespace else was_automation_operator_namespace }}"
+  register: _result
+  delay: 30
+  retries: 120
+  until: (_result.resources | length > 0) and (_result.resources | map(attribute='status.phase') | unique == ['Succeeded'])

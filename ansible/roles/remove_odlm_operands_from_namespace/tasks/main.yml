@@ -1,0 +1,95 @@
+---
+
+- name: Fetch list of all OperandBindInfo
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: operator.ibm.com/v1alpha1
+    kind: OperandBindInfo
+    namespace: "{{ target_namespace }}"
+  register: _result
+  failed_when: false
+
+- name: Process the result
+  set_fact:
+    op_bind_infos: "{{ op_bind_infos | default([]) | union(data) }}"
+  loop: "{{ _result.resources }}"
+  vars:
+    data:
+    - created: "{{ item.metadata.creationTimestamp }}"
+      kind: "{{ item.kind }}"
+      name: "{{ item.metadata.name }}"
+  when: item.metadata.name is match('operand-bind-info-.*')
+
+- name: Fetch list of all OperandRequest
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: operator.ibm.com/v1alpha1
+    kind: OperandRequest
+    namespace: "{{ target_namespace }}"
+  register: _result
+  failed_when: false
+
+- name: Process the result
+  set_fact:
+    op_reqs: "{{ op_reqs | default([]) | union(data) }}"
+  loop: "{{ _result.resources }}"
+  vars:
+    data:
+    - created: "{{ item.metadata.creationTimestamp }}"
+      kind: "{{ item.kind }}"
+      name: "{{ item.metadata.name }}"
+  when: item.metadata.name is match('operand-request-.*')
+
+- name: Combine the op_bind_infos with the op_reqs and reverse sort by creation timestamp
+  set_fact:
+    odlm_crs: "{{ op_bind_infos | default([]) | union(op_reqs | default([])) | sort(attribute='created', reverse=true) }}"
+
+- name: Remove the resources from the cluster
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: operator.ibm.com/v1alpha1
+    kind: "{{ item['kind'] }}"
+    name: "{{ item['name'] }}"
+    namespace: "{{ target_namespace }}"
+    state: absent
+    wait: true
+    wait_sleep: 15
+    wait_timeout: 600
+  register: _result
+  failed_when: false
+  loop: "{{ odlm_crs }}"
+
+- name: Remove the OperandConfig
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: operator.ibm.com/v1alpha1
+    kind: OperandConfig
+    name: "{{ common_service_operand_name }}"
+    namespace: "{{ target_namespace }}"
+    state: absent
+    wait: true
+    wait_sleep: 15
+    wait_timeout: 600
+  register: _result
+  failed_when: false
+  when: common_service_operand_name is defined
+
+- name: Remove the OperandRegistry
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: operator.ibm.com/v1alpha1
+    kind: OperandRegistry
+    name: "{{ common_service_operand_name }}"
+    namespace: "{{ target_namespace }}"
+    state: absent
+    wait: true
+    wait_sleep: 15
+    wait_timeout: 600
+  register: _result
+  failed_when: false
+  when: common_service_operand_name is defined

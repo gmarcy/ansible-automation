@@ -1,0 +1,103 @@
+{
+  "TableBaseName": "TenantMgt.RoleBinding",
+  "TableAttributes": [
+    {
+      "AttributeName": "id",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "ibmid",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "subscriptionId",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "gpk",
+      "AttributeType": "S"
+    },
+    {
+      "AttributeName": "tsCreatedId",
+      "AttributeType": "S"
+    }
+  ],
+  "TableKeySchema": [
+    {
+      "AttributeName": "id",
+      "KeyType": "HASH"
+    }
+  ],
+  "GlobalSecondaryIndexes": [
+    {
+      "IndexName": "role-binding-ibmid-ts_deleted-role_name",
+      "KeySchema": [
+        {
+          "AttributeName": "ibmid",
+          "KeyType": "HASH"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "INCLUDE",
+        "NonKeyAttributes": [
+          "subscriptionId",
+          "ts_deleted",
+          "id",
+          "role_name"
+        ]
+      }
+    },
+    {
+      "IndexName": "role-binding-ibmid",
+      "KeySchema": [
+        {
+          "AttributeName": "ibmid",
+          "KeyType": "HASH"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "INCLUDE",
+        "NonKeyAttributes": [
+          "subscriptionId",
+          "id"
+        ]
+      }
+    },
+    {
+      "IndexName": "role-binding-subscriptionid",
+      "KeySchema": [
+        {
+          "AttributeName": "subscriptionId",
+          "KeyType": "HASH"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "INCLUDE",
+        "NonKeyAttributes": [
+          "id",
+          "ts_deleted"
+        ]
+      }
+    },
+    {
+      "IndexName": "rb-tsCreatedId",
+      "KeySchema": [
+        {
+          "AttributeName": "gpk",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "tsCreatedId",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "INCLUDE",
+        "NonKeyAttributes": [
+          "id",
+          "ts_deleted"
+        ]
+      }
+    }
+  ]
+}

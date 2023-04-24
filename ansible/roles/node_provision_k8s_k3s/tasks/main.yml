@@ -29,27 +29,41 @@
   name: Some nodes have not been provisioned
   block:
 
+    - when: inventory_hostname == groups['cluster_nodes'][0]
+      name: Create registries file template
+      copy:
+        content: |
+          {{ hostvars['cluster-facts']['k8s_k3s_registries_template'] }}
+        dest: "{{ hostvars['cluster-facts']['cluster_dir'] + '/registries.yaml.j2' }}"
+        mode: '0600'
+      delegate_to: cluster-facts
+      delegate_facts: true
+
     - when: inventory_hostname in groups['cluster_nodes']
       name: Common setup for all cluster nodes
       block:
 
-        - name: Copy the ca cert into the cluster node
-          copy:
-            content: |
-              {{ hostvars['cluster-facts']['ca_cert_contents'] }}
-            dest: '/usr/share/ca-certificates/docker_registry_proxy.crt'
-            mode: '0644'
+        - when: hostvars['cluster-facts']['ca_cert_contents'] is defined
+          name: Copy cert from infra node when we have one provisioned
+          block:
 
-        - name: Add line for certificate to /etc/ca-certificates.conf
-          lineinfile:
-            path: '/etc/ca-certificates.conf'
-            regexp: '^docker_registry_proxy.crt$'
-            line: 'docker_registry_proxy.crt'
+            - name: Copy the ca cert into the cluster node
+              copy:
+                content: |
+                  {{ hostvars['cluster-facts']['ca_cert_contents'] }}
+                dest: '/usr/share/ca-certificates/docker_registry_proxy.crt'
+                mode: '0644'
 
-        - name: Update the ca certs on the cluster node
-          command: |
-            update-ca-certificates --fresh
-          register: _result
+            - name: Add line for certificate to /etc/ca-certificates.conf
+              lineinfile:
+                path: '/etc/ca-certificates.conf'
+                regexp: '^docker_registry_proxy.crt$'
+                line: 'docker_registry_proxy.crt'
+
+            - name: Update the ca certs on the cluster node
+              command: |
+                update-ca-certificates --fresh
+              register: _result
 
         - name: Create k3s folder
           file:
@@ -64,69 +78,8 @@
           register: _result
 
         - name: Create registries file
-          copy:
-            content: |
-              mirrors:
-                "cp.icr.io":
-                  endpoint:
-                    - cp.stg.icr.io
-                    - wasliberty-intops-docker-local.artifactory.swg-devops.com
-                "icr.io":
-                  endpoint:
-                    - hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com
-                  rewrite:
-                    "^cpopen/([0-9abd-z].*)": "ibmcom/$1"
-                    "^cpopen/(c[0-9a-oq-z].*)": "ibmcom/$1"
-                    "^cpopen/(cp[0-9a-eg-z].*)": "ibmcom/$1"
-                    "^cpopen/cpfs/(.*)": "ibmcom/$1"
-                "quay.io":
-                  endpoint:
-                    - hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com
-                  rewrite:
-                    "^opencloudio/(.*)": "ibmcom/$1"
-                "docker.io":
-                  endpoint:
-                    - cp.stg.icr.io
-                    - wasliberty-intops-docker-local.artifactory.swg-devops.com
-                  rewrite:
-                    "^ibmcom/(.*)": "cp/$1"
-              configs:
-                "quay-io.fyre.ibm.com:5000":
-                  auth:
-                    username: cicdread
-                    password: cicdpriv
-                  tls:
-                    insecure_skip_verify: true
-                "cp.stg.icr.io":
-                  auth:
-                    username: {{ hostvars['playbook-secrets']['cp_stg_username'] }}
-                    password: {{ hostvars['playbook-secrets']['cp_stg_password'] }}
-                  tls:
-                    insecure_skip_verify: true
-                "cp.icr.io":
-                  auth:
-                    username: {{ hostvars['playbook-secrets']['cp_username'] }}
-                    password: {{ hostvars['playbook-secrets']['cp_password'] }}
-                  tls:
-                    insecure_skip_verify: true
-                "docker.io":
-                  auth:
-                    username: {{ hostvars['playbook-secrets']['docker_io_user'] }}
-                    password: {{ hostvars['playbook-secrets']['docker_io_password'] }}
-                  tls:
-                    insecure_skip_verify: true
-                "wasliberty-intops-docker-local.artifactory.swg-devops.com":
-                  auth:
-                    username: {{ hostvars['playbook-secrets']['na_artifactory']['user'] }}
-                    password: {{ hostvars['playbook-secrets']['na_artifactory']['token'] }}
-                  tls:
-                    insecure_skip_verify: true
-                "hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com":
-                  auth:
-                    username: {{ hostvars['playbook-secrets']['na_artifactory']['user'] }}
-                    password: {{ hostvars['playbook-secrets']['na_artifactory']['token'] }}
-                  tls:
-                    insecure_skip_verify: true
+          template:
+            src: "{{ hostvars['cluster-facts']['cluster_dir'] + '/registries.yaml.j2' }}"
             dest: '/etc/rancher/k3s/registries.yaml'
             mode: '0600'
 
@@ -147,12 +100,12 @@
           - '~/tmp'
 
         - name: Install kubectl
-          community.general.packaging.os.snap:
+          community.general.snap:
             name: kubectl
             classic: true
         
         - name: Install helm
-          community.general.packaging.os.snap:
+          community.general.snap:
             name: helm
             classic: true
 

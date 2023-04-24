@@ -3,8 +3,8 @@
 - name: Remove target_namespace
   kubernetes.core.k8s:
     api_key: "{{ api_key | default(omit) }}"
-    kind: Namespace
     kubeconfig: "{{ kubeconfig_path }}"
+    kind: Namespace
     name: "{{ target_namespace }}"
     state: absent
     wait: true

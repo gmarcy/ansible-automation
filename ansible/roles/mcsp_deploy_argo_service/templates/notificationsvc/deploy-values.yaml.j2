@@ -1,0 +1,72 @@
+application: notificationsvcms
+clusterRoleBinding: notificationsvcms-crb
+deploymentPromoterSecret: notificationsvcms-dp-secret
+environment: <place-holder-env>
+host: <place-holder-host>
+image: icr.io/automation-saas-platform/tenant-management/notificationsvc:20230307185716-main-fa86f181effaf404f9cb651dd0766aec9b981a45
+imagePullSecrets: notificationsvcms-global-registry-secret
+namespace: <place-holder-ns>
+oldimagePullSecrets: notificationsvcms-registry-secret
+previousEnvAppSet: <place-holder-previousEnvAppSet>
+productRegCASecret: product-reg-ca-cert
+promotionEnv: <place-holder-promoenv>
+promotionEnvAppSet: <place-holder-promoenvappset>
+replicas: <place-holder-replicas>
+resourceLimits:
+  cpuLimit: '''1'''
+  cpuReq: 100m
+  memLimit: 600Mi
+  memReq: 400Mi
+server: <place-holder-server>
+service:
+  portHttps: 9446
+  type: ClusterIP
+serviceAccount: notificationsvcms-sa
+serviceCertSecret: notificationsvc-cert-secret
+testRunnerRole: notificationsvcms-test-runner-role
+testRunnerRoleBinding: notificationsvcms-cb
+testRunnerSecret: notificationsvcms-tr-secret
+version: 1.0.0
+
+fyredeployment: true
+specificValues:
+  productRegistrationMTLSEnabled: false
+
+CLIENT_ID: {{ CLIENT_ID }}
+CLIENT_SECRET: {{ CLIENT_SECRET }}
+DISCOVERY_ENDPOINT: {{ VERIFY_URL }}/.well-known/openid-configuration
+USER_VALIDATION_API: https://openshift.default.svc/apis/user.openshift.io/v1/users/~
+USER_VALIDATION_API_V2: https://openshift.default.svc/apis/user.openshift.io/v1/users/~
+
+ 
+
+ProductRegistrationClient_API_USERNAME: username
+ProductRegistrationClient_API_PASSWORD: password
+
+ROOT_CA_CRT: not-known
+ROOT_TLS_CRT: not-known
+ROOT_TLS_KEY: not-known
+
+PR_CA_CRT: dummy
+
+
+sendgrid_api_key: "addapikeyhere"
+sendgrid_from_email: "ZmFrZUBpYm0uY29t"
+sendgrid_from_name: "ZmFrZW5hbWU"
+
+
+#encoding section to specify which field values need to be encoded and how
+encoding:
+  - name: single-base64
+    times: 1
+    field_names:
+      CLIENT_ID
+      CLIENT_SECRET
+      DISCOVERY_ENDPOINT 
+      USER_VALIDATION_API
+      USER_VALIDATION_API_V2
+      ProductRegistrationClient_API_USERNAME
+      ProductRegistrationClient_API_PASSWORD
+      sendgrid_api_key
+      sendgrid_from_email
+      sendgrid_from_name

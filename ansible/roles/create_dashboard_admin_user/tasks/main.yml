@@ -27,3 +27,9 @@
           name: dashboard-admin-user
           namespace: "{{ target_namespace }}"
   register: _result
+
+- name: Print message with cli params to create tokens
+  debug:
+    msg:
+    - "Run the following command to create access tokens:"
+    - "  'kubectl -n {{ target_namespace }} create token dashboard-admin-user'"

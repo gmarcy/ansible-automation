@@ -1,0 +1,15 @@
+{
+  "TableBaseName": "TenantMgt.SSMUser",
+  "TableAttributes": [
+    {
+      "AttributeName": "instanceId",
+      "AttributeType": "S"
+    }
+  ],
+  "TableKeySchema": [
+    {
+      "AttributeName": "instanceId",
+      "KeyType": "HASH"
+    }
+  ]
+}

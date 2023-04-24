@@ -1,0 +1,13 @@
+---
+
+- name: Prepare Cluster Operators Group
+  hosts: cluster_operators
+  gather_facts: false
+  tags: cluster_operators
+  tasks:
+  - name: Print cluster operators configuration
+    debug:
+      msg:
+      - "{{ 'Deploying Cluster operators:' }}"
+      - "{{ operators_to_deploy }}"
+    when: operators_to_deploy is defined

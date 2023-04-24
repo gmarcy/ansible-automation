@@ -1,0 +1,13 @@
+---
+
+- name: Remove the {{ target_operand_name }} OperandRequest
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: operator.ibm.com/v1alpha1
+    kind: OperandRequest
+    name: "{{ target_operand_request_name }}"
+    namespace: "{{ target_operand_request_namespace }}"
+    state: absent
+    wait: true
+  register: _result

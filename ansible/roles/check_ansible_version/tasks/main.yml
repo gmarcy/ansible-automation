@@ -2,8 +2,8 @@
 
 - name: Check if Ansible meets version requirements.
   ansible.builtin.assert:
-    that: "ansible_version.full is version_compare('{{ kubeinit_ansible_min_version }}', '>=')"
+    that: "ansible_version.full is version_compare('{{ ansible_min_version }}', '>=')"
     msg: >
-      "You must update Ansible to at least {{ kubeinit_ansible_min_version }} to use KubeInit."
+      "You must update Ansible to at least {{ ansible_min_version }} to use this ansible collection."
   vars:
-    kubeinit_ansible_min_version: 2.9
+    ansible_min_version: 2.9

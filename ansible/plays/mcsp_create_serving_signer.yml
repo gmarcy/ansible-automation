@@ -1,0 +1,40 @@
+---
+
+- name: Create MCSP serving signer secret
+  hosts: mcsp_services
+  gather_facts: false
+  tags: mcsp_serving_signer
+  tasks:
+  - name: Set secret facts
+    set_fact:
+      mcsp_serving_signer_name: 'service-network-serving-signer'
+      mcsp_serving_signer_namespace: 'openshift-kube-apiserver-operator'
+  - name: Fetch current service-network-serving-signer secret
+    kubernetes.core.k8s_info:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      api_version: v1
+      kind: Secret
+      name: "{{ mcsp_serving_signer_name }}"
+      namespace: "{{ mcsp_serving_signer_namespace }}"
+    register: _result_serving_signer
+  - name: Set serving signer secret facts
+    set_fact:
+      mcsp_serving_signer_annotations: "{{ item.metadata.annotations }}"
+      mcsp_serving_signer_data: "{{ item.data }}"
+      mcsp_serving_signer_type: "{{ item.type }}"
+    loop: "{{ _result_serving_signer.resources }}"
+  - name: Reuse serving signer for mcsp tenant namespace
+    kubernetes.core.k8s:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      api_version: v1
+      kind: Secret
+      name: "{{ mcsp_serving_signer_name }}"
+      namespace: "{{ mcsp_target.namespace }}"
+      definition:
+        metadata:
+          annotations: "{{ mcsp_serving_signer_annotations }}"
+        data: "{{ mcsp_serving_signer_data }}"
+        type: "{{ mcsp_serving_signer_type }}"
+    register: _result
