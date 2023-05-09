@@ -1,27 +1,42 @@
 ---
 
-- name: Check for empty targetNamespaces
-  set_fact:
-    target_namespaces_spec:
-      upgradeStrategy: Default
-  when: target_namespaces | length == 0
-
-- name: Handle non-empty targetNamespaces
-  set_fact:
-    target_namespaces_spec:
-      targetNamespaces: "{{ target_namespaces | unique }}"
-      upgradeStrategy: Default
-  when: target_namespaces | length > 0
-
-- name: Ensure target_operator_group exists
-  kubernetes.core.k8s:
+- name: See if an operator group already exists for the target namespace
+  kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: operators.coreos.com/v1
     kind: OperatorGroup
-    kubeconfig: "{{ kubeconfig_path }}"
-    name: "{{ target_operator_group }}"
     namespace: "{{ target_namespace }}"
-    definition:
-      spec: "{{ target_namespaces_spec }}"
-    state: present
   register: _result
+
+- name: Set fact for operator_group_exists
+  vars:
+    operator_group_exists: "{{ _result.resources | length > 0 }}"
+  when: not operator_group_exists
+  block:
+
+    - name: Check for empty targetNamespaces
+      set_fact:
+        operator_group_spec:
+          upgradeStrategy: Default
+      when: target_namespaces | length == 0
+
+    - name: Handle non-empty targetNamespaces
+      set_fact:
+        operator_group_spec:
+          targetNamespaces: "{{ target_namespaces | unique }}"
+          upgradeStrategy: Default
+      when: target_namespaces | length > 0
+
+    - name: Ensure target_operator_group exists
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        api_version: operators.coreos.com/v1
+        kind: OperatorGroup
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: "{{ target_operator_group }}"
+        namespace: "{{ target_namespace }}"
+        definition:
+          spec: "{{ operator_group_spec }}"
+        state: present
+      register: _result

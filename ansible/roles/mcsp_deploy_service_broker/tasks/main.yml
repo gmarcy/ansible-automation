@@ -29,7 +29,7 @@
     image_pull_secret:
       auths:
         "icr.io":
-          auth: "{{ (mcsp_user + ':' + mcsp_apikey) | b64encode }}"
+          auth: "{{ ((lookup('unvault', mcsp_user) | trim) + ':' + (lookup('unvault', mcsp_apikey) | trim)) | b64encode }}"
 
 - name: Check for existing certs
   stat:

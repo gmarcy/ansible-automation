@@ -17,8 +17,8 @@
   uri:
     url: "{{ fyreocpplus_clusterstatusurl }}"
     method: "DELETE"
-    user: "{{ fyre_user }}"
-    password: "{{ fyre_apikey }}"
+    user: "{{ lookup('unvault', fyre_user) | trim }}"
+    password: "{{ lookup('unvault', fyre_apikey) | trim }}"
     validate_certs: false
     force_basic_auth: true
     return_content: true
@@ -50,8 +50,8 @@
       uri:
         url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showrequests&request_id={{ request_id }}"
         method: GET
-        user:  "{{ fyre_user }}"
-        password: "{{ fyre_apikey }}"
+        user:  "{{ lookup('unvault', fyre_user) | trim }}"
+        password: "{{ lookup('unvault', fyre_apikey) | trim }}"
         validate_certs: false
         force_basic_auth: true
         return_content: true

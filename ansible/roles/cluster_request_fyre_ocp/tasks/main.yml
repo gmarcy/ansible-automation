@@ -4,9 +4,9 @@
   uri:
     url: "{{ fyreocpplus_clusterstatusurl }}"
     method: "GET"
-    user: "{{ fyreuser }}"
-    password: "{{ fyreapikey }}"
-    validate_certs: False
+    user: "{{ lookup('unvault', fyreuser) | trim }}"
+    password: "{{ lookup('unvault', fyreapikey) | trim }}"
+    validate_certs: false
     force_basic_auth: "{{ fyre_force_basic_auth }}"
   register: ocpexistance
   changed_when: false
@@ -78,16 +78,16 @@
       uri:
         url: "{{ fyreocpplus_ocpdeployurl }}"
         method: "POST"
-        user: "{{ fyreuser }}"
-        password: "{{ fyreapikey }}"
-        validate_certs: False
+        user: "{{ lookup('unvault', fyreuser) | trim }}"
+        password: "{{ lookup('unvault', fyreapikey) | trim }}"
+        validate_certs: false
         body_format: "json"
         force_basic_auth: "{{ fyre_force_basic_auth }}"
         body:
           name : "{{ cluster_name }}"
           platform: "{{ ocpPlatform }}"
           fips: "{{ fips | default(omit) }}"
-          ssh_key: "{{ ssh_public_key }}"
+          ssh_key: "{{ lookup('unvault', ssh_public_key) | trim }}"
           ocp_version: "{{ ocp_version | default(omit) }}"
           custom_ocp: "{{ custom_ocp | default(omit) }}"
           site: "{{ fyre_site | default(omit) }}"
@@ -124,9 +124,9 @@
   uri:
     url: "{{fyreocpplus_clusterstatusurl}}"
     method: GET
-    user:  "{{ fyreuser }}"
-    validate_certs: False
-    password: "{{ fyreapikey }}"
+    user:  "{{ lookup('unvault', fyreuser) | trim }}"
+    password: "{{ lookup('unvault', fyreapikey) | trim }}"
+    validate_certs: false
     force_basic_auth: "{{ fyre_force_basic_auth }}"
   changed_when: false
   register: error_status
@@ -147,9 +147,9 @@
   uri:
     url: "{{fyreocpplus_clusterstatusurl}}"
     method: GET
-    user:  "{{ fyreuser }}"
-    validate_certs: False
-    password: "{{ fyreapikey }}"
+    user:  "{{ lookup('unvault', fyreuser) | trim }}"
+    password: "{{ lookup('unvault', fyreapikey) | trim }}"
+    validate_certs: false
     force_basic_auth: "{{ fyre_force_basic_auth }}"
   changed_when: false
   register: cluster_status_response

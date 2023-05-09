@@ -6,7 +6,7 @@ all:
       hosts:
         playbook-secrets:
       vars:
-        inv_secrets_dir: ~/.ssh/.ansible/.secrets
+        inv_secrets_dir: "{{ lookup('env', 'HOME') + '/.ssh/.ansible/.secrets' }}"
         artifactory_generate_access_token:
           url: "https://na.artifactory.swg-devops.com/access/api/v1/tokens"
           body:
@@ -76,12 +76,12 @@ all:
           mirrors:
             "cp.icr.io":
               endpoint:
-                - "{{ hostvars['playbook-secrets']['artifactory_fqdn'] }}"
+                - "{{ lookup('unvault', hostvars['playbook-secrets']['artifactory_fqdn']) | trim }}"
               rewrite:
                 "(.*)": "wasliberty-intops-docker-local/ibmcom/$1"
             "icr.io":
               endpoint:
-                - "{{ hostvars['playbook-secrets']['artifactory_fqdn'] }}"
+                - "{{ lookup('unvault', hostvars['playbook-secrets']['artifactory_fqdn']) | trim }}"
               rewrite:
                 "^cpopen/([0-9abd-z].*)": "hyc-cloud-private-daily-docker-local/ibmcom/$1"
                 "^cpopen/(c[0-9a-oq-z].*)": "hyc-cloud-private-daily-docker-local/ibmcom/$1"
@@ -89,37 +89,37 @@ all:
                 "^cpopen/cpfs/(.*)": "hyc-cloud-private-daily-docker-local/ibmcom/$1"
             "quay.io":
               endpoint:
-                - "{{ hostvars['playbook-secrets']['artifactory_fqdn'] }}"
+                - "{{ lookup('unvault', hostvars['playbook-secrets']['artifactory_fqdn']) | trim }}"
               rewrite:
                 "^opencloudio/(.*)": "hyc-cloud-private-daily-docker-local/ibmcom/$1"
             "docker.io":
               endpoint:
-                - "{{ hostvars['playbook-secrets']['artifactory_fqdn'] }}"
+                - "{{ lookup('unvault', hostvars['playbook-secrets']['artifactory_fqdn']) | trim }}"
               rewrite:
                 "^ibmcom/(.*)": "wasliberty-intops-docker-local/cp/$1"
           configs:
             "cp.stg.icr.io":
               auth:
-                username: {{ hostvars['playbook-secrets']['cp_stg_username'] }}
-                password: {{ hostvars['playbook-secrets']['cp_stg_password'] }}
+                username: {{ lookup('unvault', hostvars['playbook-secrets']['cp_stg_username']) | trim }}
+                password: {{ lookup('unvault', hostvars['playbook-secrets']['cp_stg_password']) | trim }}
               tls:
                 insecure_skip_verify: true
             "cp.icr.io":
               auth:
-                username: {{ hostvars['playbook-secrets']['cp_username'] }}
-                password: {{ hostvars['playbook-secrets']['cp_password'] }}
+                username: {{ lookup('unvault', hostvars['playbook-secrets']['cp_username']) | trim }}
+                password: {{ lookup('unvault', hostvars['playbook-secrets']['cp_password']) | trim }}
               tls:
                 insecure_skip_verify: true
             "docker.io":
               auth:
-                username: {{ hostvars['playbook-secrets']['docker_io_user'] }}
-                password: {{ hostvars['playbook-secrets']['docker_io_password'] }}
+                username: {{ lookup('unvault', hostvars['playbook-secrets']['docker_io_user']) | trim }}
+                password: {{ lookup('unvault', hostvars['playbook-secrets']['docker_io_password']) | trim }}
               tls:
                 insecure_skip_verify: true
-            "{{ hostvars['playbook-secrets']['artifactory_fqdn'] }}":
+            "{{ lookup('unvault', hostvars['playbook-secrets']['artifactory_fqdn']) | trim }}":
               auth:
-                username: {{ hostvars['playbook-secrets']['artifactory_user'] }}
-                password: {{ hostvars['playbook-secrets']['artifactory_token'] }}
+                username: {{ lookup('unvault', hostvars['playbook-secrets']['artifactory_user']) | trim }}
+                password: {{ lookup('unvault', hostvars['playbook-secrets']['artifactory_token']) | trim }}
               tls:
                 insecure_skip_verify: true
     common_services:
@@ -127,7 +127,7 @@ all:
         common-services:
       vars:
         inv_common_service_catalog_source_image_cs4: 'docker-na-public.artifactory.swg-devops.com/hyc-cloud-private-daily-docker-local/ibmcom/ibm-common-service-catalog'
-        inv_common_service_catalog_source_image_tag_cs4: 'cd'
+        inv_common_service_catalog_source_image_tag_cs4: 'latest-validated'
     integration_platform:
       hosts:
         integration-platform:

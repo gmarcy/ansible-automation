@@ -8,8 +8,6 @@
   - role: install_wsa_operator
     api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
     kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
-    operator_catalog_user: "{{ hostvars['playbook-secrets']['artifactory_user'] }}"
-    operator_catalog_password: "{{ hostvars['playbook-secrets']['artifactory_token'] }}"
     target_catalog_source_image: "{{ was_automation_catalog_source_image }}"
     target_catalog_source_image_tag: "{{ was_automation_catalog_source_image_tag }}"
     operator_channel: "{{ was_automation_operator_channel }}"

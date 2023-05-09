@@ -29,7 +29,7 @@
 
     - name: Create the auth_value for each element in pull_secrets
       set_fact:
-        auth_values: "{{ (auth_values | default([])) + [(item.username + ':' + item.password) | b64encode] }}"
+        auth_values: "{{ (auth_values | default([])) + [((lookup('unvault', item.username) | trim) + ':' + (lookup('unvault', item.password) | trim)) | b64encode] }}"
       loop: "{{ pull_secrets }}"
 
     - name: Create the auths value for each element in pull_secrets

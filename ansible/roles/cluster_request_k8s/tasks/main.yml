@@ -87,9 +87,9 @@
   uri:
     url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showclusters&cluster_name={{ cluster_name }}"
     method: GET
-    user:  "{{ fyre_user }}"
+    user:  "{{ lookup('unvault', fyre_user) | trim }}"
+    password: "{{ lookup('unvault', fyre_apikey) | trim }}"
     validate_certs: false
-    password: "{{ fyre_apikey }}"
     force_basic_auth: true
     return_content: true
   changed_when: false
@@ -160,11 +160,11 @@
 
     - name: Wait until we have enough quota for the request
       uri:
-        url: "https://api.fyre.ibm.com/rest/v1/?operation=getuserproductgroupquota&product_group_id={{ fyre_group_id }}&user_email={{ fyre_user_email }}"
+        url: "https://api.fyre.ibm.com/rest/v1/?operation=getuserproductgroupquota&product_group_id={{ fyre_group_id }}&user_email={{ lookup('unvault', fyre_user_email) | trim }}"
         method: GET
-        user:  "{{ fyre_user }}"
+        user:  "{{ lookup('unvault', fyre_user) | trim }}"
+        password: "{{ lookup('unvault', fyre_apikey) | trim }}"
         validate_certs: false
-        password: "{{ fyre_apikey }}"
         force_basic_auth: true
         return_content: true
       changed_when: false
@@ -187,15 +187,15 @@
         content: |
           fyre:
             creds:
-              username: {{ fyre_user }}
-              api_key: {{ fyre_apikey }}
+              username: {{ lookup('unvault', fyre_user) | trim }}
+              api_key: {{ lookup('unvault', fyre_apikey) | trim }}
               public_key: {{ ssh_public_key | b64decode }}
           product_group_id: {{ fyre_group_id }}
           cluster_prefix: {{ cluster_name }}
           clusterconfig:
             instance_type: 'virtual_server'
             platform: {{ fyre_platform | default('x') }}
-            user_comment: "{{ 'kubernetes cluster of ' + fyre_user }}"
+            user_comment: "{{ 'kubernetes cluster of ' + (lookup('unvault', fyre_user) | trim) }}"
           site: {{ fyre_site }}
           {{ cluster_name }}:
           {% if (k8s_inf_nodes | int) == 1 %}
@@ -254,8 +254,8 @@
       uri:
         url: 'https://api.fyre.ibm.com/rest/v1/?operation=build'
         method: "POST"
-        user: "{{ fyre_user }}"
-        password: "{{ fyre_apikey }}"
+        user: "{{ lookup('unvault', fyre_user) | trim }}"
+        password: "{{ lookup('unvault', fyre_apikey) | trim }}"
         validate_certs: false
         body_format: "json"
         force_basic_auth: true
@@ -282,9 +282,9 @@
       uri:
         url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showrequests"
         method: GET
-        user:  "{{ fyre_user }}"
+        user:  "{{ lookup('unvault', fyre_user) | trim }}"
+        password: "{{ lookup('unvault', fyre_apikey) | trim }}"
         validate_certs: false
-        password: "{{ fyre_apikey }}"
         force_basic_auth: true
         return_content: true
       changed_when: false
@@ -303,9 +303,9 @@
       uri:
         url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showrequests&request_id={{ request_id | string }}"
         method: GET
-        user:  "{{ fyre_user }}"
+        user:  "{{ lookup('unvault', fyre_user) | trim }}"
+        password: "{{ lookup('unvault', fyre_apikey) | trim }}"
         validate_certs: false
-        password: "{{ fyre_apikey }}"
         force_basic_auth: true
         return_content: true
       changed_when: false
@@ -322,9 +322,9 @@
       uri:
         url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showclusters"
         method: GET
-        user:  "{{ fyre_user }}"
+        user:  "{{ lookup('unvault', fyre_user) | trim }}"
+        password: "{{ lookup('unvault', fyre_apikey) | trim }}"
         validate_certs: false
-        password: "{{ fyre_apikey }}"
         force_basic_auth: true
         return_content: true
       changed_when: false
@@ -349,9 +349,9 @@
   uri:
     url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showclusterdetails&cluster_name={{ cluster_name }}"
     method: GET
-    user:  "{{ fyre_user }}"
+    user:  "{{ lookup('unvault', fyre_user) | trim }}"
+    password: "{{ lookup('unvault', fyre_apikey) | trim }}"
     validate_certs: false
-    password: "{{ fyre_apikey }}"
     force_basic_auth: true
     return_content: true
   changed_when: false

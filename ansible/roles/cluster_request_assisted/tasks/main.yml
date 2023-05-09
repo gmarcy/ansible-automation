@@ -8,7 +8,7 @@
   set_fact:
     cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
     openshift_version: "{{ hostvars['cluster-facts']['openshift_version'] }}"
-    openshift_pullsecret: "{{ hostvars['playbook-secrets']['openshift_pullsecret'] | string }}"
+    openshift_pullsecret: "{{ hostvars['playbook-secrets']['openshift_pullsecret'] }}"
     cluster_domain: "{{ hostvars['cluster-facts']['cluster_domain'] }}"
     ssh_public_key: "{{ hostvars['playbook-secrets']['ssh_public_key'] }}"
     http_proxy: "{{ hostvars['cluster-facts']['http_proxy'] }}"
@@ -45,10 +45,10 @@
         body:
           name: "{{ cluster_name }}"
           openshift_version: "{{ openshift_version }}"
-          pull_secret: '{{ openshift_pullsecret }}'
+          pull_secret: '{{ lookup('unvault', openshift_pullsecret) | trim | string }}'
           high_availability_mode: "{{ high_availability_mode }}"
           base_dns_domain: "{{ cluster_domain }}"
-          ssh_public_key: "{{ ssh_public_key }}"
+          ssh_public_key: "{{ lookup('unvault', ssh_public_key) | trim }}"
           http_proxy: "{{ http_proxy }}"
           network_type: "{{ 'OVNKubernetes' if (single_node) else 'OpenShiftSDN' }}"
           machine_networks:
@@ -93,8 +93,8 @@
       proxy:
         http_proxy: "{{ http_proxy }}"
         no_proxy: ""
-      pull_secret: "{{ openshift_pullsecret | string }}"
-      ssh_authorized_key: "{{ ssh_public_key }}"
+      pull_secret: "{{ lookup('unvault', openshift_pullsecret) | trim | string }}"
+      ssh_authorized_key: "{{ lookup('unvault', ssh_public_key) | trim }}"
     status_code: 201
   register: _result
   when: infra_env_id | default('') | length == 0

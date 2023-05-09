@@ -14,12 +14,21 @@ all:
           namespace: tenantmgt-operators
           channel: tech-preview
           catalog: redhat-operators
-        - name: open-liberty-certified
-          namespace: tenantmgt-operators
-          catalog: certified-operators
-        - name: ibm-websphere-liberty
-          namespace: tenantmgt-operators
-          catalog: ibm-operator-catalog
+    cluster_storage:
+      hosts:
+        cluster-storage:
+      vars:
+        storage_provisioner: 'rook-cephfs'
+        provisioning_role: 'storage_deploy_cephfs'
+        deprovisioning_role: 'storage_remove_cephfs'
+        inv_rook_ceph_release: v1.10.4
+        inv_default_storage_class: "{{ cephfs_storage_class }}"
+        inv_default_block_class: "{{ cephfs_block_class }}"
+    mcsp_argocd:
+      hosts:
+        mcsp-argocd:
+      vars:
+        mcsp_argocd_namespace: argocd-manager
     mcsp_services:
       hosts:
         mcsp-services:

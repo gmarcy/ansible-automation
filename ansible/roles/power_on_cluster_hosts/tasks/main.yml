@@ -11,12 +11,12 @@
 
     - name: Set fact for common ipmitool arguments
       set_fact:
-        ipmitool_args: "-E -U {{ ipmitool_username }}"
+        ipmitool_args: "-E -U {{ lookup('unvault', ipmitool_username) | trim }}"
 
     - name: Check the power status of the cluster hosts
       command: ipmitool {{ ipmitool_args }} -I {{ ipmitool_interface }} -H {{ ipmitool_host }} chassis power status
       environment:
-        IPMI_PASSWORD: "{{ ipmitool_password }}"
+        IPMI_PASSWORD: "{{ lookup('unvault', ipmitool_password) | trim }}"
       loop: "{{ cluster_ipmi_hosts }}"
       vars:
         ipmitool_interface: "{{ item.interface }}"
@@ -40,7 +40,7 @@
         - name: Change server boot state
           command: ipmitool {{ ipmitool_args }} -I {{ ipmitool_interface }} -H {{ ipmitool_host }} chassis bootdev pxe options=efiboot
           environment:
-            IPMI_PASSWORD: "{{ ipmitool_password }}"
+            IPMI_PASSWORD: "{{ lookup('unvault', ipmitool_password) | trim }}"
           loop: "{{ ipmi_hosts_powered_off }}"
           vars:
             ipmitool_interface: "{{ item.interface }}"
@@ -50,7 +50,7 @@
         - name: Get bootparam info to confirm we are ready for power on
           command: ipmitool {{ ipmitool_args }} -I {{ ipmitool_interface }} -H {{ ipmitool_host }} chassis bootparam get 5
           environment:
-            IPMI_PASSWORD: "{{ ipmitool_password }}"
+            IPMI_PASSWORD: "{{ lookup('unvault', ipmitool_password) | trim }}"
           loop: "{{ ipmi_hosts_powered_off }}"
           vars:
             ipmitool_interface: "{{ item.interface }}"
@@ -60,7 +60,7 @@
         - name: Power on the cluster hosts
           command: ipmitool {{ ipmitool_args }} -I {{ ipmitool_interface }} -H {{ ipmitool_host }} chassis power on
           environment:
-            IPMI_PASSWORD: "{{ ipmitool_password }}"
+            IPMI_PASSWORD: "{{ lookup('unvault', ipmitool_password) | trim }}"
           loop: "{{ ipmi_hosts_powered_off }}"
           vars:
             ipmitool_interface: "{{ item.interface }}"
@@ -70,7 +70,7 @@
         - name: Confirm the power is on for cluster hosts
           command: ipmitool {{ ipmitool_args }} -I {{ ipmitool_interface }} -H {{ ipmitool_host }} chassis power status
           environment:
-            IPMI_PASSWORD: "{{ ipmitool_password }}"
+            IPMI_PASSWORD: "{{ lookup('unvault', ipmitool_password) | trim }}"
           loop: "{{ ipmi_hosts_powered_off }}"
           vars:
             ipmitool_interface: "{{ item.interface }}"

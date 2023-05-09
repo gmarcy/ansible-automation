@@ -71,18 +71,6 @@
         buildah rm {{ 'buildah-' + container_name }}
       register: _result
 
-    - name: Set facts for credentials
-      set_fact:
-        artifactory_creds: "{{ hostvars['playbook-secrets']['artifactory_user'] + ':' + hostvars['playbook-secrets']['artifactory_token'] }}"
-
-    - name: Set facts for registries
-      set_fact:
-        proxy_registries:
-        - "{{ hostvars['playbook-secrets']['artifactory_fqdn'] }}"
-        proxy_auth_registries:
-        - "{{ 'auth.docker.io:' + hostvars['playbook-secrets']['docker_io_user'] + ':' + hostvars['playbook-secrets']['docker_io_password'] }}"
-        - "{{ hostvars['playbook-secrets']['artifactory_fqdn'] + ':' + artifactory_creds }}"
-
     - name: Run the container with podman
       containers.podman.podman_container:
         name: "{{ container_name }}"
@@ -102,6 +90,12 @@
           ENABLE_MANIFEST_CACHE: 'true'
           REGISTRIES: "{{ proxy_registries | join(' ') }}"
           AUTH_REGISTRIES: "{{ proxy_auth_registries | join(' ') }}"
+      vars:
+        proxy_registries:
+        - "{{ lookup('unvault', hostvars['playbook-secrets']['artifactory_fqdn']) | trim }}"
+        proxy_auth_registries:
+        - "{{ 'auth.docker.io:' + (lookup('unvault', hostvars['playbook-secrets']['docker_io_user']) | trim) + ':' + (lookup('unvault', hostvars['playbook-secrets']['docker_io_password']) | trim) }}"
+        - "{{ (lookup('unvault', hostvars['playbook-secrets']['artifactory_fqdn']) | trim) + ':' + (lookup('unvault', hostvars['playbook-secrets']['artifactory_user']) | trim) + ':' + (lookup('unvault', hostvars['playbook-secrets']['artifactory_token']) | trim) }}"
       register: _result_container_info
       retries: 5
       delay: 10

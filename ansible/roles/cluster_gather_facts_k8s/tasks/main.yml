@@ -15,9 +15,9 @@
       uri:
         url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showclusters"
         method: GET
-        user:  "{{ fyre_user }}"
+        user:  "{{ lookup('unvault', fyre_user) | trim }}"
+        password: "{{ lookup('unvault', fyre_apikey) | trim }}"
         validate_certs: false
-        password: "{{ fyre_apikey }}"
         force_basic_auth: true
         return_content: true
       changed_when: false
@@ -48,9 +48,9 @@
       uri:
         url: "https://api.fyre.ibm.com/rest/v1/?operation=query&request=showclusterdetails&cluster_name={{ cluster_name }}"
         method: GET
-        user:  "{{ fyre_user }}"
+        user:  "{{ lookup('unvault', fyre_user) | trim }}"
+        password: "{{ lookup('unvault', fyre_apikey) | trim }}"
         validate_certs: false
-        password: "{{ fyre_apikey }}"
         force_basic_auth: true
         return_content: true
       changed_when: false

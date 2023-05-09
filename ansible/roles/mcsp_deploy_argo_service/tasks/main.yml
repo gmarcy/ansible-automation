@@ -41,9 +41,9 @@
     dest: "{{ mcsp_service_deploy_path + '/scripts/fyre/deploy-values.yaml' }}"
     mode: '0644'
   vars:
-    CLIENT_ID: "{{ hostvars['playbook-secrets']['w3id_oauth_issuer_client_id'] }}"
-    CLIENT_SECRET: "{{ hostvars['playbook-secrets']['w3id_oauth_issuer_client_secret'] }}"
-    VERIFY_URL: "{{ hostvars['playbook-secrets']['w3id_oauth_issuer_url'] }}"
+    CLIENT_ID: "{{ lookup('unvault', hostvars['playbook-secrets']['w3id_oauth_issuer_client_id']) | trim }}"
+    CLIENT_SECRET: "{{ lookup('unvault', hostvars['playbook-secrets']['w3id_oauth_issuer_client_secret']) | trim }}"
+    VERIFY_URL: "{{ lookup('unvault', hostvars['playbook-secrets']['w3id_oauth_issuer_url']) | trim }}"
   register: _result
 
 - name: Set facts for local.properties
@@ -72,7 +72,7 @@
   set_fact:
     promotion: "{{ mcsp_argo_services[target_service_name]['promotion'] | default('false') }}"
     validations: "{{ mcsp_argo_services[target_service_name]['validations'] | default('false') }}"
-    script_args: "{{ mcsp_apikey if (target_service_name == 'common-service-broker') else ('-i ' + mcsp_apikey) }}"
+    script_args: "{{ (lookup('unvault', mcsp_apikey) | trim) if (target_service_name == 'common-service-broker') else ('-i ' + (lookup('unvault', mcsp_apikey) | trim)) }}"
 
 - name: Run the run-deploy.sh command
   command: |

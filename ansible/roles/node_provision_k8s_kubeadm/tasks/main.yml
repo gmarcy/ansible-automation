@@ -66,9 +66,9 @@
               [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ hostvars['cluster-facts']['options']['daily_ip'] }}:5000".auth]
                 username = "{{ hostvars['cluster-facts']['options']['daily_user'] }}"
                 password = "{{ hostvars['cluster-facts']['options']['daily_token'] }}"
-              [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ hostvars['playbook-secrets']['artifactory_fqdn'] }}".tls]
+              [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ lookup('unvault', hostvars['playbook-secrets']['artifactory_fqdn']) | trim }}".tls]
                 insecure_skip_verify = true
-              [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ hostvars['playbook-secrets']['artifactory_fqdn'] }}".auth]
+              [plugins."io.containerd.grpc.v1.cri".registry.configs."{{ lookup('unvault', hostvars['playbook-secrets']['artifactory_fqdn']) | trim }}".auth]
                 username = "{{ hostvars['cluster-facts']['options']['artifactory_username'] }}"
                 password = "{{ hostvars['cluster-facts']['options']['artifactory_token'] }}"
     dest: '/etc/containerd/config.toml'

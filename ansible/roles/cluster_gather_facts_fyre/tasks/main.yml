@@ -11,8 +11,8 @@
   uri:
     url: "{{ fyreocpplus_clusterstatusurl }}"
     method: GET
-    user:  "{{ fyreuser }}"
-    password: "{{ fyreapikey }}"
+    user:  "{{ lookup('unvault', fyreuser) | trim }}"
+    password: "{{ lookup('unvault', fyreapikey) | trim }}"
     validate_certs: False
     force_basic_auth: "{{ fyre_force_basic_auth }}"
     return_content: true
