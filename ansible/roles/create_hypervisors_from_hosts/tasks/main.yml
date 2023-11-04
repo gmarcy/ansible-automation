@@ -1,0 +1,31 @@
+---
+
+- name: Build setup_hypervisors group
+  ansible.builtin.add_host:
+    name: "{{ item['host'] }}"
+    groups: 'setup_hypervisors'
+    ansible_connection: 'smart'
+    ansible_user: "{{ hostvars['playbook-facts'].remote_user }}"
+    ansible_host: "{{ item['ansible_host'] }}"
+    ssh_hostname: "{{ item['ssh_hostname'] | default(omit) }}"
+    ssh_username: "{{ item['ssh_username'] | default(omit) }}"
+  loop: "{{ hypervisor_hosts_map_list | default([]) }}"
+
+- name: Add ansible_ssh_extra_args to setup_hypervisors group
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    groups: 'setup_hypervisors'
+    ansible_ssh_extra_args: "-F {{ hostvars['localhost-facts'].setup_ssh_config }}"
+  loop: "{{ groups['setup_hypervisors'] }}"
+
+- name: Check if ssh config exists
+  ansible.builtin.stat:
+    path: "{{ hostvars['localhost-facts'].local_home + '/.ssh/config' }}"
+  register: _result_ssh_config_stat
+
+- name: Define setup_include_paths
+  ansible.builtin.set_fact:
+    setup_include_paths:
+      "{{ [_result_ssh_config_stat.stat.path] if (_result_ssh_config_stat.stat.exists) else [] }}"
+  delegate_to: 'localhost-facts'
+  delegate_facts: true

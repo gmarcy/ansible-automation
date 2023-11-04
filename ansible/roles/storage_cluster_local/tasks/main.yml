@@ -3,9 +3,9 @@
 - name: Check if we already have the redhat-operators source
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: config.openshift.io/v1
     kind: OperatorHub
-    kubeconfig: "{{ kubeconfig_path }}"
     name: cluster
   register: _result
 
@@ -18,6 +18,7 @@
 - name: Update the OperatorHub if it does not have the redhat-operators catalog
   kubernetes.core.k8s:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: config.openshift.io/v1
     definition:
       spec:
@@ -27,7 +28,6 @@
           - disabled: false
             name: redhat-operators
     kind: OperatorHub
-    kubeconfig: "{{ kubeconfig_path }}"
     name: cluster
   register: _result
   when: redhat_operators_disabled
@@ -35,8 +35,8 @@
 - name: Ensure namespace exists
   kubernetes.core.k8s:
     api_key: "{{ api_key | default(omit) }}"
-    kind: Namespace
     kubeconfig: "{{ kubeconfig_path }}"
+    kind: Namespace
     name: "{{ local_storage_namespace }}"
     state: present
   register: _result
@@ -44,8 +44,8 @@
 - name: Check for existing PersistentVolumes
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
-    kind: PersistentVolume
     kubeconfig: "{{ kubeconfig_path }}"
+    kind: PersistentVolume
     label_selectors:
     - storage.openshift.com/owner-kind=LocalVolumeSet
     - storage.openshift.com/owner-name=filesystem-local-volume-set
@@ -69,8 +69,8 @@
     - name: Wait until all pods are ready
       kubernetes.core.k8s_info:
         api_key: "{{ api_key | default(omit) }}"
-        kind: Pod
         kubeconfig: "{{ kubeconfig_path }}"
+        kind: Pod
         namespace: "{{ local_storage_namespace }}"
         wait: true
         wait_condition:
@@ -80,9 +80,9 @@
     - name: Wait until the ClusterServiceVersions are ready
       kubernetes.core.k8s_info:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: operators.coreos.com/v1alpha1
         kind: ClusterServiceVersion
-        kubeconfig: "{{ kubeconfig_path }}"
         label_selectors:
         - operators.coreos.com/local-storage-operator.{{ local_storage_namespace }}=
         namespace: "{{ local_storage_namespace }}"
@@ -105,9 +105,9 @@
     - name: Wait for discovery results
       kubernetes.core.k8s_info:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: local.storage.openshift.io/v1alpha1
         kind: LocalVolumeDiscoveryResult
-        kubeconfig: "{{ kubeconfig_path }}"
         namespace: "{{ local_storage_namespace }}"
       register: _result
       delay: 10
@@ -141,9 +141,9 @@
     - name: Wait for StorageClass to be created
       kubernetes.core.k8s_info:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: storage.k8s.io/v1
         kind: StorageClass
-        kubeconfig: "{{ kubeconfig_path }}"
         label_selectors:
         - local.storage.openshift.io/owner-name=filesystem-local-volume-set
         - local.storage.openshift.io/owner-namespace={{ local_storage_namespace }}
@@ -156,8 +156,8 @@
     - name: Wait for PersistentVolumes to be created
       kubernetes.core.k8s_info:
         api_key: "{{ api_key | default(omit) }}"
-        kind: PersistentVolume
         kubeconfig: "{{ kubeconfig_path }}"
+        kind: PersistentVolume
         label_selectors:
         - storage.openshift.com/owner-kind=LocalVolumeSet
         - storage.openshift.com/owner-name=filesystem-local-volume-set

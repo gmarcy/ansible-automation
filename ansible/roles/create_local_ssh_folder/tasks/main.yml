@@ -1,0 +1,7 @@
+---
+
+- name: Create .ssh folder if needed
+  ansible.builtin.file:
+    path: "{{ hostvars['localhost-facts'].local_home + '/.ssh' }}"
+    state: directory
+    mode: 0700

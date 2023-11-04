@@ -366,15 +366,6 @@
   set_fact:
     k8s_node_provisioning_role: "{{ 'node_provision_k8s_' + hostvars['k8s-provisioner']['options']['k8s_engine'] }}"
 
-- name: Assert that we have a defined role
-  assert:
-    that: k8s_node_provisioning_role in defined_roles
-  vars:
-    defined_roles:
-    - 'node_provision_k8s_k3s'
-    - 'node_provision_k8s_kubeadm'
-    - 'node_provision_k8s_microk8s'
-
 - name: Create node groups
   add_host:
     name: "{{ item.node }}"
@@ -461,7 +452,7 @@
           IdentitiesOnly yes
           UserKnownHostsFile /dev/null
           StrictHostKeyChecking accept-new
-          ProxyCommand ssh -F {{ '~/.ssh/config.' + cluster_name }} {{ ssh_username + '@' + k8s_infra_hostname }} -W %h:%p
+          ProxyCommand ssh -q -F {{ '~/.ssh/config.' + cluster_name }} {{ ssh_username + '@' + k8s_infra_hostname }} -W %h:%p
       {% endif %}
       {% endfor %}
     dest: "{{ ssh_config }}"

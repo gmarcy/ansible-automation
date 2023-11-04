@@ -1,0 +1,48 @@
+---
+
+### DOCUMENTATION
+#
+# title: Create an ssh config file for a list of hosts
+#
+# description: |-
+#   This task has two params for the template task below
+#     - config_path      optional       default: '~/.ssh/config'
+#     - file_mode        optional       default: '0600'
+#
+#   and two passthrough params for the template itself
+#     - ssh_hosts        required       list of hosts
+#     - ssh_keytype      optional       default: 'rsa'
+#     - keypair_path     optional       default: '~/.ssh/id_' + ssh_keytype
+#     - include_paths    optional       default: empty list
+#
+#   The hosts are used as hostvars keys meeting the following expectations:
+#
+#   hostvars[host].ansible_host must be defined.
+#
+#   A stanza will be added to the ssh config pairing each host with the
+#   corresponding ansible_host
+#
+#   hostvars[host].ssh_connection_address may be defined
+#   hostvars[host].ssh_hostname may be defined
+#
+#   A stanza will be added to the ssh config pairing each ansible_host with either of
+#   these, in the order listed. If neither is defined then the pairing will be omitted.
+#
+# examples: |-
+#   roles:
+#   - role: create_host_ssh_config
+#     ssh_hosts: "{{ groups['cluster_nodes'] }}"
+#     keypair_path: "{{ hostvars['cluster-facts']['cluster_keypair_path'] }}"
+#     config_path: "{{ hostvars['cluster-facts']['cluster_ssh_config'] }}"
+#     file_mode: '0600'
+
+- name: Create ssh config file from template
+  ansible.builtin.template:
+    src: ssh-config.j2
+    dest: "{{ config_path | default('~/.ssh/config') }}"
+    mode: "{{ file_mode | default('0600') }}"
+
+- name: Print the contents of the result
+  ansible.builtin.command: cat {{ config_path | default('~/.ssh/config') }}
+  register: _result
+  changed_when: "_result.rc == 0"

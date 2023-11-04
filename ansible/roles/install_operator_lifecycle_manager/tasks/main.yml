@@ -10,7 +10,7 @@
     olm_download_url: "{{ (target_olm_url | default('https://github.com/operator-framework/operator-lifecycle-manager/releases/download')) + '/' + target_olm_version }}"
     olm_download_dir: "{{ cluster_dir + '/olm' }}"
 
-- name: Check to see if the OLM is already deployed because we are running openshift
+- name: Check to see if the openshift-olm is already deployed
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
     kubeconfig: "{{ kubeconfig_path }}"
@@ -24,7 +24,7 @@
   assert:
     that: _result.resources is defined and _result.resources | length == 0
 
-- name: Check to see if the OLM is already deployed because we are running openshift
+- name: Check to see if the OLM is already deployed
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
     kubeconfig: "{{ kubeconfig_path }}"

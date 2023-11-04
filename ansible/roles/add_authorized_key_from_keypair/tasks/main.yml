@@ -1,0 +1,10 @@
+---
+
+- name: Add keypair to authorized_keys on inventory_hostname
+  ansible.posix.authorized_key:
+    user: "{{ ssh_become_user | default(ssh_user) }}"
+    key: "{{ ssh_pubkey }}"
+    comment: "{{ ssh_comment }}"
+    state: present
+  become: "{{ ssh_become_user | default('') | length > 0 }}"
+  become_user: "{{ ssh_become_user | default(omit) }}"

@@ -1,0 +1,60 @@
+---
+
+- name: Parse setup_host_spec into a dictionary if defined
+  ansible.builtin.set_fact:
+    setup_host_map: "{{ setup_host_spec | from_json }}"
+  when: setup_host_spec is defined
+
+- name: Define default_setup_host_name
+  ansible.builtin.set_fact:
+    default_setup_host_name: "{{ 'setup-host' if (setup_host_map is not defined or setup_host_map['host'] is not defined) else setup_host_map['host'] }}"
+
+- name: Define default_setup_ansible_host
+  ansible.builtin.set_fact:
+    default_setup_ansible_host: "{{ 'localhost' if (setup_host_map is not defined or setup_host_map['ansible_host'] is not defined) else setup_host_map['ansible_host'] }}"
+
+- name: Define setup_host_name
+  ansible.builtin.set_fact:
+    setup_host_name: "{{ default_setup_host_name if (('setup_host' not in groups) or ((groups['setup_host'] | list | length) == 0)) else groups['setup_host'][0] }}"
+
+- name: Add a default entry for localhost if there are no setup_host members
+  ansible.builtin.add_host:
+    name: "{{ setup_host_name }}"
+    group: 'setup_host'
+    ansible_host: "{{ default_setup_ansible_host }}"
+    ansible_connection: "{{ 'local' if (default_setup_ansible_host == 'localhost') else 'smart' }}"
+    target: "{{ setup_host_name }}"
+  when: "('setup_host' not in groups) or ((groups['setup_host'] | list | length) == 0)"
+
+- name: Add ansible_host for setup_host if not defined
+  ansible.builtin.add_host:
+    name: "{{ setup_host_name }}"
+    group: setup_host
+    ansible_host: "{{ hostvars[hostvars[setup_host_name].target].ansible_host }}"
+  when: "hostvars[setup_host_name].ansible_host is not defined"
+
+- name: Add target for setup_host if not defined
+  ansible.builtin.add_host:
+    name: "{{ setup_host_name }}"
+    group: setup_host
+    target: "{{ setup_host_name }}"
+  when: "hostvars[setup_host_name].target is not defined"
+
+- name: Change the ansible_host to the ansible_fqdn of the host running the container
+  ansible.builtin.add_host:
+    name: "{{ setup_host_name }}"
+    group: 'setup_host'
+    ansible_host: "{{ lookup('community.general.dig', ansible_facts.fqdn) }}"
+    ansible_connection: 'smart'
+  when: hostvars['playbook-facts'].container_run and (hostvars[setup_host_name].ansible_connection | default('') == 'local')|bool
+
+- name: Add local_install fact
+  ansible.builtin.add_host:
+    name: "playbook-facts"
+    local_install: "{{ (hostvars[setup_host_name].ansible_connection | default('') == 'local')|bool }}"
+
+- name: Add remote ssh params for setup_host when install is not local
+  ansible.builtin.add_host:
+    name: "{{ setup_host_name }}"
+    group: setup_host
+    ansible_user: "{{ hostvars['playbook-facts'].remote_user }}"

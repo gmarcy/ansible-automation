@@ -1,0 +1,15 @@
+---
+
+- name: Cleanup any remnants of previous setup deployments
+  hosts: setup_host
+  become: false
+  gather_subset: "!all,network"
+  gather_facts: false
+  tags: tag_cleanup_deployment
+  roles:
+  - role: check_playbook_terminated
+  - role: check_stop_before
+    task_to_check: task-cleanup-deployment
+  - role: setup_cleanup_deployment
+  - role: check_stop_after
+    task_to_check: task-cleanup-deployment

@@ -6,9 +6,9 @@
     - name: Create Subscription for operator
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: operators.coreos.com/v1alpha1
         kind: Subscription
-        kubeconfig: "{{ kubeconfig_path }}"
         name: "{{ cp4i_operator_name }}"
         namespace: "{{ target_namespace }}"
         definition:
@@ -32,8 +32,8 @@
     - name: Wait for CP4I operator
       kubernetes.core.k8s_info:
         api_key: "{{ api_key | default(omit) }}"
-        kind: Deployment
         kubeconfig: "{{ kubeconfig_path }}"
+        kind: Deployment
         name: ibm-integration-platform-navigator-operator
         namespace: "{{ target_namespace }}"
         wait: true
@@ -46,9 +46,9 @@
     - name: Wait until all the CP4I CSV succeed
       kubernetes.core.k8s_info:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: operators.coreos.com/v1alpha1
         kind: ClusterServiceVersion
-        kubeconfig: "{{ kubeconfig_path }}"
         namespace: "{{ target_namespace }}"
       register: _result
       delay: 30

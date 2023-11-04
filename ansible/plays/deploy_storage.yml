@@ -14,3 +14,7 @@
   - role: set_default_storage_class
     api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
     kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+  - when: test_storage_provisioner | default(false)
+    role: test_storage_provisioner
+    api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"

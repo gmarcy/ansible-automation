@@ -80,6 +80,7 @@
           REGISTRY_HTTP_SECRET: "{{ registry_http_secret }}"
           REGISTRY_HTTP_TLS_CERTIFICATE: /certs/certificate.pem
           REGISTRY_HTTP_TLS_KEY: /certs/certificate.key
+          REGISTRY_COMPATIBILITY_SCHEMA1_ENABLED: true
       register: _result_container_info
       retries: 5
       delay: 10

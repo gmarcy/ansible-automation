@@ -124,6 +124,7 @@
   command: |
     cat {{ registry_proxy_certs + '/ca.crt' }}
   register: _result
+  changed_when: false
 
 - name: Set a fact for the ca.cert
   set_fact:

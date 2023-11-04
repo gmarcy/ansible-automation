@@ -1,0 +1,13 @@
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ test_storage_provisioner_claim }}
+  namespace: {{ test_storage_provisioner_namespace }}
+spec:
+  storageClassName: {{ default_storage_class }}
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Mi

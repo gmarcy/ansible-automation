@@ -125,7 +125,7 @@ spec:
       metrics:
         - bundleQuantity: 100000
           prometheusID: api_calls_total
-          prometheusQuery: {{ Values.prometheusQuery }}
+          prometheusQuery: {{ Values.prometheusQuery | regex_replace('#','{') }}
           metricType: point-in-time
           criteriaID: {{ Values.criteria.trial.id }}
           displayName: {{ Values.criteria.trial.name }}

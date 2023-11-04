@@ -33,8 +33,14 @@
     loop: "{{ subscriptions }}"
     loop_control:
       loop_var: subscription
+    vars:
+      mcsp_namespace: "{{ mcsp_target.namespace }}"
+      mcsp_cluster_name: "{{ hostvars['cluster-facts']['cluster_fqdn'] }}"
   - name: Add tenants
     include_role: name=mcsp_add_tenant
     loop: "{{ tenants }}"
     loop_control:
       loop_var: tenant
+    vars:
+      mcsp_namespace: "{{ mcsp_target.namespace }}"
+      mcsp_cluster_name: "{{ hostvars['cluster-facts']['cluster_fqdn'] }}"

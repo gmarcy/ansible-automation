@@ -99,16 +99,26 @@ all:
         mcsp_stm_okd_sa_namespace: "{{ inv_mcsp_stm_okd_sa_namespace | default('stm-okd-service-account') }}"
         mcsp_target:
           namespace: tenantns
+          csb_host: common-service-broker.common-service-broker.svc.cluster.local
           environment: fyre
           deploy_db: true
         mcsp_argo_services:
           automation-management-console-cd:
             repo: git@github.ibm.com:automation-paas-cd-pipeline/automation-management-console-cd.git
-            branch: fyre-v3
+            branch: fyre-v3.4
             local_properties:
               PLACE_HOLDER_AM_CONSOLE_NS: "{{ mcsp_target['namespace_am'] | default('automation-management-console') }}"
               PLACE_HOLDER_REPLICAS: "1"
               MICROSERVICE_NAME: am-console
+          mcsp-instance-management-ui-cd:
+            repo: git@github.ibm.com:automation-paas-cd-pipeline/mcsp-instance-management-ui-cd.git
+            branch: fyre
+            local_properties: |
+              PLACE_HOLDER_INSTANCE_USERMGTUI_NS=mcsp-instance-user-management
+              MICROSERVICE_NAME=mcsp-instance-usermgmt-ui
+              REDIS_HOST=redb.redis1.svc.cluster.local
+              REDIS_PORT=17997
+              REDIS_PASSWORD=password
           usermgt:
             repo: git@github.ibm.com:automation-paas-cd-pipeline/usermgt.git
             branch: fyre-v3
@@ -117,7 +127,7 @@ all:
               MICROSERVICE_NAME: usermgtms
           siusermgt:
             repo: git@github.ibm.com:automation-paas-cd-pipeline/siusermgt.git
-            branch: fyre-v3
+            branch: fyre-v3.2
             local_properties:
               PLACE_HOLDER_REPLICAS: "1"
               MICROSERVICE_NAME: siusermgtms
@@ -129,13 +139,13 @@ all:
               MICROSERVICE_NAME: notificationsvcms
           subscriptmgt:
             repo: git@github.ibm.com:automation-paas-cd-pipeline/subscriptmgt.git
-            branch: fyre-v2
+            branch: fyre-v3
             local_properties:
               PLACE_HOLDER_REPLICAS: "1"
               MICROSERVICE_NAME: subscriptmgtms
           tenantmgt:
             repo: git@github.ibm.com:automation-paas-cd-pipeline/tenantmgt.git
-            branch: fyre-v3
+            branch: fyre-v3.2
             local_properties:
               PLACE_HOLDER_BROKER_PATH_ELEMENT: "{{ mcsp_target['broker_path_element'] | default('csb-demo-group') }}"
               PLACE_HOLDER_REPLICAS: "1"
@@ -149,25 +159,26 @@ all:
               MICROSERVICE_NAME: product-reg
           common-service-broker:
             repo: git@github.ibm.com:automation-paas-cd-pipeline/common-service-broker.git
-            branch: fyre-v3
+            branch: fyre-v3.2
             local_properties:
               PLACE_HOLDER_REPLICAS: "1"
               MICROSERVICE_NAME: csbms
-          #csb-adapter:
-          #  repo: git@github.ibm.com:automation-paas-cd-pipeline/csb-adapter.git
-          #  branch: fyre-v3
-          #  local_properties:
-          #    PLACE_HOLDER_CSB_ADAPTER_NS: "{{ mcsp_target['namespace_csbadapter'] | default('csb-adapter-demo') }}"
-          #    PLACE_HOLDER_REPLICAS: "1"
-          #    MICROSERVICE_NAME: "csb-adapter"
-          #    PLACE_HOLDER_CR_ENABLE: "true"
-          #    PLACE_HOLDER_CSB_SERVICE_PLAN_ID: "testpak_trial"
-          #    PLACE_HOLDER_CSB_PAID_SERVICE_PLAN_ID: "testpak_paid"
-          #    PLACE_HOLDER_CSB_SERVICE_ID: "testpak"
+          csb-adapter:
+            repo: git@github.ibm.com:automation-paas-cd-pipeline/csb-adapter.git
+            branch: fyre-v3.1
+            local_properties:
+              PLACE_HOLDER_CSB_ADAPTER_NS: "{{ mcsp_target['namespace_csbadapter'] | default('csb-adapter-demo') }}"
+              PLACE_HOLDER_REPLICAS: "1"
+              MICROSERVICE_NAME: "csb-adapter"
+              PLACE_HOLDER_CR_ENABLE: "true"
+              PLACE_HOLDER_CSB_SERVICE_PLAN_ID: "testpak_trial"
+              PLACE_HOLDER_CSB_PAID_SERVICE_PLAN_ID: "testpak_paid"
+              PLACE_HOLDER_CSB_SERVICE_ID: "testpak"
         mcsp_database:
           name: dynamodblocal
-          repo: git@github.ibm.com:automation-saas/dynamodblocal.git
+          repo: git@github.ibm.com:ibm-saas-platform/dynamodblocal.git
           branch: main
+          persistent: true
           suffix: Fyre
     mcsp_tenant:
       hosts:

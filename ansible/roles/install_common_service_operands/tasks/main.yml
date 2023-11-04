@@ -3,9 +3,9 @@
 - name: Get CommonService status
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: operator.ibm.com/v3
     kind: CommonService
-    kubeconfig: "{{ kubeconfig_path }}"
     name: "{{ common_service_operand_name }}"
     namespace: "{{ common_service_operator_namespace }}"
   register: _result
@@ -42,9 +42,9 @@
 - name: Get CommonService status
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: operator.ibm.com/v3
     kind: CommonService
-    kubeconfig: "{{ kubeconfig_path }}"
     name: "{{ common_service_operand_name }}"
     namespace: "{{ common_service_operator_namespace }}"
   register: _result
@@ -55,9 +55,9 @@
 - name: Wait for CommonService to reach Updating or Succeeded phase
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: operator.ibm.com/v3
     kind: CommonService
-    kubeconfig: "{{ kubeconfig_path }}"
     name: "{{ common_service_operand_name }}"
     namespace: "{{ common_service_operator_namespace }}"
   register: _result
@@ -69,9 +69,9 @@
 - name: Wait for CommonService to reach Succeeded overallStatus
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: operator.ibm.com/v3
     kind: CommonService
-    kubeconfig: "{{ kubeconfig_path }}"
     name: "{{ common_service_operand_name }}"
     namespace: "{{ common_service_operator_namespace }}"
   register: _result

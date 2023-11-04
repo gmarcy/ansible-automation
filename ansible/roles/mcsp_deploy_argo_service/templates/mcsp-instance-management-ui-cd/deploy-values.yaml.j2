@@ -1,0 +1,39 @@
+version: 1.2.0
+namespace: <place-holder-instance-uesrmgt-ns>
+application: mcsp-instance-user-management-ui
+serviceAccount: mcsp-instance-user-management-ui-sa
+clusterRoleBinding: mcsp-instance-user-management-ui-crb
+imagePullSecret: mcsp-instance-user-management-ui-pull-secret
+deploymentPromoterSecret: mcsp-instance-user-management-ui-dp-secret
+
+image: icr.io/automation-saas-platform/ui/automation-instance-user-management-ui:20230510030012-main-7c659d45b53974cf971fbf7fa73221681f19217c
+
+# Env Secrets
+CLIENT_ID: {{ CLIENT_ID }}
+CLIENT_SECRET: {{ CLIENT_SECRET }}
+SESSION_SECRET: gjagdzgmicnkfmfaugfhmemxpfilabzf
+AUTOMATION_CONSOLE_SA_TOKEN: <pull-from-server>
+REDIS_PORT: <redis-port>
+REDIS_HOST: <redis-host>
+REDIS_PASSWORD: <redis-password>
+
+environment: development
+hostname: mcsp-instance-usermgmt-ui.apps.{CLUSTER_HOSTNAME_ID}
+
+CONFIG_ENV: dev
+NODE_ENV: production
+APP_CONTEXT: /management
+TENANT_MANAGER_API: https://tenantmgtms.<place-holder-ns>.svc.cluster.local:9443/tenantmgr/api/1.0/admin
+INSTANCE_USER_MANAGEMENT_API: https://siusermgtms.<place-holder-ns>.svc.cluster.local:9445/siusermgr/api/1.0
+
+
+#encoding section to specify which field values need to be encoded and how
+encoding:
+  - name: no-base64
+    times: 0
+    field_names:
+      AUTOMATION_CONSOLE_SA_TOKEN 
+  - name: single-base64
+    times: 1
+    field_names:
+      PRODUCT_REGISTRATION_CA     

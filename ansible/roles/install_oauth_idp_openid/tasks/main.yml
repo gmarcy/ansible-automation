@@ -10,7 +10,7 @@
     namespace: openshift-config
     definition:
       data:
-        clientSecret: "{{ oauth_idp_openid_client_secret | b64encode }}"
+        clientSecret: "{{ lookup('unvault', oauth_idp_openid_client_secret) | trim | b64encode }}"
       type: Opaque
   register: _result
 
@@ -37,9 +37,9 @@
               - name
               preferredUsername:
               - preferred_username
-            clientID: "{{ oauth_idp_openid_client_id }}"
+            clientID: "{{ lookup('unvault', oauth_idp_openid_client_id) | trim }}"
             clientSecret:
               name: "{{ oauth_idp_openid_client_secret_name }}"
             extraScopes: []
-            issuer: "{{ oauth_idp_openid_issuer }}"
+            issuer: "{{ lookup('unvault', oauth_idp_openid_issuer) | trim }}"
   register: _result

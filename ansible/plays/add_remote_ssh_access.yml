@@ -1,0 +1,14 @@
+---
+
+- name: Add ssh access to remote hosts
+  hosts: remote_hosts
+  gather_facts: false
+  pre_tasks:
+  - assert:
+      that: authorized_key_name is defined and hostvars['playbook-facts']['authorized_keys'][authorized_key_name] is defined
+  roles:
+  - role: add_authorized_key_from_keypair
+    ssh_user: "{{ user_name }}"
+    ssh_pubkey: "{{ hostvars['playbook-facts'].authorized_keys[authorized_key_name].pubkey }}"
+    ssh_comment: "{{ hostvars['playbook-facts'].authorized_keys[authorized_key_name].comment }}"
+    ssh_become_user: "{{ become_user | default(omit) }}"

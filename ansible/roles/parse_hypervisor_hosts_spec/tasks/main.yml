@@ -1,0 +1,6 @@
+---
+
+- name: Load hypervisor_hosts_spec from yaml into a list of dictionaries
+  ansible.builtin.set_fact:
+    hypervisor_hosts_map_list: "{{ hypervisor_hosts_spec | from_json }}"
+  when: hypervisor_hosts_spec is defined

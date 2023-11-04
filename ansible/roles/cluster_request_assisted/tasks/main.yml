@@ -45,7 +45,7 @@
         body:
           name: "{{ cluster_name }}"
           openshift_version: "{{ openshift_version }}"
-          pull_secret: '{{ lookup('unvault', openshift_pullsecret) | trim | string }}'
+          pull_secret: "{{ lookup('unvault', openshift_pullsecret) | trim | string }}"
           high_availability_mode: "{{ high_availability_mode }}"
           base_dns_domain: "{{ cluster_domain }}"
           ssh_public_key: "{{ lookup('unvault', ssh_public_key) | trim }}"

@@ -14,32 +14,33 @@
   set_fact:
     registry_artifacts_exist: "{{ _result.stat.exists }}"
 
+- name: Set facts for this role
+  set_fact:
+    cluster_ip: "{{ hostvars['cluster-facts']['cluster_publicip'] }}"
+    cluster_ip_fqdn: "{{ hostvars['cluster-facts']['cluster_publicip'] + '.nip.io' }}"
+    cluster_fqdn: "{{ hostvars['cluster-facts']['cluster_fqdn'] }}"
+    secret_ca_passphrase: EverythingIsAwesome
+    registry_username: registry
+    registry_password: 'p@ssw0rd'
+    registry_service_owner: "{{ hostvars['playbook-facts']['remote_user'] }}"
+    registry_service_group: "{{ hostvars['playbook-facts']['remote_user'] }}"
+    ca_path_base: "{{ user_home + '/.kube/cluster-ca' }}"
+
+- name: Set fact for cluster subject alternative names
+  set_fact:
+    registry_url: "{{ cluster_fqdn + ':5000' }}"
+    cluster_san:
+    - "{{ 'IP:' + cluster_ip }}"
+    - "{{ 'DNS:' + cluster_ip_fqdn }}"
+    - "{{ 'DNS:registry.' + cluster_ip_fqdn }}"
+    - "{{ 'DNS:cp-console.' + cluster_ip_fqdn }}"
+    - "{{ 'DNS:*.apps.' + cluster_ip_fqdn }}"
+    - "{{ 'DNS:' + cluster_fqdn }}"
+    - "{{ 'DNS:registry.' + cluster_fqdn }}"
+    - "{{ 'DNS:cp-console.' + cluster_fqdn }}"
+
 - when: not registry_artifacts_exist
   block:
-
-    - name: Set facts for this role
-      set_fact:
-        cluster_ip: "{{ hostvars['cluster-facts']['cluster_publicip'] }}"
-        cluster_ip_fqdn: "{{ hostvars['cluster-facts']['cluster_publicip'] + '.nip.io' }}"
-        cluster_fqdn: "{{ hostvars['cluster-facts']['cluster_fqdn'] }}"
-        secret_ca_passphrase: EverythingIsAwesome
-        registry_username: registry
-        registry_password: 'p@ssw0rd'
-        registry_service_owner: "{{ hostvars['playbook-facts']['remote_user'] }}"
-        registry_service_group: "{{ hostvars['playbook-facts']['remote_user'] }}"
-        ca_path_base: "{{ user_home + '/.kube/cluster-ca' }}"
-
-    - name: Set fact for cluster subject alternative names
-      set_fact:
-        cluster_san:
-        - "{{ 'IP:' + cluster_ip }}"
-        - "{{ 'DNS:' + cluster_ip_fqdn }}"
-        - "{{ 'DNS:registry.' + cluster_ip_fqdn }}"
-        - "{{ 'DNS:cp-console.' + cluster_ip_fqdn }}"
-        - "{{ 'DNS:*.apps.' + cluster_ip_fqdn }}"
-        - "{{ 'DNS:' + cluster_fqdn }}"
-        - "{{ 'DNS:registry.' + cluster_fqdn }}"
-        - "{{ 'DNS:cp-console.' + cluster_fqdn }}"
 
     - name: Create directories
       file:
@@ -64,6 +65,49 @@
         - passlib
         state: latest
         extra_args: --user
+
+    - name: Generate htpasswd entry
+      community.general.htpasswd:
+        path: "{{ registry_auth_path_base + '/htpasswd' }}"
+        crypt_scheme: bcrypt
+        name: "{{ registry_username }}"
+        password: "{{ registry_password }}"
+        owner: "{{ registry_service_owner }}"
+        group: "{{ registry_service_group }}"
+        mode: '0600'
+
+- name: Create default registry_pullsecret
+  set_fact:
+    registry_pullsecret: "{{ '{\"auths\": {}}' | from_json }}"
+
+- name: Set disconnected_auth
+  set_fact:
+    disconnected_registry_up: "{{ (registry_username + ':' + registry_password) | b64encode }}"
+
+- name: Create registry auth for pullsecret
+  set_fact:
+    disconnected_auth: "{{ ('{\"auths\": {\"' + registry_url + '\": {\"auth\": \"' + disconnected_registry_up + '\"}}}') | from_json }}"
+
+- name: Add disconnected auth to pullsecret
+  set_fact:
+    _result_pullsecret: "{{ registry_pullsecret | combine(disconnected_auth, recursive=true) }}"
+
+- name: Override final kubeinit_registry_pullsecret with both auths
+  set_fact:
+    registry_pullsecret: "{{ _result_pullsecret }}"
+
+- name: Debug the creds dictionary
+  debug:
+    var: registry_pullsecret
+
+- name: Set registry_pullsecret fact
+  set_fact:
+    registry_pullsecret: "{{ registry_pullsecret }}"
+  delegate_to: 'k8s-provisioner'
+  delegate_facts: true
+
+- when: not registry_artifacts_exist
+  block:
 
     # Set up the CA
 
@@ -141,13 +185,3 @@
         content: "{{ certificate.certificate }}"
       run_once: true
       when: certificate is changed
-
-    - name: Generate htpasswd entry
-      community.general.htpasswd:
-        path: "{{ registry_auth_path_base + '/htpasswd' }}"
-        crypt_scheme: bcrypt
-        name: "{{ registry_username }}"
-        password: "{{ registry_password }}"
-        owner: "{{ registry_service_owner }}"
-        group: "{{ registry_service_group }}"
-        mode: '0600'

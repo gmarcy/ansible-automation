@@ -1,0 +1,45 @@
+---
+
+all:
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  children:
+    all_nodes:
+    cluster_facts:
+      hosts:
+        cluster-facts:
+      vars:
+        cluster_provisioner: 'kubeinit_install'
+        inv_cluster_description: 'OpenShift Cluster'
+        inv_cluster_name: homelab
+        inv_cluster_domain: clusters.lab.gmarcy.com
+        inv_cluster_single_node: true
+        inv_network_cidr: 192.168.222.0/24
+        inv_cluster_proxy: http://192.168.222.212:3128
+        inv_cluster_hosts:
+          - nuc10
+        inv_kubernetes_distro: openshift
+        inv_openshift_distro: ocp
+        inv_openshift_version: '4.12.22'
+    cluster_hosts:
+      hosts:
+        nuc10:
+      vars:
+        host_domain: lab.gmarcy.com
+    kubeinit_install:
+      hosts:
+        kubeinit-install:
+      vars:
+        provisioning_role: 'cluster_request_kubeinit'
+        deprovisioning_role: 'cluster_cleanup_kubeinit'
+        cluster_facts_role: 'cluster_gather_facts_kubeinit'
+        inv_kubeinit_install_host: kubeinit.lab.gmarcy.com
+    cluster_storage:
+      hosts:
+        cluster-storage:
+      vars:
+        storage_provisioner: 'nfslocal'
+        provisioning_role: 'storage_deploy_nfslocal'
+        deprovisioning_role: 'storage_remove_nfslocal'
+        inv_default_storage_class: "{{ nfslocal_storage_class }}"
+        inv_default_block_class: "{{ nfslocal_block_class }}"

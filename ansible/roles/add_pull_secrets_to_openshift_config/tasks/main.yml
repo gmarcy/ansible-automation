@@ -3,8 +3,8 @@
 - name: Fetch cluster pull secret
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
-    kind: Secret
     kubeconfig: "{{ kubeconfig_path }}"
+    kind: Secret
     name: pull-secret
     namespace: openshift-config
   register: _result
@@ -64,12 +64,12 @@
     - name: Update merged cluster pull secret
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         definition:
           data:
             .dockerconfigjson: "{{ new_pull_secret | to_json | b64encode }}"
           type: kubernetes.io/dockerconfigjson
         kind: Secret
-        kubeconfig: "{{ kubeconfig_path }}"
         merge_type: merge
         name: pull-secret
         namespace: openshift-config

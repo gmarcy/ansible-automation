@@ -1,10 +1,9 @@
-FROM quay.io/ansible/ansible-runner
+FROM docker.io/library/python:3.11
 
 RUN set -x && \
-    dnf --noplugins update -y && \
-    dnf --noplugins install -y python39 python39-pip openssh-clients podman jq && \
-    dnf --noplugins remove -y python38 python38-pip && \
-    dnf --noplugins upgrade -y && dnf --noplugins clean all
+    apt-get update -y && \
+    apt-get upgrade -y && \
+    apt-get autoremove
 
 ARG USER=runner
 ARG UID=1001
@@ -23,7 +22,8 @@ ENV PATH $HOME/.local/bin:$PATH
 
 RUN set -x && \
     python3 -m pip install --no-cache-dir --user --upgrade pip && \
-    python3 -m pip install --no-cache-dir --user --upgrade ansible
+    python3 -m pip install --no-cache-dir --user --upgrade ansible && \
+    python3 -m pip install --no-cache-dir --user --upgrade netaddr
 
 COPY --chown=${USER}:0 . .
 

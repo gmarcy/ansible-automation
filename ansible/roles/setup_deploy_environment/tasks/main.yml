@@ -1,0 +1,37 @@
+---
+
+- name: Delegate to setup_host_name
+  block:
+
+    - name: Install latest pip module
+      ansible.builtin.pip:
+        name: pip
+        state: latest
+        extra_args: --user
+
+    - name: Install latest cryptography module
+      ansible.builtin.pip:
+        name: cryptography
+        state: latest
+        extra_args: --user
+
+    - name: Install latest ansible module
+      ansible.builtin.pip:
+        name: ansible
+        state: latest
+        extra_args: --user
+
+    - name: Install latest shyaml and netaddr modules
+      ansible.builtin.pip:
+        name:
+          - shyaml
+          - netaddr
+          - ipython
+        state: latest
+        extra_args: --user
+
+  vars:
+    setup_host_name: "{{ inventory_hostname }}"
+  environment:
+    PATH: "{{ hostvars[setup_host_name]['user_home'] + '/.local/bin:' + hostvars[setup_host_name]['user_path'] }}"
+  delegate_to: "{{ setup_host_name }}"

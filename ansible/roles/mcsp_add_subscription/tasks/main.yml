@@ -1,9 +1,6 @@
 ---
 
 - name: Set facts for this role
-  set_fact:
-    mcsp_namespace: "{{ mcsp_target.namespace }}"
-    mcsp_cluster_name: "{{ hostvars['cluster-facts']['cluster_fqdn'] }}"
     subs: "{{ subscription }}"
 
 - name: Check for existing MCSP Subscription

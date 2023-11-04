@@ -1,10 +1,5 @@
 ---
 
-- name: Set facts for this role
-  set_fact:
-    mcsp_namespace: "{{ mcsp_target.namespace }}"
-    mcsp_cluster_name: "{{ hostvars['cluster-facts']['cluster_fqdn'] }}"
-
 - name: Check for existing MCSP Tenant
   uri:
     url: "{{ 'https://tenantmgtms-' + mcsp_namespace + '.apps.' + mcsp_cluster_name + '/tenantmgr/api/1.2/mgmt-console/tenants' }}"

@@ -19,7 +19,7 @@
   - role: generate_artifactory_token
     when: need_artifactory_token and artifactory_generate_access_token is defined
 
-- name: "Provision nodes using node_provisioning_role when requested"
+- name: Gather facts from all nodes
   hosts: all_nodes
   gather_facts: false
   roles:

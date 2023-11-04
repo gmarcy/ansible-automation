@@ -1,0 +1,154 @@
+---
+
+- name: Deploy the netsvcs environment
+  hosts: remote_hosts
+  gather_facts: false
+  tags: tag_deploy_netsvcs
+  roles:
+  - role: check_playbook_terminated
+  - role: check_stop_before
+    task_to_check: task-deploy-netsvcs
+  - role: netsvcs_deploy_environment
+  - role: prepare_deploy_ssh
+  - role: create_host_ssh_config
+    ssh_hosts: []
+    ssh_keytype: "{{ hostvars['localhost-facts'].ssh_keytype }}"
+    keypair_path: "{{ hostvars[inventory_hostname].deploy_keypair_path }}"
+    config_path: "{{ hostvars[inventory_hostname].deploy_ssh_config }}"
+    include_paths: "{{ hostvars[inventory_hostname].deploy_include_paths }}"
+  - role: create_keypair_set_facts
+    ssh_path: "{{ hostvars[inventory_hostname].deploy_keypair_path }}"
+    ssh_keytype: "{{ hostvars['localhost-facts'].ssh_keytype }}"
+    ssh_comment: "{{ inventory_hostname + ' ' + hostvars['playbook-facts'].remote_user + '@' + hostvars[inventory_hostname].ssh_connection_address }}"
+  - role: add_authorized_key_from_keypair
+    ssh_user: "{{ hostvars['playbook-facts'].remote_user }}"
+    ssh_pubkey: "{{ hostvars[inventory_hostname].keypair_pubkey }}"
+    ssh_comment: "{{ hostvars[inventory_hostname].keypair_comment }}"
+  - role: check_stop_after
+    task_to_check: task-deploy-netsvcs
+
+#!/usr/bin/env bash
+
+set -e
+
+rpodman() {
+  podman --connection network-service $@
+}
+
+if grep -qs netsvcs.lab.gmarcy.com ~/.ssh/known_hosts; then
+  ssh-keygen -R netsvcs.lab.gmarcy.com >> /dev/null
+  rm -f ~/.ssh/known_hosts.old
+fi
+podman system connection remove network-service
+podman system connection list -q
+NETSVCS_UID=$(ssh -q -i ~/.ssh/homelab_id_ed25519 netsvcs@netsvcs.lab.gmarcy.com id -u)
+podman system connection add --identity ~/.ssh/homelab_id_ed25519 network-service ssh://netsvcs@netsvcs.lab.gmarcy.com:22/run/user/1001/podman/podman.sock
+podman system connection list -q
+
+#
+# cleanup everything
+#
+rpodman pod ls -q
+rpodman pod rm -a -f
+rpodman pod ls -q
+rpodman volume ls
+rpodman volume rm -a -f
+rpodman volume ls
+rpodman network ls -q
+rpodman ps -a -q
+rpodman rm -a -f
+rpodman ps -a -q
+
+rpodman volume create netbootxyz-assets
+rpodman volume create netbootxyz-config
+rpodman run -d --rm --name netbootxyz-volumes-copy -u ${NETSVCS_UID} -v netbootxyz-assets:/assets -v netbootxyz-config:/config docker.io/library/busybox:latest sleep infinity
+(cd files/assets; tar cf - .) | rpodman cp - netbootxyz-volumes-copy:/assets
+(cd files/config; tar cf - .) | rpodman cp - netbootxyz-volumes-copy:/config
+rpodman kill netbootxyz-volumes-copy
+rpodman pull ghcr.io/gmarcy/netboot.xyz-builder:latest
+rpodman run --rm -u ${NETSVCS_UID} -v netbootxyz-config:/buildout ghcr.io/gmarcy/netboot.xyz-builder:latest
+rpodman run --rm -u ${NETSVCS_UID} -v netbootxyz-config:/config docker.io/library/busybox:latest cp -r /config/buildout /config/menus
+rpodman run --rm -u ${NETSVCS_UID} -v netbootxyz-config:/config docker.io/library/busybox:latest mkdir -p /config/menus/local
+rpodman run --rm -u ${NETSVCS_UID} -v netbootxyz-config:/config docker.io/library/busybox:latest mv /config/buildout /config/menus/remote
+rpodman pod create --name network-services --network host
+rpodman pod start network-services
+rpodman pull lscr.io/linuxserver/netbootxyz:latest
+rpodman run -d --rm --name netbootxyz --pod network-services --network host --privileged \
+ -e PUID=1000 -e PGID=1000 -e PORT_RANGE="30000:30010" \
+ -v netbootxyz-assets:/assets \
+ -v netbootxyz-config:/config \
+ lscr.io/linuxserver/netbootxyz:latest
+
+#    7  podman pull ghcr.io/gmarcy/netsvcs:latest
+#    8  podman run -ti --rm --entrypoint /bin/bash ghcr.io/gmarcy/netsvcs:latest
+#    9  podman run docker.io/python:3.11
+#   10  podman image ls
+#   11  podman run --rm -ti docker.io/library/python:3.11
+#   12  podman run --rm -ti --entrypoint /bin/bash docker.io/library/python:3.11
+#   13  wget
+#   14  ls -latr
+#   15  mkdir netboot.xyz
+#   16  cd netboot.xyz/
+#   17  unzip ../netboot.xyz.zip
+#   18  pwd
+#   19  cd ..
+#   20  ls -l
+#   21  pwd
+#   22  ls -la
+#   23  ls -l netboot.xyz
+#   24  rm -rf netboot.xyz*
+#   25  ls -latr
+#   26  git clone https://github.com/gmarcy/netboot.xyz.git
+#   27  cd netboot.xyz/
+#   28  git checkout --help
+#   29  git fetch --all --tags
+#   30  pwd
+#   31  ls -l
+#   32  git status
+#   33  cd ..
+#   34  rm -rf netboot.xyz
+#   35  git clone https://github.com/netbootxyz/netboot.xyz.git
+#   36  cd netboot.xyz/
+#   37  git checkout tags/2.0.72 -b homelab
+#   38  git log
+#   39  cd ..
+#   40  podman volume ls
+#   41  podman pull ghcr.io/gmarcy/netboot.xyz:latest
+#   42  podman run --rm -it -v netboot-xyz-config:/buildout ghcr.io/gmarcy/netboot.xyz:latest
+#   43  podman image ls
+#   44  podman run --rm -it -v netboot-xyz-config:/buildout --entrypoint /bin/bash ghcr.io/gmarcy/netsvcs:latest
+#   45  history
+#   46  podman run --rm -it -v netboot-xyz-config:/buildout --entrypoint /bin/bash ghcr.io/gmarcy/netboot.xyz:latest
+#   47  podman run --rm -it -v netboot-xyz-config:/buildout --entrypoint /bin/sh ghcr.io/gmarcy/netboot.xyz:latest
+#   48  id
+#   49  uuidgen
+#   50  date --help
+#   51  date -u +%y%m%d
+#   52  date -u +%Y%m%d
+#   53  podman volume ls
+#   54  podman volume inspect netboot-xyz-config
+#   55  ls -l /var/home/netsvcs/.local/share/containers/storage/volumes/netboot-xyz-config/_data
+#   56* podman volume rm /var/home/netsvcs/.local/share/containers/storage/volumes/netboot-xyz-config/_data[A
+#   57  podman volume rm netboot-xyz-config
+#   58  ls -l /var/home/netsvcs/.local/share/containers/storage/volumes/netboot-xyz-config/_data
+#   59  podman volume ls
+#   60  podman volume create netboot-xyz-config --help
+#   61  podman volume --help
+#   62  podman volume create netboot-xyz-config
+#   63  podman volume import netboot-xyz-config --help
+#   64  podman run --rm -v netboot-xyz-config:/buildout ghcr.io/gmarcy/netboot.xyz:latest
+#   65  podman run --rm -it -v netboot-xyz-config:/buildout busybox:latest
+#   66  podman run --rm -it -v netboot-xyz-config:/config busybox:latest
+#   67  podman run -u 1001 -g 0 --rm -it -v netboot-xyz-config:/config busybox:latest
+#   68  podman run -u 1001  --rm -it -v netboot-xyz-config:/config busybox:latest
+#   69  podman run --rm -it -v netboot-xyz-config:/config busybox:latest
+#   70  podman run -u 1001  --rm -it -v netboot-xyz-config:/config busybox:latest
+#   71  ls -l
+#   72  podman run -u 1001  --rm -it -v netboot-xyz-config:/config busybox:latest sleep --help
+#   73  podman run -u 1001  --rm -v netboot-xyz-config:/config busybox:latest sleep infinity
+#   74  podman ps -a
+#   75  podman rm -a -f
+#   76  fg
+#   77  podman run -u 1001 -d --rm -v netboot-xyz-config:/config busybox:latest sleep infinity
+#   78  podman ps -a
+#   79  podman rm -a -f

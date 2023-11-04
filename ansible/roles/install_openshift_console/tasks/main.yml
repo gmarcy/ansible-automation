@@ -64,32 +64,6 @@
             namespace: openshift-console
       register: _result
 
-    - name: Fetch the k3s-serving Secret
-      kubernetes.core.k8s_info:
-        api_key: "{{ api_key | default(omit) }}"
-        kubeconfig: "{{ kubeconfig_path }}"
-        api_version: v1
-        kind: Secret
-        name: k3s-serving
-        namespace: kube-system
-      register: _result
-
-    - name: Set fact for the service-ca.crt
-      set_fact:
-        service_ca_crt: "{{ [{'key': 'service-ca.crt', 'value': ((_result.resources | map(attribute='data'))[0]['tls.crt'] | b64decode)}] | items2dict }}"
-
-    - name: Create the service-ca ConfigMap
-      kubernetes.core.k8s:
-        api_key: "{{ api_key | default(omit) }}"
-        kubeconfig: "{{ kubeconfig_path }}"
-        api_version: v1
-        kind: ConfigMap
-        name: service-ca
-        namespace: "{{ target_namespace }}"
-        definition:
-          data: "{{ service_ca_crt }}"
-      register: _result
-
     - name: Create the openshift-console Deployment
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
@@ -120,23 +94,12 @@
                   - --user-settings-location=localstorage
                   - --base-address=https://console.9.46.79.76.nip.io/
                   - --prometheus-public-url=http://metrics.9.46.79.76.nip.io/
-                  - --service-ca-file=/var/service-ca/service-ca.crt
                   image: quay.io/openshift/origin-console:4.10
                   name: openshift-console
                   ports:
                   - name: http
                     containerPort: 9000
-                  volumeMounts:
-                  - name: service-ca
-                    readOnly: true
-                    mountPath: /var/service-ca
                 serviceAccount: console-admin
-                volumes:
-                - name: service-ca
-                  configMap:
-                    name: service-ca
-                    defaultMode: 420
-                    optional: true
       register: _result
 
     - name: Create the openshift-console Service

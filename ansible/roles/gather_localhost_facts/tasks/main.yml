@@ -2,6 +2,13 @@
 
 - name: Gather facts
   ansible.builtin.setup:
+    filter:
+    - 'ansible_architecture'
+    - 'ansible_distribution'
+    - 'ansible_env'
+    - 'ansible_os_family'
+    - 'ansible_user_dir'
+    - 'ansible_user_id'
     gather_subset:
     - '!all'
     - 'network'
@@ -17,3 +24,15 @@
     local_path: "{{ ansible_env['PATH'] }}"
     local_home: "{{ ansible_user_dir }}"
     local_user: "{{ ansible_user_id }}"
+
+- when: localhost_spec is defined
+  block:
+
+  - name: Load localhost_spec from cli param into a dictionary
+    ansible.builtin.set_fact:
+      localhost_map: "{{ localhost_spec | from_json }}"
+
+  - name: Set facts from localhost_spec
+    set_fact:
+      "{{ item }}": "{{ localhost_map[item] }}"
+    loop: "{{ localhost_map.keys() | default([]) }}"

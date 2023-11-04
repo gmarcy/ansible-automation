@@ -1,0 +1,13 @@
+---
+
+- name: Copy setup ssh key secret into ~/.ssh
+  ansible.builtin.copy:
+    content: "{{ lookup('unvault', hostvars['playbook-secrets'].secrets['setup-ssh-key']) }}"
+    dest: "{{ hostvars['localhost-facts'].setup_keypair_path }}"
+    mode: '0600'
+
+- name: Add ansible_ssh_extra_args to setup host
+  ansible.builtin.add_host:
+    name: "{{ setup_host_name }}"
+    group: "{{ setup_host_group }}"
+    ansible_ssh_extra_args: "-i {{ hostvars['localhost-facts'].setup_keypair_path }}"

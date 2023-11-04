@@ -14,7 +14,7 @@ all:
         inv_cluster_domain: cp.fyre.ibm.com
         inv_kubernetes_distro: openshift
         inv_openshift_distro: ocp
-        inv_openshift_version: '4.12.7'
+        inv_openshift_version: '4.12.22'
     fyre_provisioner:
       hosts:
         fyre-provisioner:

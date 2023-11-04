@@ -1,0 +1,66 @@
+application: automation-instance-user-management-ui
+clusterRoleBinding: automation-instance-user-management-ui-crb
+deploymentPromoterSecret: automation-instance-user-management-ui-dp-secret
+image: icr.io/automation-saas-platform/ui/automation-instance-user-management-ui:20230510030012-main-7c659d45b53974cf971fbf7fa73221681f19217c
+imagePullSecret: automation-instance-user-management-ui-pull-secret
+namespace: automation-instance-user-management-ui
+serviceAccount: automation-instance-user-management-ui-sa
+version: 1.2.0
+
+fyredeployment: true
+
+environment: development
+hostname: am-usermgmt-ui.apps.{CLUSTER_HOSTNAME_ID}
+
+# Config Map
+
+CONFIG_ENV: dev
+NODE_ENV: production
+APP_CONTEXT: /management
+VERIFY_TENANT_URL: https://console-ibm-dev.verify.ibm.com
+
+
+PRODUCT_REGISTRATION_BACKEND: https://product-reg-backend.product-registration.svc.cluster.local/v2
+TENANT_MANAGER_API: https://tenantmgtms.<place-holder-ns>.svc.cluster.local:9443/tenantmgr/api/1.0/admin
+SUBSCRIPTION_MANAGER_API: https://subscriptmgtms.<place-holder-ns>.svc.cluster.local:9444/subscriptmgr/api/1.0
+INSTANCE_USER_MANAGEMENT_API: https://siusermgtms.<place-holder-ns>.svc.cluster.local:9445/siusermgr/api/1.0
+
+
+# Env Secrets
+CLIENT_ID: {{ CLIENT_ID }}
+CLIENT_SECRET: {{ CLIENT_SECRET }}
+SECRET: gjagdzgmicnkfmfaugfhmemxpfilabzf
+AUTOMATION_CONSOLE_SA_TOKEN: <pull-from-server>
+REDIS_PORT: <redis-port>
+REDIS_HOST: <redis-host>
+REDIS_PASSWORD: <redis-password>
+
+envJson: 
+        '
+        {
+        	"APP": {
+        		"PORT": 3156,
+        		"MOCK_SESSION": false,
+        		"IS_DEV_MODE": false,
+						"APP_CONTEXT": "/management",
+        		"CORS_DOMAIN_ALLOWLIST": [
+        			"https://localhost:3001",
+        			"https://localhost:3156",
+        			"https://app-connect.local.automation.com",
+        			"https://studio.apollographql.com",
+        			"https://sp-tenant-ui-instance-user-management-test-app.apps.ap-dp-001.o3lu.p1.openshiftapps.com"
+        		],
+        		"COOKIE_NAME": "instance-management"
+        	},
+        }
+        '
+#encoding section to specify which field values need to be encoded and how
+encoding:
+  - name: no-base64
+    times: 0
+    field_names:
+      AUTOMATION_CONSOLE_SA_TOKEN 
+  - name: single-base64
+    times: 1
+    field_names:
+      PRODUCT_REGISTRATION_CA     

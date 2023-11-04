@@ -1,0 +1,15 @@
+---
+
+- name: Check if default ssh config exists
+  ansible.builtin.stat:
+    path: "~/.ssh/config"
+  register: _result_ssh_config_stat
+  delegate_to: "{{ inventory_hostname }}"
+
+- name: Define additional host facts
+  ansible.builtin.set_fact:
+    deploy_include_paths: "{{ [_result_ssh_config_stat.stat.path] if (_result_ssh_config_stat.stat.exists) else [] }}"
+    deploy_keypair_path: "~/.ssh/setup_id_{{ hostvars['localhost-facts'].ssh_keytype }}"
+    deploy_ssh_config: "~/.ssh/setup_config"
+  delegate_to: "{{ inventory_hostname }}"
+  delegate_facts: true

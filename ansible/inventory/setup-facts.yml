@@ -1,0 +1,29 @@
+---
+
+all:
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  children:
+    localhost_facts:
+      hosts:
+        localhost-facts:
+      vars:
+        inv_ssh_keytype: ed25519
+        ssh_keypair_name: setup_host
+    playbook_facts:
+      hosts:
+        playbook-facts:
+      vars:
+        playbook_gatherer: setup_facts
+    playbook_secrets:
+      hosts:
+        playbook-secrets:
+      vars:
+        inv_secrets_dir: /run/secrets
+    setup_facts:
+      hosts:
+        setup-facts:
+      vars:
+        ansible_host: localhost
+        ansible_connection: local
+        gathering_role: setup_gather_facts

@@ -1,0 +1,39 @@
+---
+
+all:
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  children:
+    localhost_facts:
+      hosts:
+        localhost-facts:
+      vars:
+        inv_ssh_keytype: ed25519
+        ssh_keypair_name: homelab
+    playbook_facts:
+      hosts:
+        playbook-facts:
+      vars:
+        ssh_keypairs:
+          homelab:
+            path: "{{ hostvars['localhost-facts'].local_home + '/.ssh/homelab_id_' + hostvars['localhost-facts'].ssh_keytype }}"
+            secret: "homelab_ssh_key"
+          netsvcs:
+            path: "{{ hostvars['localhost-facts'].local_home + '/.ssh/netsvcs_id_' + hostvars['localhost-facts'].ssh_keytype }}"
+            secret: "netsvcs_ssh_key"
+          setup_host:
+            path: "{{ hostvars['localhost-facts'].local_home + '/.ssh/setup_id_' + hostvars['localhost-facts'].ssh_keytype }}"
+            secret: "setup_ssh_key"
+        authorized_keys:
+          homelab:
+            pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAsdgW20NtVSpXRSmC5cjEKTN+p9Ju01EdPYHdtwqmyp"
+            comment: "homelab@gmarcy.com"
+          netsvcs:
+            pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAIiz06kwpyVunkLvCJLddRxluoxIE/Cd2mw/8klX+JV"
+            comment: "ansible-automation netsvcs-ssh-key"
+          setup_host:
+            pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIM8MzJQs6hb6BP6R85NuVCFvhb0SpQaS+t6tOJmv3sN5"
+            comment: "ansible-automation setup-ssh-key"
+          work_laptop:
+            pubkey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBX9EpTxWQtnROTX+Nw/EfpQv7OPnIRQj32ToUKOLKhB"
+            comment: "access to lab.gmarcy.com from work laptop"

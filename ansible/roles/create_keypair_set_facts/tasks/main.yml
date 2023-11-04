@@ -1,0 +1,16 @@
+---
+
+- name: Generate an OpenSSH keypair
+  community.crypto.openssh_keypair:
+    path: "{{ ssh_path }}"
+    type: "{{ ssh_keytype }}"
+    comment: "{{ ssh_comment }}"
+    regenerate: 'never'
+  register: _result_keypair
+
+- name: Set facts from keypair
+  ansible.builtin.set_fact:
+    authorized_key: "{{ _result_keypair.public_key + ' ' + _result_keypair.comment }}"
+    keypair_pubkey: "{{ _result_keypair.public_key }}"
+    keypair_comment: "{{ _result_keypair.comment }}"
+  delegate_facts: true

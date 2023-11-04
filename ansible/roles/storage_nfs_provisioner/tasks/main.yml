@@ -3,8 +3,8 @@
 - name: Ensure namespace exists
   kubernetes.core.k8s:
     api_key: "{{ api_key | default(omit) }}"
-    kind: Namespace
     kubeconfig: "{{ kubeconfig_path }}"
+    kind: Namespace
     name: "{{ nfs_storage_namespace }}"
     state: present
   register: _result
@@ -12,9 +12,9 @@
 - name: Check for existing StorageClass
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: storage.k8s.io/v1
     kind: StorageClass
-    kubeconfig: "{{ kubeconfig_path }}"
     name: "{{ nfs_storage_class }}"
   register: _result
 
@@ -27,6 +27,7 @@
     - name: Create the PVC for NFS storage from local storage
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: v1
         definition:
           spec:
@@ -36,7 +37,6 @@
               requests:
                 storage: 200Gi
         kind: PersistentVolumeClaim
-        kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-local-storage-claim
         namespace: "{{ nfs_storage_namespace }}"
       register: _result
@@ -44,9 +44,9 @@
     - name: Wait for PersistentVolumeClaim to be created
       kubernetes.core.k8s_info:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: v1
         kind: PersistentVolumeClaim
-        kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-local-storage-claim
         namespace: "{{ nfs_storage_namespace }}"
       register: _result
@@ -57,8 +57,8 @@
     - name: Create nfs-provisioner service account
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
-        kind: ServiceAccount
         kubeconfig: "{{ kubeconfig_path }}"
+        kind: ServiceAccount
         name: nfs-provisioner
         namespace: "{{ nfs_storage_namespace }}"
       register: _result
@@ -66,6 +66,7 @@
     - name: Create the security context constraints
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: security.openshift.io/v1
         definition:
           allowHostDirVolumePlugin: true
@@ -102,7 +103,6 @@
           - persistentVolumeClaim
           - secret
         kind: SecurityContextConstraints
-        kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-provisioner
       register: _result
       when: kubernetes_distro == 'openshift'
@@ -110,9 +110,9 @@
     - name: Wait for SecurityContextConstraints to be created
       kubernetes.core.k8s_info:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: security.openshift.io/v1
         kind: SecurityContextConstraints
-        kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-provisioner
       register: _result
       delay: 10
@@ -123,6 +123,7 @@
     - name: Apply the pod security policy
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: policy/v1beta1
         definition:
           spec:
@@ -145,7 +146,6 @@
             - secret
             - hostPath
         kind: PodSecurityPolicy
-        kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-provisioner
       register: _result
       when: kubernetes_distro != 'openshift'
@@ -153,9 +153,9 @@
     - name: Wait for PodSecurityPolicy to be created
       kubernetes.core.k8s_info:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: policy/v1beta1
         kind: PodSecurityPolicy
-        kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-provisioner
       register: _result
       delay: 10
@@ -166,6 +166,7 @@
     - name: Create the cluster role
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: rbac.authorization.k8s.io/v1
         definition:
           rules:
@@ -189,7 +190,6 @@
               resourceNames: ["nfs-provisioner"]
               verbs: ["use"]
         kind: ClusterRole
-        kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-provisioner-runner
         namespace: "{{ nfs_storage_namespace }}"
       register: _result
@@ -197,6 +197,7 @@
     - name: Create the cluster role binding
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: rbac.authorization.k8s.io/v1
         definition:
           subjects:
@@ -208,7 +209,6 @@
             name: nfs-provisioner-runner
             apiGroup: rbac.authorization.k8s.io
         kind: ClusterRoleBinding
-        kubeconfig: "{{ kubeconfig_path }}"
         name: run-nfs-provisioner
         namespace: "{{ nfs_storage_namespace }}"
       register: _result
@@ -216,6 +216,7 @@
     - name: Create the role
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: rbac.authorization.k8s.io/v1
         definition:
           rules:
@@ -223,7 +224,6 @@
               resources: ["endpoints"]
               verbs: ["get", "list", "watch", "create", "update", "patch"]
         kind: Role
-        kubeconfig: "{{ kubeconfig_path }}"
         name: leader-locking-nfs-provisioner
         namespace: "{{ nfs_storage_namespace }}"
       register: _result
@@ -231,6 +231,7 @@
     - name: Create the role binding
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: rbac.authorization.k8s.io/v1
         definition:
           subjects:
@@ -242,7 +243,6 @@
             name: leader-locking-nfs-provisioner
             apiGroup: rbac.authorization.k8s.io
         kind: RoleBinding
-        kubeconfig: "{{ kubeconfig_path }}"
         name: leader-locking-nfs-provisioner
         namespace: "{{ nfs_storage_namespace }}"
       register: _result
@@ -260,6 +260,7 @@
     - name: Apply the deployment or statefulset
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: apps/v1
         definition:
           spec:
@@ -339,7 +340,6 @@
                     persistentVolumeClaim:
                       claimName: nfs-local-storage-claim
         kind: "{{ 'StatefulSet' if (nfs_provisioner_use_statefulset | default(false)) else 'Deployment' }}"
-        kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-provisioner
         namespace: "{{ nfs_storage_namespace }}"
       register: _result
@@ -347,9 +347,9 @@
     - name: Check that Deployment or StatefulSet has been created
       kubernetes.core.k8s_info:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: apps/v1
         kind: "{{ 'StatefulSet' if (nfs_provisioner_use_statefulset | default(false)) else 'Deployment' }}"
-        kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-provisioner
         namespace: "{{ nfs_storage_namespace }}"
         wait: true
@@ -360,6 +360,7 @@
     - name: Apply the service.yaml
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: v1
         definition:
           metadata:
@@ -400,7 +401,6 @@
             selector:
               app: nfs-provisioner
         kind: Service
-        kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-provisioner
         namespace: "{{ nfs_storage_namespace }}"
       register: _result
@@ -408,10 +408,10 @@
     - name: Check that Service has been created
       kubernetes.core.k8s_info:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         label_selectors:
         - app=nfs-provisioner
         kind: Service
-        kubeconfig: "{{ kubeconfig_path }}"
         name: nfs-provisioner
         namespace: "{{ nfs_storage_namespace }}"
       register: _result
@@ -419,22 +419,22 @@
     - name: Create the storage class
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: storage.k8s.io/v1
         definition:
           provisioner: "{{ nfs_provisioner }}"
           mountOptions:
             - vers=4.1
         kind: StorageClass
-        kubeconfig: "{{ kubeconfig_path }}"
         name: "{{ nfs_storage_class }}"
       register: _result
     
     - name: Check that StorageClass has been created
       kubernetes.core.k8s_info:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: storage.k8s.io/v1
         kind: StorageClass
-        kubeconfig: "{{ kubeconfig_path }}"
         name: "{{ nfs_storage_class }}"
       register: _result
       delay: 10

@@ -1,0 +1,5 @@
+---
+
+- name: Cleanup previous ansible controller setup
+  ansible.builtin.debug:
+    msg: "Add cleanup tasks after deployment tasks are written and tested"

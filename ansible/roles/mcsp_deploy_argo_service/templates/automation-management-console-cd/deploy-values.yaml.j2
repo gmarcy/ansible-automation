@@ -5,7 +5,7 @@ CLIENT_SECRET: {{ CLIENT_SECRET }}
 AUTOMATION_CONSOLE_SA_TOKEN: <pull-from-server>
 
 fyredeployment: true
-image: us.icr.io/management_console_dev/automation-management-console:20230216135056-main-3bc2c713a31f21b514b1e6aa4c6a90cd3f41faae
+image: icr.io/automation-saas-platform/ui/automation-management-console:20230518170027-main-9bff1f690a4491c8de9f6b0f590b56d8453b083a
 version: 1.2.0
 
 PRODUCT_REGISTRATION_USERNAME : username
@@ -15,7 +15,7 @@ METERING_API: not-known
 
 replicas: <place-holder-replicas>
 configEnv: dev
-nodeEnv: production
+NODE_ENV: production
 environment: development
 hostname: am-console.apps.{CLUSTER_HOSTNAME_ID}
 application: automation-management-console

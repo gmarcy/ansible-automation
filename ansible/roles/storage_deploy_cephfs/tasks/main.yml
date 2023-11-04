@@ -9,9 +9,9 @@
 - name: Check if the new storage class exists
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: storage.k8s.io/v1
     kind: StorageClass
-    kubeconfig: "{{ kubeconfig_path }}"
     name: "{{ default_storage_class }}"
   register: _result_sc
 
@@ -24,9 +24,9 @@
 - name: Check if CephCluster exists
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: ceph.rook.io/v1
     kind: CephCluster
-    kubeconfig: "{{ kubeconfig_path }}"
     name: rook-ceph
     namespace: rook-ceph
   register: _result_cephcluster
@@ -85,8 +85,8 @@
     - name: Ensure namespace exists
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
-        kind: Namespace
         kubeconfig: "{{ kubeconfig_path }}"
+        kind: Namespace
         name: rook-ceph
         state: present
       register: _result
@@ -94,13 +94,13 @@
     - name: Disable bluefs_buffered_io
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         definition:
           data:
             config: |
               [global]
               bluefs_buffered_io = false
         kind: ConfigMap
-        kubeconfig: "{{ kubeconfig_path }}"
         name: rook-config-override
         namespace: rook-ceph
       register: _result
@@ -139,8 +139,8 @@
     - name: Wait for ceph operator to be Running
       kubernetes.core.k8s_info:
         api_key: "{{ api_key | default(omit) }}"
-        kind: Pod
         kubeconfig: "{{ kubeconfig_path }}"
+        kind: Pod
         label_selectors:
         - app=rook-ceph-operator
         namespace: rook-ceph
@@ -207,8 +207,8 @@
     - name: Wait for all rook-ceph-osd pods to be Running
       kubernetes.core.k8s_info:
         api_key: "{{ api_key | default(omit) }}"
-        kind: Pod
         kubeconfig: "{{ kubeconfig_path }}"
+        kind: Pod
         label_selectors:
         - app=rook-ceph-osd
         namespace: rook-ceph
@@ -241,8 +241,8 @@
     - name: Wait for all rook-ceph-mds pods to be Running
       kubernetes.core.k8s_info:
         api_key: "{{ api_key | default(omit) }}"
-        kind: Pod
         kubeconfig: "{{ kubeconfig_path }}"
+        kind: Pod
         label_selectors:
         - app=rook-ceph-mds
         namespace: rook-ceph
@@ -254,14 +254,48 @@
     - name: Wait until CephCluster is Ready
       kubernetes.core.k8s_info:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: ceph.rook.io/v1
         kind: CephCluster
-        kubeconfig: "{{ kubeconfig_path }}"
         name: rook-ceph
         namespace: rook-ceph
       register: _result
       delay: 20
       retries: 30
       until: (_result.resources | length > 0) and (_result.resources | map(attribute='status.phase') | unique | difference(['Ready']) | length == 0)
+
+    - name: Create ingress for dashboard
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: networking.k8s.io/v1
+        kind: Ingress
+        name: rook-ceph-mgr-dashboard
+        namespace: rook-ceph
+        definition:
+          metadata:
+            annotations:
+              cert-manager.io/cluster-issuer: selfsigned-cluster-issuer
+              nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+              nginx.ingress.kubernetes.io/server-snippet: |
+                proxy_ssl_verify off;
+          spec:
+            ingressClassName: "nginx"
+            tls:
+             - hosts:
+               - "{{ 'rook-ceph.apps.' + hostvars['cluster-facts']['cluster_publicip'] + '.nip.io' }}"
+               secretName: rook-ceph-tls
+            rules:
+            - host: "{{ 'rook-ceph.apps.' + hostvars['cluster-facts']['cluster_publicip'] + '.nip.io' }}"
+              http:
+                paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: rook-ceph-mgr-dashboard
+                      port:
+                        name: https-dashboard
+      register: _result
 
   # BLOCK_END

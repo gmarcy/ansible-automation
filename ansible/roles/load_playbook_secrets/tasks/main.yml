@@ -1,16 +1,10 @@
 ---
 
+- name: Set secrets_dir fact
+  set_fact:
+    secrets_dir: "{{ '/run/secrets' if (hostvars['playbook-facts'].container_run) else (inv_secrets_dir | default(secrets_vars_dir)) }}"
+
 - name: Load all playbook secrets
   include_vars:
     dir: "{{ secrets_vars_dir }}"
     ignore_unknown_extensions: true
-  no_log: "{{ hide_playbook_secrets | default(true) }}"
-  delegate_to: "{{ inventory_hostname }}"
-  delegate_facts: true
-
-- name: Show playbook secrets if requested
-  debug: var=hostvars['playbook-secrets']
-  when: show_playbook_secrets | default(false)
-
-- fail: msg=stopping
-  when: show_playbook_secrets | default(false)

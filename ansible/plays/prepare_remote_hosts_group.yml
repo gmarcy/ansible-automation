@@ -1,0 +1,65 @@
+---
+
+- name: Prepare remote_hosts group
+  hosts: playbook_facts
+  gather_facts: false
+  pre_tasks:
+  - assert:
+      that:
+      - hostvars['localhost-facts']['ssh_keypair_name'] is defined and ssh_keypairs[hostvars['localhost-facts']['ssh_keypair_name']] is defined
+      - remote_hosts_spec is defined or groups['remote_hosts'] is defined
+  tasks:
+  - when: container_run | bool
+    block:
+    - name: Create ~/.ssh folder if needed
+      ansible.builtin.file:
+        path: "{{ ssh_keypairs[hostvars['localhost-facts']['ssh_keypair_name']].path | dirname }}"
+        state: directory
+        mode: '0700'
+      changed_when: false
+    - name: Copy ssh key secret into ~/.ssh when running in a container
+      ansible.builtin.copy:
+        content: "{{ lookup('unvault', hostvars['playbook-secrets'][ssh_keypairs[hostvars['localhost-facts']['ssh_keypair_name']].secret]) }}"
+        dest: "{{ ssh_keypairs[hostvars['localhost-facts']['ssh_keypair_name']].path }}"
+        mode: '0600'
+      changed_when: false
+  - when: remote_hosts_spec is defined
+    block:
+    - name: Load remote_hosts_spec from cli param into a dictionary
+      ansible.builtin.set_fact:
+        remote_hosts_map: "{{ remote_hosts_spec | from_json }}"
+    - name: Initialize remote_hosts group
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        groups: 'remote_hosts'
+      loop: "{{ remote_hosts_map.keys() | default([]) }}"
+      changed_when: false
+    - name: Unroll the keys in the remote_hosts_map
+      set_fact:
+        remote_hosts_map_unrolled: "{{ remote_hosts_map_unrolled | default([]) | union([item.key] | product(item.value.keys())) }}"
+      loop: "{{ remote_hosts_map | dict2items }}"
+    - name: Apply values in remote_hosts_map to remote_hosts group hosts
+      set_fact:
+        "{{ item[1] }}": "{{ remote_hosts_map[item[0]][item[1]] }}"
+      delegate_to: "{{ item[0] }}"
+      delegate_facts: true
+      loop: "{{ remote_hosts_map_unrolled }}"
+      when: hostvars['playbook-facts'][item[1]] is not defined
+    - name: Add ansible_connection and ansible_ssh_extra_args facts
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        ansible_connection: 'smart'
+        ansible_ssh_extra_args: "{{ '-F /dev/null -i ' + ssh_keypairs[hostvars['localhost-facts']['ssh_keypair_name']].path }}"
+      loop: "{{ groups['remote_hosts'] }}"
+      changed_when: false
+
+- name: Gather remote_hosts facts
+  hosts: remote_hosts
+  gather_facts: false
+  roles:
+  - role: setup_ansible_host
+    ssh_hostname: "{{ hostvars[inventory_hostname].ansible_host }}"
+    ssh_username: "{{ hostvars['playbook-facts']['remote_user'] }}"
+  - role: gather_host_facts
+    gather_packages_info: false
+    gather_services_info: false

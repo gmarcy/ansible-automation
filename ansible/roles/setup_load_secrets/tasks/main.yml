@@ -1,0 +1,75 @@
+---
+
+- name: Set setup_secrets_hostvars
+  ansible.builtin.set_fact:
+    setup_secrets_hostvars: "{{ hostvars['setup-secrets'] }}"
+    _secrets: []
+  no_log: "{{ setup_secrets_hidden | default(true) }}"
+
+- when: hostvars['playbook-facts'].container_run|bool
+  name: If running from the container we read secrets from podman run secrets
+  no_log: "{{ setup_secrets_hidden | default(true) }}"
+  block:
+
+    - name: Collect requested secrets from container
+      ansible.builtin.set_fact:
+        _secrets: "{{ _secrets | union([item | combine({'secret_path': _secret_path})]) }}"
+      loop: "{{ setup_secrets_hostvars.secrets }}"
+      vars:
+        _secret_path: "{{ '/run/secrets/' + item.secret_name }}"
+      when: item.secret_name in secret_names
+
+- when: not hostvars['playbook-facts'].container_run|bool
+  name: If not running from the container we read secrets from paths set in environment variables
+  no_log: "{{ setup_secrets_hidden | default(true) }}"
+  block:
+
+    - name: Collect requested secrets from environment
+      ansible.builtin.set_fact:
+        _secrets: "{{ _secrets | union([item | combine({'secret_path': _secret_path})]) }}"
+      loop: "{{ setup_secrets_hostvars.secrets }}"
+      vars:
+        _secret_path: "{{ lookup('env', item.envvar_name) }}"
+      when: item.secret_name in secret_names and lookup('env',item.envvar_name) | default('') | length > 0
+
+- name: Check for secret files
+  ansible.builtin.stat:
+    path: "{{ secret['secret_path'] }}"
+  register: _result_secret_stat
+  loop: "{{ _secrets }}"
+  loop_control:
+    loop_var: secret
+  no_log: "{{ setup_secrets_hidden | default(true) }}"
+  when: secret['secret_path'] | default('') | length > 0
+
+- name: Put secret paths into a dictionary
+  ansible.builtin.set_fact:
+    _setup_secrets: "{{ _playbook_secrets | default({}) | combine({_key: _val}) }}"
+  register: _result_secret_values
+  loop: "{{ _result_secret_stat.results }}"
+  loop_control:
+    loop_var: path
+  vars:
+    _key: "{{ path.secret.secret_name }}"
+    _val: "{{ path.stat.path }}"
+  no_log: "{{ setup_secrets_hidden | default(true) }}"
+  when: path.stat.exists | default(false)
+
+- name: Add secrets to playbook secrets
+  ansible.builtin.add_host:
+    name: 'playbook-secrets'
+    secrets: "{{ hostvars['playbook-secrets'].secrets | combine(_setup_secrets) }}"
+  no_log: "{{ setup_secrets_hidden | default(true)}}"
+  when: _setup_secrets is defined
+
+- name: Clear facts
+  ansible.builtin.set_fact:
+    _secrets: []
+    _result_secret_stat: {}
+    _result_secret_values: {}
+    _setup_secrets: {}
+  no_log: "{{ setup_secrets_hidden | default(true) }}"
+
+- name: Clear setup_secrets_hostvars
+  ansible.builtin.set_fact:
+    setup_secrets_hostvars: {}

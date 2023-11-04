@@ -1,16 +1,16 @@
 ---
 
-- name: Check for existing docker-registry
+- name: Check for existing cluster-registry
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
     kubeconfig: "{{ kubeconfig_path }}"
     api_version: apps/v1
     kind: Deployment
-    name: docker-registry
+    name: cluster-registry
     namespace: "{{ target_namespace }}"
   register: _result
 
-- name: Set fact if docker-registry is already running
+- name: Set fact if cluster-registry is already running
   set_fact:
     registry_running: "{{ _result.resources | map(attribute='status.conditions') | flatten | selectattr('type','equalto','Available') | selectattr('status','equalto','True') | length > 0 }}"
 
@@ -32,34 +32,32 @@
             resources:
               requests:
                 storage: 50Gi
-            volumeName: image-store
-            volumeMode: Filesystem
       register: _result
 
-    - name: Create the docker-registry Deployment
+    - name: Create the cluster-registry Deployment
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
         kubeconfig: "{{ kubeconfig_path }}"
         api_version: apps/v1
         kind: Deployment
-        name: docker-registry
+        name: cluster-registry
         namespace: "{{ target_namespace }}"
         definition:
           metadata:
             labels:
-              k8s-app: docker-registry
+              k8s-app: cluster-registry
           spec:
             replicas: 1
             selector:
               matchLabels:
-                k8s-app: docker-registry
+                k8s-app: cluster-registry
             template:
               metadata:
                 labels:
-                  k8s-app: docker-registry
+                  k8s-app: cluster-registry
               spec:
                 containers:
-                  - name: docker-registry
+                  - name: cluster-registry
                     image: registry:2
                     env:
                       - name: REGISTRY_HTTP_ADDR
@@ -78,23 +76,54 @@
                       claimName: registry-image-storage
           register: _result
 
-    - name: Create the docker-registry Service
+    - name: Create the cluster-registry Service
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
         kubeconfig: "{{ kubeconfig_path }}"
         api_version: v1
         kind: Service
-        name: docker-registry
+        name: cluster-registry
         namespace: "{{ target_namespace }}"
         definition:
           metadata:
             labels:
-              k8s-app: docker-registry
+              k8s-app: cluster-registry
           spec:
             ports:
               - name: http
                 port: 5000
                 targetPort: 5000
             selector:
-              k8s-app: docker-registry
+              k8s-app: cluster-registry
+      register: _result
+
+    - name: Create the cluster-registry Ingress
+      kubernetes.core.k8s:
+        api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: networking.k8s.io/v1
+        kind: Ingress
+        name: cluster-registry
+        namespace: "{{ target_namespace }}"
+        definition:
+          metadata:
+            labels:
+              k8s-app: cluster-registry
+            annotations:
+              nginx.ingress.kubernetes.io/proxy-body-size: "0"
+              nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+              nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+          spec:
+            ingressClassName: nginx
+            rules:
+            - host: "{{ 'registry.' + hostvars['cluster-facts']['cluster_publicip'] + '.nip.io' }}"
+              http:
+                paths:
+                  - path: /
+                    pathType: Prefix
+                    backend:
+                      service:
+                        name: cluster-registry
+                        port:
+                          number: 5000
       register: _result

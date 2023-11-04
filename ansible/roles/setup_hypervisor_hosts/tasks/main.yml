@@ -1,0 +1,16 @@
+---
+
+- name: Confirm access to setup_hypervisors from setup host and user
+  ansible.builtin.shell: |
+    set -o pipefail
+    ssh -q \
+        -F {{ hostvars[inventory_hostname].deploy_ssh_config }} \
+        {{ hostvars[item].ssh_username | default(hostvars['playbook-facts'].remote_user) }}@{{ hostvars[item].ansible_host }} 'echo connected' || true
+  args:
+    executable: /bin/bash
+  register: _result
+  changed_when: _result is not defined
+  retries: 30
+  delay: 10
+  until: "'connected' in _result.stdout"
+  loop: "{{ groups['setup_hypervisors'] | default([]) }}"

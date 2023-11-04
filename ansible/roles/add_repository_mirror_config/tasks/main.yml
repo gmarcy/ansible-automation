@@ -3,9 +3,9 @@
 - name: Deploy repository mirror-config for artifactory mirrors
   kubernetes.core.k8s:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: operator.openshift.io/v1alpha1
     kind: ImageContentSourcePolicy
-    kubeconfig: "{{ kubeconfig_path }}"
     name: mirror-config
     definition:
       spec:

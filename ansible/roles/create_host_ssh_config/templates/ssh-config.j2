@@ -1,0 +1,28 @@
+{% for include_path in include_paths | default([]) %}
+Include {{ include_path }}
+
+{% endfor %}
+{% for host in ssh_hosts %}
+Host {{ host }}
+  Hostname {{ hostvars[host].ansible_host }}
+  IdentityFile {{ keypair_path | default('~/.ssh/id_' + (ssh_keytype | default('rsa'))) }}
+  UserKnownHostsFile /dev/null
+  StrictHostKeyChecking accept-new
+
+{% endfor %}
+{% for host in ssh_hosts %}
+{% if hostvars[host].ansible_host | ansible.utils.ipv4 %}
+Host {{ hostvars[host].ansible_host }}
+  IdentityFile {{ keypair_path | default('~/.ssh/id_' + (ssh_keytype | default('rsa'))) }}
+  UserKnownHostsFile /dev/null
+  StrictHostKeyChecking accept-new
+
+{% elif hostvars[host].ssh_connection_address is defined or hostvars[host].ssh_hostname is defined %}
+Host {{ hostvars[host].ansible_host }}
+  Hostname {{ hostvars[host].ssh_connection_address if (hostvars[host].ssh_connection_address is defined) else hostvars[host].ssh_hostname }}
+  IdentityFile {{ keypair_path | default('~/.ssh/id_' + (ssh_keytype | default('rsa'))) }}
+  UserKnownHostsFile /dev/null
+  StrictHostKeyChecking accept-new
+
+{% endif %}
+{% endfor %}

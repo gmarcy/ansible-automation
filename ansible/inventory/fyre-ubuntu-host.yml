@@ -1,0 +1,75 @@
+---
+
+all:
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  children:
+    all_nodes:
+    cluster_facts:
+      hosts:
+        cluster-facts:
+      vars:
+        cluster_provisioner: 'k8s_provisioner'
+        inv_cluster_description: 'Kubernetes EKS Cluster'
+        inv_cluster_domain: fyre.ibm.com
+        inv_kubernetes_distro: eks
+        inv_kubernetes_version: '1.27'
+    cluster_operators:
+      hosts:
+        cluster-operators:
+      vars:
+        inv_operators_namespace: operators
+        inv_community_operators_source: operatorhubio-catalog
+        inv_community_operators_source_namespace: olm
+        inv_ibm_operator_catalog_source_namespace: olm
+    common_services:
+      hosts:
+        common-services:
+      vars:
+        inv_common_service_catalog_source_namespace: olm
+        inv_common_service_operand_requests:
+        - ibm-cert-manager-operator
+        - ibm-management-ingress-operator
+        - ibm-mongodb-operator
+        - ibm-ingress-nginx-operator
+        - ibm-iam-operator
+        - ibm-platform-api-operator
+        - ibm-commonui-operator
+    was_automation:
+      hosts:
+        was-automation:
+      vars:
+        inv_was_automation_catalog_source_namespace: olm
+    k8s_provisioner:
+      hosts:
+        k8s-provisioner:
+      vars:
+        provisioning_role: 'cluster_request_k8s'
+        deprovisioning_role: 'cluster_cleanup_k8s'
+        cluster_facts_role: 'cluster_gather_facts_k8s'
+        deploy_infra_services: true
+        vars_inventory:
+          fyre_group_id: 52
+          fyre_platform: x
+          fyre_site: rtp
+          k8s_version: 1.27.4
+          k8s_engine: eks
+          k8s_inf_create_node: true
+          k8s_inf_os: 'CentOS Stream 9'
+          k8s_node_os: 'CentOS Stream 9'
+          k8s_master_nodes: 1
+          k8s_worker_extra_storage: 120
+    infra_node:
+      vars:
+        http_node_port: 30080
+        https_node_port: 30443
+    cluster_storage:
+      hosts:
+        cluster-storage:
+      vars:
+        storage_provisioner: 'rook-cephfs'
+        provisioning_role: 'storage_deploy_cephfs'
+        deprovisioning_role: 'storage_remove_cephfs'
+        inv_rook_ceph_release: v1.10.4
+        inv_default_storage_class: "{{ cephfs_storage_class }}"
+        inv_default_block_class: "{{ cephfs_block_class }}"

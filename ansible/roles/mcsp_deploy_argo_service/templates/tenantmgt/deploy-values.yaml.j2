@@ -29,6 +29,7 @@ serviceCertSecret: tenantmgt-cert-secret
 testRunnerRole: tenantmgtms-test-runner-role
 testRunnerRoleBinding: tenantmgtms-cb
 testRunnerSecret: tenantmgtms-tr-secret
+userManagerNamespace: <place-holder-ns>
 version: 1.0.1
 
 fyredeployment: true
@@ -38,6 +39,8 @@ specificValues:
   AWS_DYNAMODB_TABLE_TENANT: TenantMgt.Tenant.Fyre
   AWS_DYNAMODB_TABLE_MC_RAW_DATA: TenantMgt.MCRawData.Fyre
   AWS_DYNAMODB_TABLE_CSB_RAW_DATA: TenantMgt.CSBRawData.Fyre
+  csbHost: <place-holder-csbHost>
+  brokerPathElement: <place-holder-brokerPathElement>
   csbEnabled: "'true'"
   
 #authSecretsOpenLiberty.yaml

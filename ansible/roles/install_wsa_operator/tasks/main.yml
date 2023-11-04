@@ -20,9 +20,9 @@
 - name: Create Subscription for singlenamespace operator
   kubernetes.core.k8s:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: operators.coreos.com/v1alpha1
     kind: Subscription
-    kubeconfig: "{{ kubeconfig_path }}"
     name: "{{ was_automation_operator_name }}"
     namespace: "{{ target_namespace }}"
     definition:
@@ -47,9 +47,9 @@
 - name: Create Subscription for all namespaces operator
   kubernetes.core.k8s:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: operators.coreos.com/v1alpha1
     kind: Subscription
-    kubeconfig: "{{ kubeconfig_path }}"
     name: "{{ was_automation_operator_name }}"
     namespace: "{{ was_automation_operator_namespace }}"
     definition:
@@ -69,8 +69,8 @@
 - name: Wait for WSA operator controller manager
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
-    kind: Deployment
     kubeconfig: "{{ kubeconfig_path }}"
+    kind: Deployment
     name: websphere-automation-operator-controller-manager
     namespace: "{{ target_namespace if operator_singlenamespace else was_automation_operator_namespace }}"
     wait: true
@@ -83,9 +83,9 @@
 - name: Wait until all the WSA CSV succeed
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: operators.coreos.com/v1alpha1
     kind: ClusterServiceVersion
-    kubeconfig: "{{ kubeconfig_path }}"
     namespace: "{{ target_namespace if operator_singlenamespace else was_automation_operator_namespace }}"
   register: _result
   delay: 30

@@ -1,0 +1,22 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: write-pod
+  namespace: {{ test_storage_provisioner_namespace }}
+spec:
+  containers:
+  - name: write-pod
+    image: gcr.io/google_containers/busybox:1.24
+    command:
+      - "/bin/sh"
+    args:
+      - "-c"
+      - "touch /mnt/SUCCESS && exit 0 || exit 1"
+    volumeMounts:
+      - name: storage-test-pvc
+        mountPath: /mnt
+  restartPolicy: Never
+  volumes:
+    - name: storage-test-pvc
+      persistentVolumeClaim:
+        claimName: {{ test_storage_provisioner_claim }}

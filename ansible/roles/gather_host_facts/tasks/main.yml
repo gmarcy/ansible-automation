@@ -11,6 +11,7 @@
         - 'ansible_distribution'
         - 'ansible_env'
         - 'ansible_os_family'
+        - 'ansible_pkg_mgr'
         - 'ansible_ssh_host_key_ecdsa_public'
         - 'ansible_ssh_host_key_ecdsa_public_keytype'
         gather_subset:
@@ -39,7 +40,7 @@
         distribution_family: "Fedora"
         host_os: "fedora"
         libvirt_qemu_user: "qemu"
-        package_manager: auto
+        package_manager: "{{ 'community.general.rpm_ostree_pkg' if (_result.ansible_facts.ansible_pkg_mgr == 'atomic_container') else 'auto' }}"
       when: _result.ansible_facts.ansible_distribution == 'Fedora'
 
     - name: Set distribution_family for Debian
@@ -70,6 +71,7 @@
         os_family: "{{ 'mac' if (ansible_os_family == 'Darwin') else ('windows' if (ansible_os_family == 'Windows') else 'linux') }}"
         os: "{{ hostvars[inventory_hostname].os if (hostvars[inventory_hostname].os is defined) else hostvars[inventory_hostname]['host_os'] }}"
         user_home: "{{ _result.ansible_facts.ansible_env['HOME'] }}"
+        user_name: "{{ _result.ansible_facts.ansible_env['USER'] }}"
         user_path: "{{ _result.ansible_facts.ansible_env['PATH'] }}"
         runtime_path: "{{ _result.ansible_facts.ansible_env['XDG_RUNTIME_DIR'] | default('') | string }}"
         ssh_connection_address: "{{ omit if (_result.ansible_facts.ansible_env['SSH_CONNECTION'] is not defined) else _result.ansible_facts.ansible_env['SSH_CONNECTION'].split(' ')[2] }}"

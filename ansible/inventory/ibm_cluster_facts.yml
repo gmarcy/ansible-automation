@@ -18,6 +18,10 @@ all:
       hosts:
         cluster-facts:
       vars:
+        artifactory_url: docker-na-public.artifactory.swg-devops.com
+        artifactory_fyre_proxies:
+          rtp: docker-na-proxy-rtp2.artifactory.swg-devops.com
+          svl: docker-na-proxy-svl3.artifactory.swg-devops.com
         pull_secrets:
         - key: 'cp.stg.icr.io'
           username: "{{ hostvars['playbook-secrets']['cp_stg_username'] }}"
@@ -39,39 +43,56 @@ all:
           username: "{{ hostvars['playbook-secrets']['docker_io_user'] }}"
           password: "{{ hostvars['playbook-secrets']['docker_io_password'] }}"
           email: 'unused'
-        - key: 'docker-na-public.artifactory.swg-devops.com'
+        - key: "{{ artifactory_url }}"
+          username: "{{ hostvars['playbook-secrets']['artifactory_user'] }}"
+          password: "{{ hostvars['playbook-secrets']['artifactory_token'] }}"
+          email: 'unused'
+        - key: "{{ artifactory_fyre_proxies[hostvars['fyre_provisioner']['fyre_site']] }}"
           username: "{{ hostvars['playbook-secrets']['artifactory_user'] }}"
           password: "{{ hostvars['playbook-secrets']['artifactory_token'] }}"
           email: 'unused'
         mirror_configs:
         - mirrors:
-          - cp.stg.icr.io/cp
-          - docker-na-public.artifactory.swg-devops.com/wasliberty-intops-docker-local/cp
+          - "{{ artifactory_fyre_proxies[hostvars['fyre_provisioner']['fyre_site']] + '/hyc-cloudpak-team-cp-cpstgicr-docker-remote/cp' }}"
           source: cp.icr.io/cp
         - mirrors:
-          - cp.stg.icr.io/cp
-          - docker-na-public.artifactory.swg-devops.com/wasliberty-intops-docker-local/cp
-          source: docker.io/ibmcom
-        - mirrors:
-          - docker-na-public.artifactory.swg-devops.com/hyc-cloud-private-daily-docker-local/ibmcom
-          source: cp.icr.io/cp/cpd
-        - mirrors:
-          - docker-na-public.artifactory.swg-devops.com/hyc-cloud-private-daily-docker-local/ibmcom
-          source: quay.io/opencloudio
-        - mirrors:
-          - cp.stg.icr.io/cp
-          - docker-na-public.artifactory.swg-devops.com/wasliberty-intops-docker-local/cp
-          - docker-na-public.artifactory.swg-devops.com/hyc-cloud-private-daily-docker-local/ibmcom
+          - "{{ artifactory_fyre_proxies[hostvars['fyre_provisioner']['fyre_site']] + '/hyc-cloudpak-team-cp-cpstgicr-docker-remote/cp' }}"
           source: icr.io/cpopen
         - mirrors:
-          - docker-na-public.artifactory.swg-devops.com/hyc-cloud-private-daily-docker-local/ibmcom
-          source: icr.io/cpopen/cpfs
+          - "{{ artifactory_fyre_proxies[hostvars['fyre_provisioner']['fyre_site']] + '/hyc-cloudpak-team-cp-cpstgicr-docker-remote/cp' }}"
+          source: cp.stg.icr.io/cp
         - mirrors:
-          - docker-na-public.artifactory.swg-devops.com/wasliberty-intops-docker-local/cp
-          source: wasliberty-intops-docker-local.artifactory.swg-devops.com/cp
+          - "{{ artifactory_fyre_proxies[hostvars['fyre_provisioner']['fyre_site']] + '/ecm-containerization-docker-local' }}"
+          source: cp.icr.io/cp
         - mirrors:
-          - docker-na-public.artifactory.swg-devops.com/hyc-cloud-private-daily-docker-local/ibmcom
-          source: hyc-cloud-private-daily-docker-local.artifactory.swg-devops.com/ibmcom
+          - "{{ artifactory_fyre_proxies[hostvars['fyre_provisioner']['fyre_site']] + '/hyc-dba-base-image-docker-local' }}"
+          source: icr.io/cpopen
+        #- mirrors:
+        #  - cp.stg.icr.io/cp
+        #  - "{{ artifactory_url + '/wasliberty-intops-docker-local/cp' }}"
+        #  - "{{ artifactory_url + '/hyc-cloud-private-daily-docker-local/ibmcom' }}"
+        #  - "{{ artifactory_fyre_proxies[hostvars['fyre_provisioner']['fyre_site']] + '/hyc-cloud-private-daily-docker-local/ibmcom' }}"
+        #  source: icr.io/cpopen
+        #- mirrors:
+        #  - "{{ artifactory_url + '/hyc-cloud-private-daily-docker-local/ibmcom' }}"
+        #  - "{{ artifactory_fyre_proxies[hostvars['fyre_provisioner']['fyre_site']] + '/hyc-cloud-private-daily-docker-local/ibmcom' }}"
+        #  source: quay.io/opencloudio
+        #- mirrors:
+        #  - "{{ artifactory_url + '/hyc-cloud-private-daily-docker-local/ibmcom' }}"
+        #  - "{{ artifactory_fyre_proxies[hostvars['fyre_provisioner']['fyre_site']] + '/hyc-cloud-private-daily-docker-local/ibmcom' }}"
+        #  source: icr.io/cpopen/cpfs
+        #- mirrors:
+        #  - "{{ artifactory_url + '/hyc-cloud-private-daily-docker-local/ibmcom' }}"
+        #  - "{{ artifactory_fyre_proxies[hostvars['fyre_provisioner']['fyre_site']] + '/hyc-cloud-private-daily-docker-local/ibmcom' }}"
+        #  source: cp.icr.io/cp/cpd
+        #- mirrors:
+        #  - cp.stg.icr.io/cp
+        #  - "{{ artifactory_url + '/wasliberty-intops-docker-local/cp' }}"
+        #  source: cp.icr.io/cp
+        #- mirrors:
+        #  - cp.stg.icr.io/cp
+        #  - "{{ artifactory_url + '/wasliberty-intops-docker-local/cp' }}"
+        #  source: docker.io/ibmcom
         k8s_k3s_registries_template: |
           mirrors:
             "cp.icr.io":
@@ -126,8 +147,8 @@ all:
       hosts:
         common-services:
       vars:
-        inv_common_service_catalog_source_image_cs4: 'docker-na-public.artifactory.swg-devops.com/hyc-cloud-private-daily-docker-local/ibmcom/ibm-common-service-catalog'
-        inv_common_service_catalog_source_image_tag_cs4: 'latest-validated'
+        inv_common_service_catalog_source_image_cs4: "{{ artifactory_url + '/hyc-cloud-private-daily-docker-local/ibmcom/ibm-common-service-catalog' }}"
+        inv_common_service_catalog_source_image_tag_cs4: '4.1.0'
     integration_platform:
       hosts:
         integration-platform:
@@ -138,7 +159,7 @@ all:
       hosts:
         was-automation:
       vars:
-        inv_was_automation_catalog_source_image_cs3: 'docker-na-public.artifactory.swg-devops.com/wasliberty-intops-docker-local/cp/websphere-automation-operator-catalog'
+        inv_was_automation_catalog_source_image_cs3: "{{ artifactory_url + '/wasliberty-intops-docker-local/cp/websphere-automation-operator-catalog' }}"
         inv_was_automation_catalog_source_image_tag_cs3: 'stable'
-        inv_was_automation_catalog_source_image_cs4: 'docker-na-public.artifactory.swg-devops.com/wasliberty-intops-docker-local/cp/websphere-automation-operator-catalog'
+        inv_was_automation_catalog_source_image_cs4: "{{ artifactory_url + '/wasliberty-intops-docker-local/cp/websphere-automation-operator-catalog' }}"
         inv_was_automation_catalog_source_image_tag_cs4: 'stable_cs4'

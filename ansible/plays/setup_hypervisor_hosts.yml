@@ -1,0 +1,28 @@
+---
+
+- name: Setup access to hypervisor hosts
+  hosts: setup_hypervisors
+  gather_facts: false
+  tags: tag_prepare_hypervisors
+  vars:
+    setup_host_name: "{{ groups['setup_host'] | first }}"
+  roles:
+  - role: check_playbook_terminated
+  - role: check_stop_before
+    task_to_check: task-prepare-hypervisors
+  - role: setup_ansible_host
+    delegate_to: "{{ setup_host_name }}"
+  - role: add_authorized_key_from_keypair
+    ssh_user: "{{ hostvars[inventory_hostname].ssh_username | default(hostvars['playbook-facts'].remote_user) }}"
+    ssh_pubkey: "{{ hostvars[setup_host_name].keypair_pubkey }}"
+    ssh_comment: "{{ hostvars[setup_host_name].keypair_comment }}"
+
+- name: Confirm setup_host can execute commands on setup_hypervisors
+  hosts: setup_host
+  gather_facts: false
+  tags: tag_prepare_hypervisors
+  roles:
+  - role: check_playbook_terminated
+  - role: setup_hypervisor_hosts
+  - role: check_stop_after
+    task_to_check: task-prepare-hypervisors

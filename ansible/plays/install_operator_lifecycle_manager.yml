@@ -13,4 +13,4 @@
     api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
     kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
     target_namespace: olm
-    target_olm_version: "v0.22.0"
+    target_olm_version: "v0.25.0"

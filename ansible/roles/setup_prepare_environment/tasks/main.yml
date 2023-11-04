@@ -1,0 +1,63 @@
+---
+
+- name: Delegate to inventory_hostname
+  block:
+
+    - name: Install python3-pip package
+      ansible.builtin.package:
+        name: python3-pip
+        state: present
+        use: "{{ hostvars[inventory_hostname].package_manager }}"
+      become: true
+      become_user: root
+      register: _result
+      failed_when: _result is not defined
+
+    - name: Set cgroup_manager for debian distributions
+      ansible.builtin.copy:
+        content: |
+          [engine]
+          cgroup_manager = "cgroupfs"
+        dest: '/etc/containers/containers.conf'
+        mode: '0644'
+      become: true
+      become_user: root
+      when: hostvars[inventory_hostname].ansible_distribution == 'Debian'
+
+    - name: Install curl package
+      ansible.builtin.package:
+        name: curl
+        state: present
+        use: "{{ hostvars[inventory_hostname].package_manager }}"
+      become: true
+      become_user: root
+
+    - name: Install podman package
+      ansible.builtin.package:
+        name: podman
+        state: present
+        use: "{{ hostvars[inventory_hostname].package_manager }}"
+      become: true
+      become_user: root
+      register: _result
+      failed_when: _result is not defined
+
+    - name: Install jq package
+      ansible.builtin.package:
+        name: jq
+        state: present
+        use: "{{ hostvars[inventory_hostname].package_manager }}"
+      become: true
+      become_user: root
+      register: _result
+      failed_when: _result is not defined
+
+    - when: hostvars[inventory_hostname].package_manager == 'community.general.rpm_ostree_pkg'
+      ansible.builtin.command: |
+        rpm-ostree apply-live
+      become: true
+      become_user: root
+      register: _result
+      failed_when: _result is not defined
+
+  delegate_to: "{{ inventory_hostname }}"

@@ -1,0 +1,85 @@
+---
+
+- name: Set facts for testing storage provisioner
+  set_fact:
+    test_storage_provisioner_claim: test-storage-provisioner-claim
+    test_storage_provisioner_namespace: test-storage-provisioner
+
+- name: Ensure test namespace exists
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    kind: Namespace
+    name: "{{ test_storage_provisioner_namespace }}"
+    state: present
+  register: _result
+
+- name: Apply the claim.yaml
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    template: claim.yaml.j2
+  register: _result
+
+- name: Wait for PersistentVolumeClaim to be bound
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    kind: PersistentVolumeClaim
+    name: "{{ test_storage_provisioner_claim }}"
+    namespace: "{{ test_storage_provisioner_namespace }}"
+  register: _result
+  delay: 10
+  retries: 24
+  until: (_result.resources | length > 0) and (_result.resources[0].status.phase == 'Bound')
+
+- name: Apply the write-pod.yaml
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    template: write-pod.yaml.j2
+  register: _result
+
+- name: Wait for write-pod success
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    kind: Pod
+    name: write-pod
+    namespace: "{{ test_storage_provisioner_namespace }}"
+  register: _result
+  delay: 10
+  retries: 24
+  until: (_result.resources | length > 0) and (_result.resources[0].status.phase == 'Succeeded')
+
+- name: Apply the read-pod.yaml
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    template: read-pod.yaml.j2
+  register: _result
+
+- name: Wait for read-pod success
+  kubernetes.core.k8s_info:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    kind: Pod
+    name: read-pod
+    namespace: "{{ test_storage_provisioner_namespace }}"
+  register: _result
+  delay: 10
+  retries: 24
+  until: (_result.resources | length > 0) and (_result.resources[0].status.phase == 'Succeeded')
+
+- name: Delete test-storage-provisioner namespace
+  kubernetes.core.k8s:
+    api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    kind: Namespace
+    name: "{{ test_storage_provisioner_namespace }}"
+    state: absent
+    wait: true
+  register: _result

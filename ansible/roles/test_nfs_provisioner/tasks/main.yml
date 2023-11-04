@@ -8,8 +8,8 @@
 - name: Ensure test namespace exists
   kubernetes.core.k8s:
     api_key: "{{ api_key | default(omit) }}"
-    kind: Namespace
     kubeconfig: "{{ kubeconfig_path }}"
+    kind: Namespace
     name: "{{ test_nfs_provisioner_namespace }}"
     state: present
   register: _result
@@ -25,8 +25,8 @@
 - name: Wait for PersistentVolumeClaim to be bound
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
-    kind: PersistentVolumeClaim
     kubeconfig: "{{ kubeconfig_path }}"
+    kind: PersistentVolumeClaim
     name: "{{ test_nfs_provisioner_claim }}"
     namespace: "{{ test_nfs_provisioner_namespace }}"
   register: _result
@@ -45,8 +45,8 @@
 - name: Wait for write-pod success
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
-    kind: Pod
     kubeconfig: "{{ kubeconfig_path }}"
+    kind: Pod
     name: write-pod
     namespace: "{{ test_nfs_provisioner_namespace }}"
   register: _result
@@ -65,8 +65,8 @@
 - name: Wait for read-pod success
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
-    kind: Pod
     kubeconfig: "{{ kubeconfig_path }}"
+    kind: Pod
     name: read-pod
     namespace: "{{ test_nfs_provisioner_namespace }}"
   register: _result
@@ -77,8 +77,8 @@
 - name: Delete test-nfs-provisioner namespace
   kubernetes.core.k8s:
     api_key: "{{ api_key | default(omit) }}"
-    kind: Namespace
     kubeconfig: "{{ kubeconfig_path }}"
+    kind: Namespace
     name: "{{ test_nfs_provisioner_namespace }}"
     state: absent
     wait: true

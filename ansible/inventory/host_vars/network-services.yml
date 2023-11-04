@@ -1,0 +1,9 @@
+---
+
+ansible_host: netsvcs.lab.gmarcy.com
+ansible_ssh_host: netsvcs.lab.gmarcy.com
+#host_address: 192.168.222.253
+install_disk: nvme0n1
+ipmi_info:
+  interface: none
+ipxe_mac_address: 34-1a-4c-03-45-23

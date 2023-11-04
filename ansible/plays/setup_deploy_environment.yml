@@ -1,0 +1,29 @@
+---
+
+- name: Deploy the setup
+  hosts: setup_host
+  gather_facts: false
+  tags: tag_deploy_setup
+  roles:
+  - role: check_playbook_terminated
+  - role: check_stop_before
+    task_to_check: task-deploy-setup
+  - role: setup_deploy_environment
+  - role: prepare_deploy_ssh
+  - role: create_host_ssh_config
+    ssh_hosts: "{{ groups['setup_hypervisors'] }}"
+    ssh_keytype: "{{ hostvars['localhost-facts'].ssh_keytype }}"
+    keypair_path: "{{ hostvars[inventory_hostname].deploy_keypair_path }}"
+    config_path: "{{ hostvars[inventory_hostname].deploy_ssh_config }}"
+    include_paths: "{{ hostvars[inventory_hostname].deploy_include_paths }}"
+    when: groups['setup_hypervisors'] is defined
+  - role: create_keypair_set_facts
+    ssh_path: "{{ hostvars[inventory_hostname].deploy_keypair_path }}"
+    ssh_keytype: "{{ hostvars['localhost-facts'].ssh_keytype }}"
+    ssh_comment: "{{ inventory_hostname + ' ' + hostvars['playbook-facts'].remote_user + '@' + hostvars[inventory_hostname].ssh_connection_address }}"
+  - role: add_authorized_key_from_keypair
+    ssh_user: "{{ hostvars['playbook-facts'].remote_user }}"
+    ssh_pubkey: "{{ hostvars[inventory_hostname].keypair_pubkey }}"
+    ssh_comment: "{{ hostvars[inventory_hostname].keypair_comment }}"
+  - role: check_stop_after
+    task_to_check: task-deploy-setup

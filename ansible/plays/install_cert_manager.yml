@@ -13,3 +13,15 @@
     api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
     kubeconfig_path: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
     target_namespace: cert-manager
+  tasks:
+  - name: Create self-signed cluster issuer
+    kubernetes.core.k8s:
+      api_key: "{{ hostvars['cluster-facts']['api_key'] | default(omit) }}"
+      kubeconfig: "{{ hostvars['cluster-facts']['kubeconfig_path'] }}"
+      api_version: cert-manager.io/v1
+      kind: ClusterIssuer
+      name: selfsigned-cluster-issuer
+      definition:
+        spec:
+          selfSigned: {}
+    register: _result

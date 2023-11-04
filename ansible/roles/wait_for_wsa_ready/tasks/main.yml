@@ -3,9 +3,9 @@
 - name: Wait for WebSphereAutomation instance to become Ready
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: automation.websphere.ibm.com/v1
     kind: WebSphereAutomation
-    kubeconfig: "{{ kubeconfig_path }}"
     name: wsa
     namespace: "{{ was_automation_namespace }}"
     wait: true
@@ -22,8 +22,8 @@
 - name: Fetch the credentials to access the UI
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
-    kind: Secret
     kubeconfig: "{{ kubeconfig_path }}"
+    kind: Secret
     name: platform-auth-idp-credentials
     namespace: "{{ common_service_namespace }}"
   register: _result
@@ -36,8 +36,8 @@
 - name: Wait for wsa-secure-cve-monitor-init Job to complete
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
-    kind: Job
     kubeconfig: "{{ kubeconfig_path }}"
+    kind: Job
     name: wsa-secure-cve-monitor-init
     namespace: "{{ was_automation_namespace }}"
     wait: true

@@ -10,9 +10,9 @@
     - name: Check for existing default storage class
       kubernetes.core.k8s_info:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: storage.k8s.io/v1
         kind: StorageClass
-        kubeconfig: "{{ kubeconfig_path }}"
       register: _result
 
     - name: Set fact for existing default storage class
@@ -24,13 +24,13 @@
     - name: Clear the old default storage class
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: storage.k8s.io/v1
         definition:
           metadata:
             annotations:
               storageclass.kubernetes.io/is-default-class: 'false'
         kind: StorageClass
-        kubeconfig: "{{ kubeconfig_path }}"
         name: "{{ old_default_sc }}"
         state: patched
       register: _result
@@ -39,13 +39,13 @@
     - name: Set the default storage class
       kubernetes.core.k8s:
         api_key: "{{ api_key | default(omit) }}"
+        kubeconfig: "{{ kubeconfig_path }}"
         api_version: storage.k8s.io/v1
         definition:
           metadata:
             annotations:
               storageclass.kubernetes.io/is-default-class: 'true'
         kind: StorageClass
-        kubeconfig: "{{ kubeconfig_path }}"
         name: "{{ default_storage_class }}"
         state: patched
       register: _result

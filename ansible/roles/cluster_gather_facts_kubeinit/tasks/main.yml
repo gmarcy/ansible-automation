@@ -1,0 +1,96 @@
+---
+
+- name: Get a list of the cluster objects
+  uri:
+    url: "{{ kubeinit_install_rest_url }}/clusters"
+  register: _result
+
+- name: Set our cluster facts
+  set_fact:
+    cluster_name: "{{ item.name }}"
+    cluster_id: "{{ item.id }}"
+    cluster_state: "{{ item.status }}"
+    cluster_url: "{{ kubeinit_install_host_url }}{{ item.href }}"
+    cluster_events_url: "{{ kubeinit_install_rest_url }}/events?cluster_id={{ item.id }}"
+    cluster_api_url: "{{ 'https://api.' + item.name + '.' + item.base_dns_domain + ':6443' }}"
+    cluster_domain: "{{ item.base_dns_domain }}"
+  loop: "{{ _result.json }}"
+  when: item.name == hostvars['cluster-facts']['cluster_name']
+
+- name: Get a list of the infra-env objects
+  uri:
+    url: "{{ kubeinit_install_rest_url }}/infra-envs"
+  register: _result
+
+- name: Set our infra-env facts
+  set_fact:
+    infra_env_id: "{{ item.id }}"
+    infra_env_url: "{{ kubeinit_install_host_url }}{{ item.href }}"
+  loop: "{{ _result.json }}"
+  when: item.cluster_id == cluster_id
+
+- name: Set common cluster facts
+  set_fact:
+    cluster_api_url: "{{ cluster_api_url }}"
+    cluster_domain: "{{ cluster_domain }}"
+    kubeconfig_path: "{{ hostvars['cluster-facts']['cluster_dir'] + '/kubeconfig' }}"
+  delegate_to: 'cluster-facts'
+  delegate_facts: true
+
+- when: not (cluster_facts_only | default(false))
+  block:
+
+    - name: Gather hosts facts
+      import_role:
+        name: kubeinit_gather_hosts_facts
+      vars:
+        cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+
+    - name: Fetch cluster credentials
+      uri:
+        url: "{{ cluster_url }}/credentials"
+      register: _result
+      no_log: "{{ noLog }}"
+
+    - name: Set facts for cluster
+      set_fact:
+        console_url: "{{ _result.json.console_url }}"
+        console_username: "{{ _result.json.username }}"
+        console_password: "{{ _result.json.password }}"
+      no_log: "{{ noLog }}"
+      delegate_to: 'cluster-facts'
+      delegate_facts: true
+
+    - name: Authenticate to the cluster
+      community.okd.openshift_auth:
+        host: "{{ cluster_api_url }}"
+        username: "{{ hostvars['cluster-facts']['console_username'] }}"
+        password: "{{ hostvars['cluster-facts']['console_password'] }}"
+        state: present
+        validate_certs: false
+      register: _result
+      no_log: "{{ noLog }}"
+
+    - name: Set facts for cluster
+      set_fact:
+        api_key: "{{ _result.openshift_auth.api_key }}"
+      no_log: "{{ noLog }}"
+      delegate_to: 'cluster-facts'
+      delegate_facts: true
+
+    - name: Download the Openshift cluster CLI and authenticate to the cluster
+      import_role:
+        name: download_cluster_cli
+      vars:
+        client_arch: "{{ hostvars['localhost-facts']['cpu_arch'] }}"
+        client_os: "{{ hostvars['localhost-facts']['os_family'] }}"
+        cluster_domain: "{{ hostvars['cluster-facts']['cluster_domain'] }}"
+        cluster_bin_dir: "{{ hostvars['cluster-facts']['cluster_bin_dir'] }}"
+
+    - name: Authenticate to OpenShift
+      import_role:
+        name: openshift_authenticate
+      vars:
+        cluster_api_url: "{{ hostvars['cluster-facts']['cluster_api_url'] }}"
+        console_username: "{{ hostvars['cluster-facts']['console_username'] }}"
+        console_password: "{{ hostvars['cluster-facts']['console_password'] }}"

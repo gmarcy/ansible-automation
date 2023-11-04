@@ -3,9 +3,9 @@
 - name: Check for existing CatalogSource
   kubernetes.core.k8s_info:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: operators.coreos.com/v1alpha1
     kind: CatalogSource
-    kubeconfig: "{{ kubeconfig_path }}"
     name: "{{ target_catalog_source_name }}"
     namespace: "{{ target_catalog_source_namespace }}"
   register: _result

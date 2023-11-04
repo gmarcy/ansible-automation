@@ -1,0 +1,17 @@
+---
+
+- name: Prepare the environment
+  hosts: setup_host
+  gather_facts: false
+  tags: tag_prepare_environment
+  roles:
+  - role: check_playbook_terminated
+  - role: check_stop_before
+    task_to_check: task-prepare-environment
+  - role: setup_ansible_host
+  - role: gather_host_facts
+    gather_packages_info: false
+    gather_services_info: false
+  - role: setup_prepare_environment
+  - role: check_stop_after
+    task_to_check: task-prepare-environment

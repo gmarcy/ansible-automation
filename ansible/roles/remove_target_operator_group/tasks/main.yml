@@ -3,9 +3,9 @@
 - name: Remove target_operator_group
   kubernetes.core.k8s:
     api_key: "{{ api_key | default(omit) }}"
+    kubeconfig: "{{ kubeconfig_path }}"
     api_version: operators.coreos.com/v1
     kind: OperatorGroup
-    kubeconfig: "{{ kubeconfig_path }}"
     name: "{{ target_operator_group }}"
     namespace: "{{ target_namespace }}"
     state: absent

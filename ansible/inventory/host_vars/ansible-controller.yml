@@ -1,0 +1,9 @@
+---
+
+ansible_host: nuc8.lab.gmarcy.com
+ansible_ssh_host: nuc8.lab.gmarcy.com
+host_address: 192.168.222.212
+install_disk: nvme0n1
+ipmi_info:
+  interface: none
+ipxe_mac_address: 1c-69-7a-6d-18-d3

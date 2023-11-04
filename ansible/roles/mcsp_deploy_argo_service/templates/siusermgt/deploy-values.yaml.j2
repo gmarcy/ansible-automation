@@ -6,7 +6,7 @@ containerPortHttps: 9445
 deploymentPromoterSecret: siusermgtms-dp-secret
 environment: <place-holder-env>
 host: <place-holder-host>
-image: icr.io/automation-saas-platform/tenant-management/siusermgt:20230215111641-main-c3b25a507612b294a7e1df6afaebb3d8af721762
+image: icr.io/automation-saas-platform/tenant-management/siusermgt:20230412090458-main-1bec6ca6a84e1a9521b170d0dc1de8324610ed3c
 imagePullSecrets: siusermgtms-global-registry-secret
 namespace: <place-holder-ns>
 oldimagePullSecrets: siusermgtms-registry-secret
@@ -16,7 +16,7 @@ promotionEnvAppSet: <place-holder-promoenvappset>
 replicaCount: 1
 replicas: <place-holder-replicas>
 resourceLimits:
-  cpuLimit: 200m
+  cpuLimit: 500m
   cpuReq: 100m
   memLimit: 600Mi
   memReq: 400Mi
@@ -39,16 +39,19 @@ specificValues:
   AWS_DYNAMODB_TABLE_SIUSERMGT_SI_GROUP: TenantMgt.SiGroup.Fyre
   AWS_DYNAMODB_TABLE_SIUSERMGT_SI_ROLE_BINDING: TenantMgt.SiRoleBinding.Fyre
   AWS_DYNAMODB_TABLE_SIUSERMGT_SI_ROLE: TenantMgt.SiRole.Fyre
-
+  AWS_DYNAMODB_ENDPOINT: http://dynamodblocal-imagestream.<place-holder-ns>.svc.cluster.local:9446
+  AWS_DYNAMODB_REGION: us-east-1
+  AWS_DYNAMODB_TABLE_SIUSERMGT_SI_ACCESS_DATA: TenantMgt.SiAccessDataByCrn.Fyre
+  AWS_DYNAMODB_TABLE_SIUSERMGT_SI_API_KEY: TenantMgt.SiApiKey.Fyre
+  AWS_DYNAMODB_TABLE_SIUSERMGT_SERVICEID: TenantMgt.ServiceId.Fyre
+  NOTIFICATION_SERVICE_ENABLED: "true"
+  NotificationServiceClient_API_HOST: https://notificationsvcms-<place-holder-ns>.svc.cluster.local:9446
 
 CLIENT_ID: {{ CLIENT_ID }}
 CLIENT_SECRET: {{ CLIENT_SECRET }}
 DISCOVERY_ENDPOINT: {{ VERIFY_URL }}/.well-known/openid-configuration
 USER_VALIDATION_API: https://openshift.default.svc/apis/user.openshift.io/v1/users/~
 USER_VALIDATION_API_V2: https://openshift.default.svc/apis/user.openshift.io/v1/users/~
-
-AWS_DYNAMODB_ENDPOINT: http://dynamodblocal-imagestream.test-tenantmgt.svc.cluster.local:9446
-AWS_DYNAMODB_REGION: us-west-2  
 
 AWS_ACCESS_KEY_ID: dXNlcm5hbWU=
 AWS_SECRET_ACCESS_KEY: cGFzc3dvcmQ=

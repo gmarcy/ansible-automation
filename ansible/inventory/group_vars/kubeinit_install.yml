@@ -1,0 +1,10 @@
+---
+
+ansible_host: localhost
+ansible_connection: local
+
+kubeinit_install_host: "{{ inv_kubeinit_install_host | default('localhost') }}"
+#kubeinit_install_host_url: "http://{{ kubeinit_install_host }}:8080"
+#kubeinit_install_rest_url: "http://{{ kubeinit_install_host }}:8080/api/kubeinit-install/v2"
+
+services_dir: "{{ lookup('env','HOME') }}/.kubeinit/services"

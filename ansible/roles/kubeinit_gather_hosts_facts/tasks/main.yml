@@ -1,0 +1,25 @@
+---
+
+- name: Get the hosts entries from the infra-env
+  uri:
+    url: "{{ infra_env_url }}/hosts"
+  register: _result
+
+- when: _result.json | length > 0
+  block:
+
+    - name: Set host facts
+      set_fact:
+        host_id: "{{ item.id }}"
+        host_inventory: "{{ item.inventory | from_json }}"
+        host_url: "{{ kubeinit_install_host_url }}{{ item.href }}"
+      loop: "{{ _result.json }}"
+      delegate_to: "{{ item.requested_hostname }}"
+      delegate_facts: true
+
+    - name: Set host hostname fact
+      set_fact:
+        host_hostname: "{{ hostvars[item].host_inventory['hostname'] }}"
+      loop: "{{ groups['cluster_hosts'] }}"
+      delegate_to: "{{ item}}"
+      delegate_facts: true

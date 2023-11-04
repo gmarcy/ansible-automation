@@ -1,0 +1,7 @@
+---
+
+- import_playbook: ../plays/gather_playbook_facts.yml
+- import_playbook: ../plays/setup_prepare_environment.yml
+- import_playbook: ../plays/setup_cleanup_deployment.yml
+- import_playbook: ../plays/setup_deploy_environment.yml
+- import_playbook: ../plays/setup_hypervisor_hosts.yml

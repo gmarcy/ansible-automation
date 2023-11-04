@@ -5,11 +5,11 @@
 
     - name: Set _ssh_target fact
       ansible.builtin.set_fact:
-        _ssh_target: "{{ hostvars[inventory_hostname].ansible_ssh_user }}@{{ hostvars[inventory_hostname].ansible_host }}"
+        _ssh_target: "{{ ansible_ssh_user | default(ssh_username) }}@{{ ansible_ssh_host | default(ssh_hostname) }}"
 
     - name: Set _ssh_command fact
       ansible.builtin.set_fact:
-        _ssh_command: "ssh {{ hostvars[inventory_hostname].ansible_ssh_common_args }} {{ hostvars[inventory_hostname].ansible_ssh_extra_args | default() }} {{ _ssh_target }}"
+        _ssh_command: "ssh -q {{ ansible_ssh_common_args }} {{ ansible_ssh_extra_args | default() }} {{ _ssh_target }}"
 
     - name: Confirm that we can run ssh to inventory_hostname
       ansible.builtin.command: |
@@ -75,13 +75,13 @@
               changed_when: "_result.rc == 0"
               delegate_to: 'localhost-facts'
 
-            - name: Set fact for python_package_manager
+            - name: Set _install_package_command fact
               set_fact:
-                python_package_manager: "{{ 'dnf' if (_result.stdout_lines | join(' ') is match('.*[Ff][Ee][Dd][Oo][Rr][Aa].*')) else 'apt-get' }}"
+                _install_package_command: "{{ 'rpm-ostree install --apply-live' if (_result.stdout_lines | join(' ') is match('.*Fedora CoreOS.*')) else 'dnf install' if (_result.stdout_lines | join(' ') is match('.*[Ff][Ee][Dd][Oo][Rr][Aa].*')) else 'apt-get install' }}"
 
             - name: Run python install
               ansible.builtin.command: |
-                {{ _ssh_command }} sudo {{ python_package_manager }} install -y python3
+                {{ _ssh_command }} sudo {{ _install_package_command }} -y python3
               register: _result
               changed_when: "_result.rc == 0"
               delegate_to: 'localhost-facts'

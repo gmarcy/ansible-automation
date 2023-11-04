@@ -1,0 +1,25 @@
+---
+
+- name: Add user account to remote hosts
+  hosts: remote_hosts
+  gather_facts: false
+  pre_tasks:
+  - assert:
+      that: user_name is defined
+  - assert:
+      that: authorized_key_name is defined and hostvars['playbook-facts']['authorized_keys'][authorized_key_name] is defined
+  tasks:
+    - name: Create a new user account
+      user:
+        name: "{{ user_name }}"
+        groups: "{{ (user_groups | split(',')) if (user_groups is defined) else omit }}"
+      become: true
+      become_user: root
+    - name: Add keypair to authorized_keys
+      ansible.posix.authorized_key:
+        user: "{{ user_name }}"
+        key: "{{ hostvars['playbook-facts'].authorized_keys[authorized_key_name].pubkey }}"
+        comment: "{{ hostvars['playbook-facts'].authorized_keys[authorized_key_name].comment }}"
+        state: present
+      become: true
+      become_user: "{{ user_name }}"

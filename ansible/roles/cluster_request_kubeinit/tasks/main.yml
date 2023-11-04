@@ -1,0 +1,431 @@
+---
+
+- name: Find address of localhost interface on cluster network
+  import_role:
+    name: find_address_on_cluster_network
+
+- name: Register our cluster with the kubeinit-install service
+  set_fact:
+    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+    openshift_version: "{{ hostvars['cluster-facts']['openshift_version'] }}"
+    openshift_pullsecret: "{{ hostvars['playbook-secrets']['openshift_pullsecret'] }}"
+    cluster_domain: "{{ hostvars['cluster-facts']['cluster_domain'] }}"
+    ssh_public_key: "{{ hostvars['playbook-secrets']['ssh_public_key'] }}"
+    http_proxy: "{{ hostvars['cluster-facts']['http_proxy'] }}"
+    network_cidr: "{{ hostvars['cluster-facts']['network_cidr'] }}"
+    single_node: "{{ hostvars['cluster-facts']['single_node'] }}"
+    api_vip: "{{ hostvars['cluster-facts']['api_vip'] if not hostvars['cluster-facts']['single_node'] else omit }}"
+    ingress_vip: "{{ hostvars['cluster-facts']['ingress_vip'] if not hostvars['cluster-facts']['single_node'] else omit }}"
+
+- name: Get a list of the cluster objects
+  uri:
+    url: "{{ kubeinit_install_rest_url }}/clusters"
+  register: _result
+
+- name: See if a cluster already exists with our name
+  set_fact:
+    cluster_id: "{{ item.id }}"
+  loop: "{{ _result.json }}"
+  when: item.name == cluster_name
+
+# TODO: Compare fields against the values we would use to create the cluster
+
+- when: cluster_id | default('') | length == 0
+  block:
+
+    - name: Set facts to register cluster
+      set_fact:
+        high_availability_mode: "{{ ('None' if (single_node) else 'Full') | string }}"
+
+    - name: Register our cluster
+      uri:
+        url: "{{ kubeinit_install_rest_url }}/clusters"
+        method: POST
+        body_format: json
+        body:
+          name: "{{ cluster_name }}"
+          openshift_version: "{{ openshift_version }}"
+          pull_secret: "{{ lookup('unvault', openshift_pullsecret) | trim | string }}"
+          high_availability_mode: "{{ high_availability_mode }}"
+          base_dns_domain: "{{ cluster_domain }}"
+          ssh_public_key: "{{ lookup('unvault', ssh_public_key) | trim }}"
+          http_proxy: "{{ http_proxy }}"
+          network_type: "{{ 'OVNKubernetes' if (single_node) else 'OpenShiftSDN' }}"
+          machine_networks:
+          - cidr: "{{ network_cidr }}"
+          api_vip: "{{ api_vip | default(omit) }}"
+          ingress_vip: "{{ ingress_vip | default(omit) }}"
+          vip_dhcp_allocation: false
+          schedulable_masters: true
+          additional_ntp_source: 'ns-gce.sslip.io,time.cloudflare.com'
+        status_code: 201
+      register: _result
+
+    - name: Set cluster id
+      set_fact:
+        cluster_id: "{{ _result.json.id }}"
+
+    - name: Remove previous cluster dir
+      file:
+        path: "{{ cluster_dir }}"
+        state: absent
+
+- name: Get a list of the infra-env objects
+  uri:
+    url: "{{ kubeinit_install_rest_url }}/infra-envs"
+  register: _result
+
+- name: See if our infra-env already exists
+  set_fact:
+    infra_env_id: "{{ item.id }}"
+  loop: "{{ _result.json }}"
+  when: item.name == (cluster_name + '_infra-env')
+
+- name: Register infra-env for our cluster
+  uri:
+    url: "{{ kubeinit_install_rest_url }}/infra-envs"
+    method: POST
+    body_format: json
+    body:
+      name: "{{ cluster_name }}_infra-env"
+      cluster_id: "{{ cluster_id }}"
+      openshift_version: "{{ openshift_version }}"
+      proxy:
+        http_proxy: "{{ http_proxy }}"
+        no_proxy: ""
+      pull_secret: "{{ lookup('unvault', openshift_pullsecret) | trim | string }}"
+      ssh_authorized_key: "{{ lookup('unvault', ssh_public_key) | trim }}"
+    status_code: 201
+  register: _result
+  when: infra_env_id | default('') | length == 0
+
+- import_role:
+    name: check_stop_after
+  vars:
+    task_to_check: kubeinit-register-cluster
+
+- name: Gather kubeinit cluster facts
+  import_role:
+    name: cluster_gather_facts_kubeinit
+  vars:
+    cluster_facts_only: true
+
+- name: Collect ipxe macaddrs from all cluster hosts
+  set_fact:
+    cluster_ipxe_macaddrs: "{{ (cluster_ipxe_macaddrs | default([])) + [item] }}"
+  loop: "{{ hostvars['cluster-facts']['cluster_host_names'] | map('extract', hostvars, 'ipxe_mac_address') }}"
+
+- name: Create ipxe folders for cluster host mac addresses
+  file:
+    path: "{{ services_dir + '/ipxe/' + item }}"
+    state: directory
+    mode: '0755'
+  loop: "{{ cluster_ipxe_macaddrs }}"
+  register: _result
+
+- name: Create the boot.ipxe file
+  get_url:
+    url: "{{ infra_env_url }}/downloads/files?file_name=ipxe-script&mac={{ item }}"
+    dest: "{{ services_dir + '/ipxe/' + item + '/boot.ipxe' }}"
+    mode: '0644'
+  register: _result
+  changed_when: false
+  loop: "{{ cluster_ipxe_macaddrs }}"
+
+- name: Wait until the image download service is ready
+  uri:
+    url: "http://{{ hostvars['localhost-facts']['address_on_cluster_network'] }}:8888/health"
+  register: _result
+  delay: 30
+  retries: 10
+  until: _result is defined and _result.status == 200
+
+- name: Boot the cluster hosts
+  import_role:
+    name: power_on_cluster_hosts
+  vars:
+    cluster_host_names: "{{ hostvars['cluster-facts']['cluster_host_names'] }}"
+    ipmitool_password: "{{ hostvars['playbook-secrets']['ipmitool_password'] }}"
+    ipmitool_username: "{{ hostvars['playbook-secrets']['ipmitool_username'] }}"
+
+- name: Wait for all cluster hosts entries to appear in the infra-env
+  uri:
+    url: "{{ infra_env_url }}/hosts"
+  register: _result
+  delay: 30
+  retries: 20
+  until: >
+    (_result.status == 200 and _result.json | length > 0) and
+    (_result.json | map(attribute='inventory', default='MISSING') | intersect(['MISSING']) | length == 0) and
+    (_result.json | map(attribute='inventory') | length == groups['cluster_hosts'] | length)
+
+- name: Set host facts
+  set_fact:
+    host_id: "{{ item.id }}"
+    host_inventory: "{{ item.inventory | from_json }}"
+    host_url: "{{ kubeinit_install_host_url }}{{ item.href }}"
+  loop: "{{ _result.json }}"
+  delegate_to: "{{ item.requested_hostname }}"
+  delegate_facts: true
+
+- name: Set host hostname fact
+  set_fact:
+    host_hostname: "{{ hostvars[item]['host_inventory']['hostname'] }}"
+  loop: "{{ groups['cluster_hosts'] }}"
+  delegate_to: "{{ item}}"
+  delegate_facts: true
+
+- name: Wait for hosts to enter known state or beyond
+  uri:
+    url: "{{ hostvars[item]['host_url'] }}"
+  loop: "{{ groups['cluster_hosts'] }}"
+  register: _result
+  delay: 30
+  retries: 20
+  until: _result.status == 200 and _result.json.status in ['known', 'installing-in-progress', 'installed']
+
+- name: Fetch current hosts status
+  uri:
+    url: "{{ hostvars[item]['host_url'] }}"
+  loop: "{{ groups['cluster_hosts'] }}"
+  register: _result
+
+- name: Wait for hosts to enter ready to install state
+  uri:
+    url: "{{ hostvars[item]['host_url'] }}"
+  loop: "{{ groups['cluster_hosts'] }}"
+  register: _result
+  delay: 30
+  retries: 20
+  until: _result.json.status in ['known', 'installing-in-progress', 'installed']
+
+- name: Collect the host status of all cluster hosts
+  set_fact:
+    all_host_states: "{{ _result.results | map(attribute='json.status') | unique }}"
+
+- when: (['known'] is subset(all_host_states))
+  block:
+
+    - name: Collect the install disk id on all cluster hosts
+      set_fact:
+        cluster_install_disks: "{{ cluster_install_disks | default([]) + ([hostname] | product(paths)) }}"
+      loop: "{{ groups['cluster_hosts'] | zip(groups['cluster_hosts'] | map('extract', hostvars, 'host_inventory') | map(attribute='disks')) }}"
+      vars:
+        hostname: "{{ item[0] }}"
+        paths: "{{ item[1] | map(attribute='name') | zip(item[1] | map(attribute='id')) }}"
+
+    - name: Select our installation disk
+      uri:
+        url: "{{ host_url }}"
+        method: PATCH
+        body_format: json
+        body:
+          disks_selected_config:
+          - id: "{{ install_disk_id }}"
+            role: install
+        status_code: 201
+      loop: "{{ cluster_install_disks }}"
+      vars:
+        host_url: "{{ hostvars[item[0]]['host_url'] }}"
+        disk_name: "{{ item[1][0] }}"
+        install_disk_id: "{{ item[1][1] }}"
+      register: _result
+      when: disk_name == hostvars[item[0]]['install_disk']
+
+- name: Set ssh_user fact
+  set_fact:
+    ssh_user: core
+
+- name: Wait for hosts to enter ready to install state
+  uri:
+    url: "{{ hostvars[item]['host_url'] }}"
+  loop: "{{ groups['cluster_hosts'] }}"
+  register: _result
+  delay: 30
+  retries: 20
+  until: _result.json.status in ['known', 'installing-in-progress', 'installed']
+
+- name: Collect the host status of all cluster hosts
+  set_fact:
+    all_host_states: "{{ _result.results | map(attribute='json.status') | unique }}"
+
+- when: (['known'] is subset(all_host_states))
+  block:
+
+    - name: Collect the paths and eligibility of all disks on all cluster hosts
+      set_fact:
+        cluster_disks: "{{ cluster_disks | default([]) | union([ssh_host] | product(paths)) }}"
+      loop: "{{ groups['cluster_hosts'] | zip(groups['cluster_hosts'] | map('extract', hostvars, 'host_inventory') | map(attribute='disks')) }}"
+      vars:
+        ssh_host: "{{ item[0] + '.' + hostvars[item[0]]['host_domain'] }}"
+        paths: "{{ item[1] | map(attribute='path') | zip(item[1] | map(attribute='installation_eligibility.eligible', default=false)) }}"
+
+    - name: Find eligible disks
+      set_fact:
+        eligible_disks: "{{ eligible_disks | default([]) | union([[ssh_host, path]]) }}"
+      loop: "{{ cluster_disks }}"
+      vars:
+        ssh_host: "{{ item[0] }}"
+        path: "{{ item[1][0] }}"
+        eligible: "{{ item[1][1] }}"
+      when: eligible
+
+    - name: Find eligible hosts
+      set_fact:
+        eligible_hosts: "{{ eligible_hosts | default([]) | union([ssh_host]) }}"
+      loop: "{{ eligible_disks }}"
+      vars:
+        ssh_host: "{{ item[0] }}"
+
+    - name: Run ssh to find any lvm partitions
+      command:
+        ssh {{ ssh_user }}@{{ ssh_host }} sudo pvdisplay -C -o pv_name,vg_name --no-headings --separator ':'
+      loop: "{{ eligible_hosts }}"
+      vars:
+        ssh_host: "{{ item }}"
+      register: _result
+      changed_when: _result is not defined
+
+    - name: Create a list of all the pv/vg names
+      set_fact:
+        pv_vg_names: "{{ pv_vg_names | default([]) | union(entries) }}"
+      loop: "{{ _result.results | map(attribute='item') | zip(_result.results | map(attribute='stdout_lines')) }}"
+      vars:
+        entries: "{{ [item[0]] | product(item[1]) }}"
+      when: item[1] | length > 0
+
+    - when: pv_vg_names | default([]) | length > 0
+      name: Remove lvm volumes from any of our eligible disks
+      block:
+
+      - name: Create a list of the pvs/vgs to check
+        set_fact:
+          pv_vg_to_check: "{{ pv_vg_to_check | default([]) | union([{'host': ssh_host, 'pv': pv_name, 'vg': vg_name}]) }}"
+        loop: "{{ pv_vg_names }}"
+        vars:
+          ssh_host: "{{ item[0] }}"
+          pv_name: "{{ item[1] | trim | split(':') | first }}"
+          vg_name: "{{ item[1] | trim | split(':') | last }}"
+
+      - name: Create a list of the pvs/vgs to remove
+        set_fact:
+          pv_vg_to_remove: "{{ pv_vg_to_remove | default([]) | union(matching_pvs) }}"
+        loop: "{{ eligible_disks }}"
+        vars:
+          matching_pvs: "{{ pv_vg_to_check | selectattr('host','==',item[0]) | selectattr('pv','match','^' + item[1]) }}"
+        when: matching_pvs | length > 0
+
+      - name: Run ssh to remove any lvm volume groups
+        command:
+          ssh {{ ssh_user }}@{{ ssh_host }} sudo vgremove -f {{ vg_name }}
+        loop: "{{ pv_vg_to_remove }}"
+        vars:
+          ssh_host: "{{ item['host'] }}"
+          vg_name: "{{ item['vg'] }}"
+        register: _result
+        changed_when: _result is not defined
+        when: vg_name | length > 0
+
+      - name: Run ssh to remove lvm physical volumes
+        command:
+          ssh {{ ssh_user }}@{{ ssh_host }} sudo pvremove -f {{ pv_name }}
+        loop: "{{ pv_vg_to_remove }}"
+        vars:
+          ssh_host: "{{ item['host'] }}"
+          pv_name: "{{ item['pv'] }}"
+        register: _result
+        changed_when: _result is not defined
+        when: pv_name | length > 0
+
+    - name: Run ssh to wipe the filesystems of all eligible disks
+      command:
+        ssh {{ ssh_user }}@{{ ssh_host }} sudo wipefs -a {{ path }}
+      loop: "{{ eligible_disks }}"
+      vars:
+        ssh_host: "{{ item[0] }}"
+        path: "{{ item[1] }}"
+      register: _result
+      changed_when: _result is not defined
+
+    - name: Run ssh to wipe the filesystems of all eligible disks
+      command:
+        ssh {{ ssh_user }}@{{ ssh_host }} sudo dd if=/dev/zero of={{ path }}  bs=1M count=10 conv=fsync
+      loop: "{{ eligible_disks }}"
+      vars:
+        ssh_host: "{{ item[0] }}"
+        path: "{{ item[1] }}"
+      register: _result
+      changed_when: _result is not defined
+
+    - name: Run ssh to show status of all disks
+      command:
+        ssh {{ ssh_user }}@{{ ssh_host }} sudo lsblk
+      loop: "{{ eligible_hosts }}"
+      vars:
+        ssh_host: "{{ item }}"
+      register: _result
+      changed_when: _result is not defined
+
+- import_role:
+    name: kubeinit_gather_hosts_facts
+  vars:
+    cluster_name: "{{ hostvars['cluster-facts']['cluster_name'] }}"
+- import_role:
+    name: check_stop_after
+  vars:
+    task_to_check: kubeinit-register-hosts
+
+- name: Wait for hosts to enter ready to install state
+  uri:
+    url: "{{ hostvars[item]['host_url'] }}"
+  loop: "{{ groups['cluster_hosts'] }}"
+  register: _result
+  delay: 30
+  retries: 20
+  until: _result.json.status in ['known', 'installing-in-progress', 'installed']
+
+- name: Collect the host status of all cluster hosts
+  set_fact:
+    all_host_states: "{{ _result.results | map(attribute='json.status') | unique }}"
+
+- when: all_host_states is subset(['known'])
+  block:
+
+    - name: Create the cluster directory
+      file:
+        path: "{{ cluster_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Get the existing cluster events from before the install
+      uri:
+        url: "{{ hostvars['kubeinit-install']['cluster_events_url'] }}"
+      register: _result
+
+    - name: Copy cluster events to cluster_dir
+      copy:
+        content: "{{ _result.json | to_nice_json }}"
+        dest: "{{ cluster_dir }}/cluster_events.json"
+
+    - name: Get a list of the cluster objects
+      uri:
+        url: "{{ hostvars['kubeinit-install']['cluster_url'] }}"
+      register: _result
+
+    - name: Copy cluster status to cluster_dir
+      copy:
+        content: "{{ _result.json | to_nice_json }}"
+        dest: "{{ cluster_dir }}/cluster_status.json"
+
+    - name: Install cluster
+      uri:
+        url: "{{ hostvars['kubeinit-install']['cluster_url'] }}/actions/install"
+        method: POST
+        status_code: 202
+      register: _result
+
+#- name: Wait for the cluster install to complete
+#  import_role:
+#    name: kubeinit_wait_for_install_complete
+#  vars:
+#    cluster_dir: "{{ hostvars['cluster-facts']['cluster_dir'] }}"

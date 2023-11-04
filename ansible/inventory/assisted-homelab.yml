@@ -20,7 +20,7 @@ all:
           - nuc10
         inv_kubernetes_distro: openshift
         inv_openshift_distro: ocp
-        inv_openshift_version: '4.11.17'
+        inv_openshift_version: '4.12.22'
     cluster_hosts:
       hosts:
         nuc10:
