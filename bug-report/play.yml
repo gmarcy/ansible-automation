@@ -1,10 +1,9 @@
 ---
 
-- hosts: test_group
+- hosts: all
   gather_facts: false
   tasks:
-  - debug: var=inv_value
   - debug: var=actual_value
-  - debug: var=hostvars['test-group'].actual_value
-  - debug: var=inventory_hostname
-  - debug: var=hostvars[inventory_hostname].actual_value
+  - debug: var=hostvars['localhost'].actual_value
+  - debug: var=indirect_value
+  - debug: var=hostvars['localhost'].indirect_value

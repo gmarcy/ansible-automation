@@ -1,9 +1,0 @@
----
-
-all:
-  children:
-    test_group:
-      hosts:
-        test-group:
-      vars:
-        inv_value: "{{ inv_value_fact }}"
