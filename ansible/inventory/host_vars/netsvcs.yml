@@ -7,3 +7,6 @@ install_disk: nvme0n1
 ipmi_info:
   interface: none
 ipxe_mac_address: 34-1a-4c-03-45-23
+prepare_remote_host_roles:
+- prepare_csi_lvm
+csi_lvm_device: /dev/nvme0n1p6

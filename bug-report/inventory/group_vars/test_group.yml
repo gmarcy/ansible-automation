@@ -1,0 +1,6 @@
+---
+
+ansible_host: localhost
+ansible_connection: local
+
+actual_value: "{{ inv_value | default('default-value') }}"

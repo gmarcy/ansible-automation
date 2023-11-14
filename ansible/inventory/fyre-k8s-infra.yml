@@ -1,0 +1,29 @@
+---
+
+all:
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  children:
+    cluster_facts:
+      hosts:
+        cluster-facts:
+      vars:
+        cluster_provisioner: 'k8s_provisioner'
+        inv_cluster_description: 'Kubernetes Cluster'
+        inv_cluster_domain: fyre.ibm.com
+    k8s_provisioner:
+      hosts:
+        k8s-provisioner:
+      vars:
+        provisioning_role: 'cluster_request_k8s'
+        deprovisioning_role: 'cluster_cleanup_k8s'
+        cluster_facts_role: 'cluster_gather_facts_k8s'
+        deploy_infra_services: true
+        vars_inventory:
+          fyre_group_id: 52
+          fyre_platform: x
+          fyre_site: rtp
+          k8s_inf_create_node: true
+          k8s_inf_os: 'CentOS Stream 9'
+          k8s_master_nodes: 1
+          k8s_worker_nodes: 0

@@ -1,0 +1,58 @@
+---
+
+all:
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  children:
+    all_nodes:
+      hosts:
+        gmarcy-k8s-master:
+          ansible_connection: "ssh"
+          ansible_host: "gmarcy-k8s-master.fyre.ibm.com"
+          ansible_ssh_extra_args: "-F /Users/gmarcy/.ssh/config.gmarcy-k8s"
+          ansible_ssh_user: "root"
+          cluster_role: "master"
+          fqdn: "gmarcy-k8s-master.fyre.ibm.com"
+          privateip: "10.21.97.91"
+          publicip: "9.46.66.74"
+          short_hostname: "gmarcy-k8s-master"
+    cluster_nodes:
+      hosts:
+        gmarcy-k8s-master:
+    infra_node:
+    master_nodes:
+      hosts:
+        gmarcy-k8s-master:
+    worker_nodes:
+    cluster_facts:
+      hosts:
+        cluster-facts:
+      vars:
+        cluster_provisioner: 'hosted_provisioner'
+        inv_cluster_description: 'Kubernetes K3S Cluster'
+        inv_cluster_domain: fyre.ibm.com
+        inv_kubernetes_distro: k3s
+        inv_kubernetes_version: '1.24'
+    hosted_provisioner:
+      hosts:
+        hosted-provisioner:
+      vars:
+        provisioning_role: 'cluster_request_hosted'
+        deprovisioning_role: 'cluster_cleanup_hosted'
+        cluster_facts_role: 'cluster_gather_facts_hosted'
+        deploy_infra_services: false
+        vars_inventory:
+          k8s_version: 1.24.9
+          k8s_engine: k3s
+          k8s_master_nodes: 1
+          k8s_worker_nodes: 0
+    cluster_storage:
+      hosts:
+        cluster-storage:
+      vars:
+        storage_provisioner: 'rook-cephfs'
+        provisioning_role: 'storage_deploy_cephfs'
+        deprovisioning_role: 'storage_remove_cephfs'
+        inv_rook_ceph_release: v1.10.4
+        inv_default_storage_class: "{{ cephfs_storage_class }}"
+        inv_default_block_class: "{{ cephfs_block_class }}"

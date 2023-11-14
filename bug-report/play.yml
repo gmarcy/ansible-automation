@@ -1,0 +1,10 @@
+---
+
+- hosts: test_group
+  gather_facts: false
+  tasks:
+  - debug: var=inv_value
+  - debug: var=actual_value
+  - debug: var=hostvars['test-group'].actual_value
+  - debug: var=inventory_hostname
+  - debug: var=hostvars[inventory_hostname].actual_value
